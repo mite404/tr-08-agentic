@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from "react";
-import * as Tone from "tone";
 import "./App.css";
-import mpcMark from "./assets/images/MPC_mark.png";
 import { Pad } from "./components/Pad";
-import { PlayStopBtn } from "./components/PlayStopBtn";
 import { TempoDisplay } from "./components/TempoDisplay";
 import { PlayStopBtn } from "./components/PlayStopBtn";
 import { createSequencer, togglePad } from "./sequencer";
