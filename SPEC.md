@@ -1,4 +1,5 @@
 # TR-08 v1.0: System Specification
+
 **Status:** Active | **Version:** 1.0 | **Date:** 2025-11-18
 
 ---
@@ -6,18 +7,21 @@
 ## 1. Executive Summary & SLOs
 
 ### Context: "The Graffiti Wall"
+
 TR-08 is a persistent, social drum machine. Users load the last published beat, remix it, and save a new version. **No friction. No silent audio.**
 
 ### Success Metrics (SLOs)
-| Metric | Target | Notes |
-|--------|--------|-------|
-| **Time to Interactive (TTI)** | < 1.5s | UI ready; audio samples can load async |
-| **Save Latency** | < 30ms | Insert `BeatManifest` into DB |
-| **Load Latency** | < 100ms | Fetch `ORDER BY created_at DESC LIMIT 1` |
-| **Beat Payload** | < 5KB | JSONB `data` column |
-| **Audio Context Resume** | < 50ms | Force `Tone.context.resume()` on first user gesture |
+
+| Metric                        | Target  | Notes                                               |
+| ----------------------------- | ------- | --------------------------------------------------- |
+| **Time to Interactive (TTI)** | < 1.5s  | UI ready; audio samples can load async              |
+| **Save Latency**              | < 30ms  | Insert `BeatManifest` into DB                       |
+| **Load Latency**              | < 100ms | Fetch `ORDER BY created_at DESC LIMIT 1`            |
+| **Beat Payload**              | < 5KB   | JSONB `data` column                                 |
+| **Audio Context Resume**      | < 50ms  | Force `Tone.context.resume()` on first user gesture |
 
 ### Critical Guarantees
+
 - **No Data Loss:** All grid/BPM changes serialize to `BeatManifest` before DB insert.
 - **No Silent Playback:** Audio samples preload before Transport starts (with timeout fallback).
 - **No Orphaned Users:** `on_auth_user_created` trigger ensures Profile row exists.
@@ -61,6 +65,7 @@ TR-08 is a persistent, social drum machine. Users load the last published beat, 
 ```
 
 **Data Flow:**
+
 1. **User Input** → React State (immediate, debounced Save).
 2. **React State** → Serialize to `BeatManifest` (on Save button).
 3. **BeatManifest** → Validate (Zod) → Insert to `beats` table.
@@ -113,7 +118,9 @@ src/
 ### 2.3 State Management Strategy
 
 #### React State (`useState`)
+
 **Purpose:** Visual representation, user input buffer.
+
 ```typescript
 const [grid, setGrid] = useState<boolean[][]>([...]);
 const [bpm, setBpm] = useState<number>(140);
@@ -124,7 +131,9 @@ const [session, setSession] = useState<Session | null>(null);
 ```
 
 #### Audio Refs (`useRef`)
+
 **Purpose:** Persistent audio objects, unaffected by React re-renders.
+
 ```typescript
 const playersRef = useRef<Map<TrackID, Tone.Player>>(new Map());
 const sequencerRef = useRef<ReturnType<typeof createSequencer> | null>(null);
@@ -133,6 +142,7 @@ const contextResumeRef = useRef<boolean>(false);  // One-time Audio Context resu
 ```
 
 #### Key Principle
+
 - **Audio never waits for React render cycles.** The sequencer reads `gridRef.current`, not `grid` state.
 - **Grid state updates don't interrupt playback.** Sequencer callback is decoupled from state management.
 
@@ -151,22 +161,27 @@ const contextResumeRef = useRef<boolean>(false);  // One-time Audio Context resu
  * Order-independent, version-resilient.
  */
 export type TrackID =
-  | "bd_1" | "bd_2"    // Bass Drums (Kick)
-  | "sd_1" | "sd_2"    // Snares/Claps
-  | "lt_1" | "mt_1"    // Low Tom / Mid Tom
-  | "ch_1" | "oh_1"    // Closed Hat / Open Hat
-  | "cy_1" | "cb_1";   // Cymbal / Cowbell
+  | "kick_01" // Row 0: KICK 01
+  | "kick_02" // Row 1: KICK 02
+  | "bass_01" // Row 2: BASS 01
+  | "bass_02" // Row 3: BASS 02
+  | "snare_01" // Row 4: SNARE 01
+  | "snare_02" // Row 5: SNARE 02
+  | "synth_01" // Row 6: SYNTH 01
+  | "clap" // Row 7: CLAP
+  | "hh_01" // Row 8: HH 01
+  | "hh_02"; // Row 9: HH 02
 
 /**
  * TRACK DATA (per drum sound)
  * Minimal, immutable representation.
  */
 export interface TrackData {
-  sampleId: string;           // "KICK_01" - enables future sample swapping
-  volumeDb: number;           // -Infinity to 0; stored at 0.1dB precision
-  mute: boolean;              // Explicit mute flag
-  solo: boolean;              // Explicit solo flag
-  steps: boolean[];           // 16 elements (length must be 16)
+  sampleId: string; // "KICK_01" - enables future sample swapping
+  volumeDb: number; // -Infinity to 0; stored at 0.1dB precision
+  mute: boolean; // Explicit mute flag
+  solo: boolean; // Explicit solo flag
+  steps: boolean[]; // 16 elements (length must be 16)
 }
 
 /**
@@ -175,15 +190,15 @@ export interface TrackData {
  */
 export interface BeatManifest {
   meta: {
-    version: string;          // "1.0.0" - enables schema migration
-    engine: "TR-08";          // Hard constraint; rejects mismatched saves
+    version: string; // "1.0.0" - enables schema migration
+    engine: "TR-08"; // Hard constraint; rejects mismatched saves
   };
   global: {
-    bpm: number;              // 40-300 inclusive
-    swing: number;            // 0.0-1.0; currently unused (future)
-    masterVolumeDb: number;   // -Infinity to 0
+    bpm: number; // 40-300 inclusive
+    swing: number; // 0.0-1.0; currently unused (future)
+    masterVolumeDb: number; // -Infinity to 0
   };
-  tracks: Record<TrackID, TrackData>;  // Dictionary pattern
+  tracks: Record<TrackID, TrackData>; // Dictionary pattern
 }
 
 /**
@@ -191,13 +206,13 @@ export interface BeatManifest {
  * Database schema projection.
  */
 export interface BeatRecord {
-  id: string;                 // UUID
-  user_id: string;            // UUID (FK -> profiles.id)
-  name: string;               // Max 50 chars, sanitized
-  bpm: number;                // Denormalized (also in data.global.bpm)
-  data: BeatManifest;         // JSONB column
-  created_at: string;         // ISO 8601 timestamp
-  updated_at?: string;        // ISO 8601 timestamp
+  id: string; // UUID
+  user_id: string; // UUID (FK -> profiles.id)
+  name: string; // Max 50 chars, sanitized
+  bpm: number; // Denormalized (also in data.global.bpm)
+  data: BeatManifest; // JSONB column
+  created_at: string; // ISO 8601 timestamp
+  updated_at?: string; // ISO 8601 timestamp
 }
 
 /**
@@ -205,9 +220,9 @@ export interface BeatRecord {
  * Tracks AudioContext lifecycle.
  */
 export interface AudioContextState {
-  isRunning: boolean;         // Tone.context.state === "running"
-  canPlay: boolean;           // isRunning && allPlayersReady
-  failureReason?: string;     // e.g., "AUTOPLAY_BLOCKED", "SAMPLE_LOAD_TIMEOUT"
+  isRunning: boolean; // Tone.context.state === "running"
+  canPlay: boolean; // isRunning && allPlayersReady
+  failureReason?: string; // e.g., "AUTOPLAY_BLOCKED", "SAMPLE_LOAD_TIMEOUT"
 }
 ```
 
@@ -225,7 +240,16 @@ import { z } from "zod";
 
 // TrackID literal union
 const TrackIDSchema = z.enum([
-  "bd_1", "bd_2", "sd_1", "sd_2", "lt_1", "mt_1", "ch_1", "oh_1", "cy_1", "cb_1"
+  "kick_01",
+  "kick_02",
+  "bass_01",
+  "bass_02",
+  "snare_01",
+  "snare_02",
+  "synth_01",
+  "clap",
+  "hh_01",
+  "hh_02",
 ]);
 
 // Individual track validation
@@ -273,20 +297,80 @@ export function normalizeBeatData(data: unknown): BeatManifest {
  */
 export function getDefaultBeatManifest(): BeatManifest {
   const defaultTracks: Record<TrackID, TrackData> = {
-    bd_1: { sampleId: "KICK_01", volumeDb: -3, mute: false, solo: false, steps: Array(16).fill(false) },
-    bd_2: { sampleId: "KICK_02", volumeDb: -5, mute: false, solo: false, steps: Array(16).fill(false) },
-    sd_1: { sampleId: "SNARE_01", volumeDb: -2, mute: false, solo: false, steps: Array(16).fill(false) },
-    sd_2: { sampleId: "SNARE_02", volumeDb: -4, mute: false, solo: false, steps: Array(16).fill(false) },
-    lt_1: { sampleId: "TOM_LO", volumeDb: -6, mute: false, solo: false, steps: Array(16).fill(false) },
-    mt_1: { sampleId: "TOM_MID", volumeDb: -6, mute: false, solo: false, steps: Array(16).fill(false) },
-    ch_1: { sampleId: "HAT_CLS", volumeDb: -8, mute: false, solo: false, steps: Array(16).fill(false) },
-    oh_1: { sampleId: "HAT_OPN", volumeDb: -10, mute: false, solo: false, steps: Array(16).fill(false) },
-    cy_1: { sampleId: "CYMBAL", volumeDb: -12, mute: false, solo: false, steps: Array(16).fill(false) },
-    cb_1: { sampleId: "COWBELL", volumeDb: -10, mute: false, solo: false, steps: Array(16).fill(false) },
+    kick_01: {
+      sampleId: "KICK_01",
+      volumeDb: 0,
+      mute: false,
+      solo: false,
+      steps: Array(16).fill(false),
+    },
+    kick_02: {
+      sampleId: "KICK_02",
+      volumeDb: 0,
+      mute: false,
+      solo: false,
+      steps: Array(16).fill(false),
+    },
+    bass_01: {
+      sampleId: "BASS_TONE",
+      volumeDb: 0,
+      mute: false,
+      solo: false,
+      steps: Array(16).fill(false),
+    },
+    bass_02: {
+      sampleId: "BASS_01",
+      volumeDb: 0,
+      mute: false,
+      solo: false,
+      steps: Array(16).fill(false),
+    },
+    snare_01: {
+      sampleId: "CLAP_01",
+      volumeDb: 0,
+      mute: false,
+      solo: false,
+      steps: Array(16).fill(false),
+    },
+    snare_02: {
+      sampleId: "SNARE_02",
+      volumeDb: 0,
+      mute: false,
+      solo: false,
+      steps: Array(16).fill(false),
+    },
+    synth_01: {
+      sampleId: "STAB_DM",
+      volumeDb: 0,
+      mute: false,
+      solo: false,
+      steps: Array(16).fill(false),
+    },
+    clap: {
+      sampleId: "STAB_C",
+      volumeDb: 0,
+      mute: false,
+      solo: false,
+      steps: Array(16).fill(false),
+    },
+    hh_01: {
+      sampleId: "HAT_CLS",
+      volumeDb: 0,
+      mute: false,
+      solo: false,
+      steps: Array(16).fill(false),
+    },
+    hh_02: {
+      sampleId: "HAT_OPN",
+      volumeDb: 0,
+      mute: false,
+      solo: false,
+      steps: Array(16).fill(false),
+    },
   };
 
   return {
-    meta: { version: "1.0.0", engine: "TR-08" },
+    meta: { version: "1.0.0", engine: "tone.js@15.1.22" },
     global: { bpm: 140, swing: 0, masterVolumeDb: 0 },
     tracks: defaultTracks,
   };
@@ -299,67 +383,79 @@ export function getDefaultBeatManifest(): BeatManifest {
 
 ```sql
 -- ============================================================================
--- PROFILES TABLE (User Identity)
+-- TR-08 Database Schema Initialization
+-- Migration: 01_init_schema.sql
+-- Description: Creates profiles and beats tables with optimized RLS
 -- ============================================================================
-CREATE TABLE profiles (
-  id UUID PRIMARY KEY DEFAULT auth.uid(),
+
+-- 1. Create PROFILES table (Needed for the Trigger)
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   username TEXT,
   avatar_url TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-
-  CONSTRAINT profiles_id_fk FOREIGN KEY (id)
-    REFERENCES auth.users(id)
-    ON DELETE CASCADE
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Auto-create profile on signup (via trigger, see below)
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+-- Enable RLS on profiles
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Profiles are publicly readable"
-  ON profiles
-  FOR SELECT
-  USING (true);
+-- Profile Policies (Optimized)
+CREATE POLICY "Public profiles are viewable by everyone"
+  ON public.profiles FOR SELECT USING (true);
 
 CREATE POLICY "Users can update their own profile"
-  ON profiles
-  FOR UPDATE
-  USING (auth.uid() = id);
+  ON public.profiles FOR UPDATE USING ((select auth.uid()) = id);
 
 -- ============================================================================
--- BEATS TABLE (Persistent Beat Data)
--- ============================================================================
-CREATE TABLE beats (
+
+-- 2. Create BEATS table
+CREATE TABLE IF NOT EXISTS public.beats (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  bpm INTEGER NOT NULL CHECK (bpm >= 40 AND bpm <= 300),
-  data JSONB NOT NULL,  -- The BeatManifest
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-
-  CONSTRAINT beats_name_length CHECK (char_length(name) <= 50),
-  CONSTRAINT beats_name_not_empty CHECK (char_length(trim(name)) > 0)
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  beat_name TEXT NOT NULL CHECK (char_length(beat_name) <= 25 AND char_length(beat_name) >= 1),
+  data JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_beats_user_id ON beats(user_id);
-CREATE INDEX idx_beats_created_at ON beats(created_at DESC);
+-- Create indexes
+CREATE INDEX IF NOT EXISTS idx_beats_user_id ON public.beats(user_id);
+CREATE INDEX IF NOT EXISTS idx_beats_updated_at ON public.beats(updated_at DESC);
 
-ALTER TABLE beats ENABLE ROW LEVEL SECURITY;
+-- Enable RLS on beats
+ALTER TABLE public.beats ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Beats are publicly readable"
-  ON beats
+-- ============================================================================
+-- RLS Policies (Optimized & PRD Compliant)
+-- ============================================================================
+
+-- Policy: Everyone can SEE beats (The Graffiti Wall)
+CREATE POLICY "Beats are public to view"
+  ON public.beats
   FOR SELECT
   USING (true);
 
-CREATE POLICY "Users can insert their own beats"
-  ON beats
+-- Policy: Users can INSERT their own beats
+-- Fix: Used (select auth.uid()) for performance
+CREATE POLICY "Users can create their own beats"
+  ON public.beats
   FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK ((select auth.uid()) = user_id);
 
+-- Policy: Users can UPDATE their own beats
+-- Fix: Used (select auth.uid()) for performance
 CREATE POLICY "Users can update their own beats"
-  ON beats
+  ON public.beats
   FOR UPDATE
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id)
+  WITH CHECK ((select auth.uid()) = user_id);
+
+-- Policy: Users can DELETE their own beats
+-- Fix: Used (select auth.uid()) for performance
+CREATE POLICY "Users can delete their own beats"
+  ON public.beats
+  FOR DELETE
+  USING ((select auth.uid()) = user_id);
 
 -- ============================================================================
 -- TRIGGER: Auto-create Profile on Auth Signup
@@ -375,9 +471,29 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Drop trigger if exists to prevent duplicates on re-runs
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- ============================================================================
+-- TRIGGER: Auto-update updated_at timestamp
+-- ============================================================================
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS update_beats_updated_at ON public.beats;
+
+CREATE TRIGGER update_beats_updated_at
+  BEFORE UPDATE ON public.beats
+  FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
 ```
 
 ---
@@ -412,47 +528,107 @@ import Bh_Hit_Hihat_0009 from "../assets/samples/Bh_Hit_Hihat_0009.wav";
  */
 interface TrackConfig {
   trackId: TrackID;
-  rowIndex: number;           // 0-9 (UI grid row)
-  label: string;              // Display name
-  sampleId: string;           // e.g., "KICK_01"
-  color: string;              // Tailwind class (e.g., "bg-blue-600")
+  rowIndex: number; // 0-9 (UI grid row)
+  label: string; // Display name
+  sampleId: string; // e.g., "KICK_01"
+  color: string; // Tailwind class (e.g., "bg-blue-600")
 }
 
 interface SampleLibrary {
-  [key: string]: string;      // sampleId -> URL
+  [key: string]: string; // sampleId -> URL
 }
 
 export const SAMPLE_LIBRARY: SampleLibrary = {
-  "KICK_01": KICK01,
-  "KICK_02": KICK02,
-  "BASS_TONE": Bass_Tone_C_013,
-  "BASS_01": BASS01,
-  "CLAP": Bh_Hit_Clap_0007,
-  "SNARE_02": JA_SNARE_2,
-  "STAB_DM": Stabs_Chords_016_Dm,
-  "STAB_C": Stabs_Chords_028_C,
-  "HAT_CLS": Bh_Hit_Hihat_0008,
-  "HAT_OPN": Bh_Hit_Hihat_0009,
+  KICK_01: KICK01,
+  KICK_02: KICK02,
+  BASS_TONE: Bass_Tone_C_013,
+  BASS_01: BASS01,
+  CLAP: Bh_Hit_Clap_0007,
+  SNARE_02: JA_SNARE_2,
+  STAB_DM: Stabs_Chords_016_Dm,
+  STAB_C: Stabs_Chords_028_C,
+  HAT_CLS: Bh_Hit_Hihat_0008,
+  HAT_OPN: Bh_Hit_Hihat_0009,
 };
 
 export const TRACK_REGISTRY: TrackConfig[] = [
-  { trackId: "bd_1", rowIndex: 0, label: "Kick 1", sampleId: "KICK_01", color: "bg-red-600" },
-  { trackId: "bd_2", rowIndex: 1, label: "Kick 2", sampleId: "KICK_02", color: "bg-red-700" },
-  { trackId: "sd_1", rowIndex: 2, label: "Snare 1", sampleId: "SNARE_02", color: "bg-blue-600" },
-  { trackId: "sd_2", rowIndex: 3, label: "Snare 2", sampleId: "CLAP", color: "bg-blue-700" },
-  { trackId: "lt_1", rowIndex: 4, label: "Tom Low", sampleId: "BASS_TONE", color: "bg-yellow-600" },
-  { trackId: "mt_1", rowIndex: 5, label: "Tom Mid", sampleId: "BASS_01", color: "bg-yellow-700" },
-  { trackId: "ch_1", rowIndex: 6, label: "Hat Closed", sampleId: "HAT_CLS", color: "bg-green-600" },
-  { trackId: "oh_1", rowIndex: 7, label: "Hat Open", sampleId: "HAT_OPN", color: "bg-green-700" },
-  { trackId: "cy_1", rowIndex: 8, label: "Cymbal", sampleId: "STAB_DM", color: "bg-purple-600" },
-  { trackId: "cb_1", rowIndex: 9, label: "Cowbell", sampleId: "STAB_C", color: "bg-purple-700" },
+  {
+    trackId: "kick_01",
+    rowIndex: 0,
+    label: "KICK 01",
+    sampleId: "KICK_01",
+    color: "bg-red-900",
+  },
+  {
+    trackId: "kick_02",
+    rowIndex: 1,
+    label: "KICK 02",
+    sampleId: "KICK_02",
+    color: "bg-red-900",
+  },
+  {
+    trackId: "bass_01",
+    rowIndex: 2,
+    label: "BASS 01",
+    sampleId: "BASS_TONE",
+    color: "bg-orange-800",
+  },
+  {
+    trackId: "bass_02",
+    rowIndex: 3,
+    label: "BASS 02",
+    sampleId: "BASS_01",
+    color: "bg-orange-800",
+  },
+  {
+    trackId: "snare_01",
+    rowIndex: 4,
+    label: "SNARE 01",
+    sampleId: "CLAP",
+    color: "bg-yellow-800",
+  },
+  {
+    trackId: "snare_02",
+    rowIndex: 5,
+    label: "SNARE 02",
+    sampleId: "SNARE_02",
+    color: "bg-yellow-800",
+  },
+  {
+    trackId: "synth_01",
+    rowIndex: 6,
+    label: "SYNTH 01",
+    sampleId: "STAB_DM",
+    color: "bg-yellow-900",
+  },
+  {
+    trackId: "clap",
+    rowIndex: 7,
+    label: "CLAP",
+    sampleId: "STAB_C",
+    color: "bg-yellow-900",
+  },
+  {
+    trackId: "hh_01",
+    rowIndex: 8,
+    label: "HH 01",
+    sampleId: "HAT_CLS",
+    color: "bg-orange-950",
+  },
+  {
+    trackId: "hh_02",
+    rowIndex: 9,
+    label: "HH 02",
+    sampleId: "HAT_OPN",
+    color: "bg-orange-950",
+  },
 ];
 
 /**
  * LOOKUP FUNCTIONS
  */
 export function getTrackConfig(trackId: TrackID): TrackConfig {
-  const config = TRACK_REGISTRY.find(t => t.trackId === trackId);
+  const config = TRACK_REGISTRY.find((t) => t.trackId === trackId);
   if (!config) throw new Error(`Unknown TrackID: ${trackId}`);
   return config;
 }
@@ -488,12 +664,12 @@ import { BeatManifest, TrackID } from "../types/beat";
 export function calculateEffectiveVolume(
   manifest: BeatManifest,
   trackId: TrackID,
-  currentStep: number
+  currentStep: number,
 ): number {
   const trackData = manifest.tracks[trackId];
 
   if (!trackData) {
-    return -Infinity;  // Track not found
+    return -Infinity; // Track not found
   }
 
   // RULE 1: Mute defeats everything
@@ -502,12 +678,12 @@ export function calculateEffectiveVolume(
   }
 
   // RULE 2: Check if ANY track has Solo enabled
-  const anySoloActive = Object.values(manifest.tracks).some(t => t.solo);
+  const anySoloActive = Object.values(manifest.tracks).some((t) => t.solo);
 
   if (anySoloActive) {
     // In Solo mode: play only if this track is soloed
     if (!trackData.solo) {
-      return -Infinity;  // Track is not soloed; mute it
+      return -Infinity; // Track is not soloed; mute it
     }
   }
 
@@ -532,7 +708,7 @@ export function toManifest(
   grid: boolean[][],
   bpm: number,
   beatName: string,
-  trackVolumes: Record<TrackID, number>
+  trackVolumes: Record<TrackID, number>,
 ): BeatManifest {
   const { TRACK_REGISTRY } = require("../config/trackConfig");
 
@@ -591,7 +767,7 @@ export function toGridArray(manifest: BeatManifest): {
   return {
     grid,
     bpm: manifest.global.bpm,
-    beatName: "Loaded Beat",  // Placeholder; fetch from beats.name
+    beatName: "Loaded Beat", // Placeholder; fetch from beats.name
     trackVolumes,
   };
 }
@@ -638,7 +814,7 @@ export async function resumeAudioContext(): Promise<boolean> {
  */
 export async function loadAudioSamples(
   manifest: BeatManifest,
-  onLoadProgress?: (loaded: number, total: number) => void
+  onLoadProgress?: (loaded: number, total: number) => void,
 ): Promise<Map<TrackID, Tone.Player>> {
   const players = new Map<TrackID, Tone.Player>();
   let loadedCount = 0;
@@ -659,7 +835,7 @@ export async function loadAudioSamples(
       const player = new Tone.Player(sampleUrl);
       await player.load();
 
-      player.toDestination();  // Connect to output
+      player.toDestination(); // Connect to output
       players.set(trackId, player);
 
       loadedCount++;
@@ -674,7 +850,7 @@ export async function loadAudioSamples(
 
   await Promise.race([
     Promise.all(loadPromises),
-    new Promise(resolve => setTimeout(resolve, 5000))  // 5s timeout
+    new Promise((resolve) => setTimeout(resolve, 5000)), // 5s timeout
   ]);
 
   return players;
@@ -691,10 +867,10 @@ export async function loadAudioSamples(
 export function playTrack(
   player: Tone.Player | undefined,
   effectiveVolume: number,
-  now: number  // Tone.now()
+  now: number, // Tone.now()
 ): void {
   if (!player) return;
-  if (effectiveVolume === -Infinity) return;  // Muted
+  if (effectiveVolume === -Infinity) return; // Muted
 
   try {
     player.volume.value = effectiveVolume;
@@ -712,6 +888,7 @@ export function playTrack(
 ### 5.1 Row-Level Security (RLS) Policies
 
 **Already defined in Section 3.3.** Summary:
+
 - **Profiles:** Public read, authenticated users can write own profile.
 - **Beats:** Public read, authenticated users can write own beats.
 
@@ -730,11 +907,16 @@ export function playTrack(
  */
 
 const PROFANITY_LIST = [
-  "badword1", "badword2", "badword3"  // Placeholder
+  "badword1",
+  "badword2",
+  "badword3", // Placeholder
   // In production: fetch from CDN or use npm package
 ];
 
-export function isSanitized(beatName: string): { clean: boolean; reason?: string } {
+export function isSanitized(beatName: string): {
+  clean: boolean;
+  reason?: string;
+} {
   const trimmed = beatName.trim().toLowerCase();
 
   // Check length
@@ -778,7 +960,10 @@ export function migrateSchema(data: any): BeatManifest {
   }
 
   // Fallback: Return blank beat + log the validation error
-  console.warn("[Schema Migration] Validation failed, using defaults", result.error);
+  console.warn(
+    "[Schema Migration] Validation failed, using defaults",
+    result.error,
+  );
   return getDefaultBeatManifest();
 }
 ```
@@ -789,24 +974,25 @@ export function migrateSchema(data: any): BeatManifest {
 
 ### 6.1 Audio Context Suspension
 
-| Scenario | Handling |
-|----------|----------|
-| AudioContext blocked by browser autoplay policy | Prompt user: "Click PLAY to start audio" |
-| AudioContext resume fails (timeout) | Log error, disable playback, show alert |
-| Sample load timeout (>5s) | Skip failed samples, allow partial playback |
-| All samples fail | Fall back to Blank Beat, show error toast |
+| Scenario                                        | Handling                                    |
+| ----------------------------------------------- | ------------------------------------------- |
+| AudioContext blocked by browser autoplay policy | Prompt user: "Click PLAY to start audio"    |
+| AudioContext resume fails (timeout)             | Log error, disable playback, show alert     |
+| Sample load timeout (>5s)                       | Skip failed samples, allow partial playback |
+| All samples fail                                | Fall back to Blank Beat, show error toast   |
 
 ### 6.2 Network & Database Failures
 
-| Scenario | Handling |
-|----------|----------|
-| Save fails (DB down) | Debounce → Retry (exponential backoff, max 3x) |
-| Load fails (fetch timeout) | Show Skeleton, then Blank Beat + error toast |
+| Scenario                   | Handling                                            |
+| -------------------------- | --------------------------------------------------- |
+| Save fails (DB down)       | Debounce → Retry (exponential backoff, max 3x)      |
+| Load fails (fetch timeout) | Show Skeleton, then Blank Beat + error toast        |
 | Auth fails (Supabase down) | Show login modal indefinitely; allow guest playback |
 
 ### 6.3 Mobile Responsiveness
 
 **Portrait Mode (<768px):**
+
 ```typescript
 // src/components/PortraitBlocker.tsx
 export function PortraitBlocker(): JSX.Element | null {
@@ -854,7 +1040,8 @@ useEffect(() => {
   };
 
   document.addEventListener("visibilitychange", handleVisibilityChange);
-  return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  return () =>
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
 }, []);
 ```
 
@@ -863,15 +1050,18 @@ useEffect(() => {
 ## 7. PR Delivery Roadmap
 
 ### Philosophy
+
 Each PR is **atomic, reviewable, and deployable**. No partial implementations. Each PR must have clear "Definition of Done" and should include tests (unit or integration as appropriate).
 
 ---
 
 ### PR #1: The Foundation (Types, Validation, DB Setup)
+
 **Scope:** Zero UI changes. Types, schemas, and DB infrastructure only.
 **Effort:** 2-3 hours | **Complexity:** Low
 
 #### Files to Touch
+
 ```
 src/types/beat.ts                 (new)
 src/config/trackConfig.ts         (new)
@@ -882,6 +1072,7 @@ package.json                       (add: zod)
 ```
 
 #### Definition of Done
+
 - [ ] Zod schemas compile without errors.
 - [ ] All TrackID types pass validation.
 - [ ] `normalizeBeatData()` handles invalid input gracefully (returns default).
@@ -891,6 +1082,7 @@ package.json                       (add: zod)
 - [ ] No breaking changes to existing App.tsx.
 
 #### Testing
+
 ```typescript
 // types/__tests__/beat.test.ts
 describe("BeatManifest", () => {
@@ -911,10 +1103,12 @@ describe("BeatManifest", () => {
 ---
 
 ### PR #2: Audio Engine Refactor (Registry & Signal Logic)
+
 **Scope:** Replace hardcoded audio logic with Registry + Signal Hierarchy.
 **Effort:** 3-4 hours | **Complexity:** Medium
 
 #### Files to Touch
+
 ```
 src/lib/audioEngine.ts            (new)
 src/sequencer.ts                  (refactor: use calculateEffectiveVolume)
@@ -922,6 +1116,7 @@ src/App.tsx                        (update: call resumeAudioContext on Play)
 ```
 
 #### Definition of Done
+
 - [ ] `resumeAudioContext()` is called BEFORE `sequencer.start()`.
 - [ ] `loadAudioSamples()` initializes all 10 Tone.Player instances.
 - [ ] `calculateEffectiveVolume()` respects Mute > Solo > Volume hierarchy.
@@ -930,26 +1125,27 @@ src/App.tsx                        (update: call resumeAudioContext on Play)
 - [ ] Error handling: failed samples don't block sequencer.
 
 #### Testing
+
 ```typescript
 // lib/__tests__/audioEngine.test.ts
 describe("calculateEffectiveVolume", () => {
   test("Mute defeats Solo", () => {
     const manifest = {
-      tracks: { bd_1: { mute: true, solo: true, ... } }
+      tracks: { kick_01: { mute: true, solo: true, ... } }
     };
-    const vol = calculateEffectiveVolume(manifest, "bd_1", 0);
+    const vol = calculateEffectiveVolume(manifest, "kick_01", 0);
     expect(vol).toBe(-Infinity);
   });
 
   test("Solo isolation works correctly", () => {
     const manifest = {
       tracks: {
-        bd_1: { mute: false, solo: true, volumeDb: -3 },
-        bd_2: { mute: false, solo: false, volumeDb: -3 }
+        kick_01: { mute: false, solo: true, volumeDb: -3 },
+        kick_02: { mute: false, solo: false, volumeDb: -3 }
       }
     };
-    expect(calculateEffectiveVolume(manifest, "bd_1", 0)).toBe(-3);
-    expect(calculateEffectiveVolume(manifest, "bd_2", 0)).toBe(-Infinity);
+    expect(calculateEffectiveVolume(manifest, "kick_01", 0)).toBe(-3);
+    expect(calculateEffectiveVolume(manifest, "kick_02", 0)).toBe(-Infinity);
   });
 });
 ```
@@ -957,10 +1153,12 @@ describe("calculateEffectiveVolume", () => {
 ---
 
 ### PR #3: The Pipes (Supabase Auth & Save/Load Hooks)
+
 **Scope:** Authentication + data persistence (Save/Load).
 **Effort:** 4-5 hours | **Complexity:** Medium-High
 
 #### Files to Touch
+
 ```
 src/lib/supabase.ts               (new)
 src/hooks/useAuth.ts              (new)
@@ -972,6 +1170,7 @@ src/components/LoginModal.tsx      (new)
 ```
 
 #### Definition of Done
+
 - [ ] `useAuth()` tracks Session state from Supabase Auth.
 - [ ] `useSaveHook()` debounces grid updates (500ms), validates with Zod, inserts to `beats` table.
 - [ ] `useLoadHook()` fetches latest beat, normalizes via `normalizeBeatData()`, hydrates React state.
@@ -982,6 +1181,7 @@ src/components/LoginModal.tsx      (new)
 - [ ] Error handling: network failures retry with exponential backoff.
 
 #### Testing
+
 ```typescript
 // hooks/__tests__/useSaveHook.test.ts
 describe("useSaveHook", () => {
@@ -1003,10 +1203,12 @@ describe("useSaveHook", () => {
 ---
 
 ### PR #4: The Integration (UI Components & Loading States)
+
 **Scope:** UI polish, loading skeletons, modals.
 **Effort:** 3-4 hours | **Complexity:** Low-Medium
 
 #### Files to Touch
+
 ```
 src/components/SkeletonGrid.tsx    (new)
 src/components/LoginModal.tsx      (new - OAuth buttons)
@@ -1017,6 +1219,7 @@ src/App.css                        (animation: skeleton pulse)
 ```
 
 #### Definition of Done
+
 - [ ] Skeleton grid appears while loading beat data.
 - [ ] LoginModal prevents Save unless authenticated.
 - [ ] PortraitBlocker blocks interaction on portrait <768px.
@@ -1026,6 +1229,7 @@ src/App.css                        (animation: skeleton pulse)
 - [ ] Tailwind classes are properly scoped (no style leaks).
 
 #### Testing
+
 ```typescript
 // components/__tests__/SkeletonGrid.test.tsx
 describe("SkeletonGrid", () => {
@@ -1040,10 +1244,12 @@ describe("SkeletonGrid", () => {
 ---
 
 ### PR #5: Hardening (Performance & Mobile Constraints)
+
 **Scope:** Optimizations, error handling, mobile UX.
 **Effort:** 3-4 hours | **Complexity:** Medium
 
 #### Files to Touch
+
 ```
 src/utils/errors.ts               (new - centralized error codes)
 src/App.tsx                        (add: visibilitychange listener, error boundaries)
@@ -1053,6 +1259,7 @@ src/lib/audioEngine.ts            (refactor: timeout handling, retry logic)
 ```
 
 #### Definition of Done
+
 - [ ] Background throttling: React updates suspended when `document.hidden === true`.
 - [ ] Visibility resync: Playhead updates when tab becomes visible.
 - [ ] Error boundary catches React errors in UI (doesn't break sequencer).
@@ -1062,6 +1269,7 @@ src/lib/audioEngine.ts            (refactor: timeout handling, retry logic)
 - [ ] Mobile tested on iPhone SE (portrait/landscape, network throttle).
 
 #### Testing
+
 ```typescript
 // App integration test
 describe("App Lifecycle", () => {
@@ -1080,13 +1288,13 @@ describe("App Lifecycle", () => {
 
 ## Summary Table
 
-| PR | Title | Files | Hours | Tests | Blocker Dependencies |
-|----|-------|-------|-------|-------|----------------------|
-| #1 | Foundation | 4 new | 2-3 | Unit | None |
-| #2 | Audio Engine | 3 touch | 3-4 | Unit | PR #1 |
-| #3 | Pipes | 7 new/touch | 4-5 | Integration | PR #1 |
-| #4 | Integration | 6 new/touch | 3-4 | Component | PR #3 |
-| #5 | Hardening | 5 new/touch | 3-4 | E2E | PR #4 |
+| PR  | Title        | Files       | Hours | Tests       | Blocker Dependencies |
+| --- | ------------ | ----------- | ----- | ----------- | -------------------- |
+| #1  | Foundation   | 4 new       | 2-3   | Unit        | None                 |
+| #2  | Audio Engine | 3 touch     | 3-4   | Unit        | PR #1                |
+| #3  | Pipes        | 7 new/touch | 4-5   | Integration | PR #1                |
+| #4  | Integration  | 6 new/touch | 3-4   | Component   | PR #3                |
+| #5  | Hardening    | 5 new/touch | 3-4   | E2E         | PR #4                |
 
 **Total Effort:** ~16-20 hours | **Dependencies:** Strictly sequential (each PR requires prior PRs).
 
@@ -1095,12 +1303,14 @@ describe("App Lifecycle", () => {
 ## 8. Execution Checklist
 
 ### Pre-Implementation
+
 - [ ] Supabase project created + dev environment configured.
 - [ ] Environment variables (.env.local) populated.
 - [ ] `npm install zod` executed.
 - [ ] Git branch created: `feat/tr-08-v1`.
 
 ### Per PR
+
 - [ ] Branch from main (or previous PR branch).
 - [ ] Implement files per PR scope.
 - [ ] Run: `npm run lint`, `npm run build` (no errors).
@@ -1110,6 +1320,7 @@ describe("App Lifecycle", () => {
 - [ ] Merge to main.
 
 ### Post-Implementation
+
 - [ ] Deploy to staging environment.
 - [ ] E2E test: Guest load → Create beat → Save beat → Load as new session.
 - [ ] Performance audit: TTI, Save latency, Load latency.
@@ -1121,24 +1332,27 @@ describe("App Lifecycle", () => {
 ## Appendix: Error Codes & Messages
 
 ### Audio Engine
-| Code | Message | Recovery |
-|------|---------|----------|
-| `AUDIO_CONTEXT_BLOCKED` | "Click PLAY to enable audio" | Retry on user gesture |
-| `SAMPLE_LOAD_TIMEOUT` | "Some samples failed to load. Playback may be incomplete." | Skip failed samples, continue |
-| `SEQUENCER_INIT_FAILED` | "Sequencer initialization failed. Reload the page." | Hard refresh |
+
+| Code                    | Message                                                    | Recovery                      |
+| ----------------------- | ---------------------------------------------------------- | ----------------------------- |
+| `AUDIO_CONTEXT_BLOCKED` | "Click PLAY to enable audio"                               | Retry on user gesture         |
+| `SAMPLE_LOAD_TIMEOUT`   | "Some samples failed to load. Playback may be incomplete." | Skip failed samples, continue |
+| `SEQUENCER_INIT_FAILED` | "Sequencer initialization failed. Reload the page."        | Hard refresh                  |
 
 ### Database
-| Code | Message | Recovery |
-|------|---------|----------|
-| `SAVE_TIMEOUT` | "Save failed. Retrying..." | Exponential backoff |
-| `LOAD_NOT_FOUND` | "No beats found. Starting fresh." | Show blank beat |
-| `AUTH_REQUIRED` | "Sign in to save beats." | Show LoginModal |
+
+| Code             | Message                           | Recovery            |
+| ---------------- | --------------------------------- | ------------------- |
+| `SAVE_TIMEOUT`   | "Save failed. Retrying..."        | Exponential backoff |
+| `LOAD_NOT_FOUND` | "No beats found. Starting fresh." | Show blank beat     |
+| `AUTH_REQUIRED`  | "Sign in to save beats."          | Show LoginModal     |
 
 ### Validation
-| Code | Message | Recovery |
-|------|---------|----------|
-| `BEAT_NAME_INVALID` | "Name too long or contains inappropriate content." | User edits name |
-| `SCHEMA_MISMATCH` | "Beat is from an incompatible version. Using defaults." | Log + proceed |
+
+| Code                | Message                                                 | Recovery        |
+| ------------------- | ------------------------------------------------------- | --------------- |
+| `BEAT_NAME_INVALID` | "Name too long or contains inappropriate content."      | User edits name |
+| `SCHEMA_MISMATCH`   | "Beat is from an incompatible version. Using defaults." | Log + proceed   |
 
 ---
 
