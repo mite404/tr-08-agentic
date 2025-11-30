@@ -9,23 +9,18 @@ import * as Tone from "tone";
 import { createClient } from "@supabase/supabase-js";
 
 import mpcMark from "./assets/images/MPC_mark.png";
-// Import all audio samples directly so Vite bundles them correctly for production
-import BASS01 from "./assets/samples/BASS01.wav";
-import BassToneC013 from "./assets/samples/Bass_Tone_C_013.wav";
-import BhHitClap0007 from "./assets/samples/Bh_Hit_Clap_0007.wav";
-import BhHitHihat0008 from "./assets/samples/Bh_Hit_Hihat_0008.wav";
-import BhHitHihat0009 from "./assets/samples/Bh_Hit_Hihat_0009.wav";
-import JASnare2 from "./assets/samples/JA_SNARE_2.wav";
-import KICK01 from "./assets/samples/KICK01.wav";
-import KICK02 from "./assets/samples/KICK02.wav";
-import StabsChords016Dm from "./assets/samples/Stabs_&_Chords_016_Dm.wav";
-import StabsChords028C from "./assets/samples/Stabs_&_Chords_028_C.wav";
+
+// PR #2: Import new audio engine and track registry
+import { loadAudioSamples, resumeAudioContext } from "./lib/audioEngine";
+import { TRACK_REGISTRY } from "./config/trackConfig";
+import { getDefaultBeatManifest } from "./types/beat";
+import type { TrackID, BeatManifest } from "./types/beat";
 
 export type TrackObject = {
   name: string;
   sound: string;
   color: string;
-  player?: Tone.Player; // tone.js Player instance added on initialization of Players
+  player?: Tone.Player; // LEGACY: kept for compatibility, will be removed in later PR
 };
 
 const initialGrid = [
@@ -211,58 +206,12 @@ const initialGrid = [
   ], // track 9
 ];
 
-const tracks: Array<TrackObject> = [
-  {
-    name: "KICK 01",
-    sound: KICK01,
-    color: "bg-red-900",
-  },
-  {
-    name: "KICK 20",
-    sound: KICK02,
-    color: "bg-red-900",
-  },
-  {
-    name: "BASS 01",
-    sound: BassToneC013,
-    color: "bg-orange-800",
-  },
-  {
-    name: "BASS 02",
-    sound: BASS01,
-    color: "bg-orange-800",
-  },
-  {
-    name: "SNARE 01",
-    sound: BhHitClap0007,
-    color: "bg-yellow-800",
-  },
-  {
-    name: "SNARE 02",
-    sound: JASnare2,
-    color: "bg-yellow-800",
-  },
-  {
-    name: "SYNTH 01",
-    sound: StabsChords016Dm,
-    color: "bg-yellow-900",
-  },
-  {
-    name: "CLAP",
-    sound: StabsChords028C,
-    color: "bg-yellow-900",
-  },
-  {
-    name: "HH 01",
-    sound: BhHitHihat0008,
-    color: "bg-orange-950",
-  },
-  {
-    name: "HH 02",
-    sound: BhHitHihat0009,
-    color: "bg-orange-950",
-  },
-];
+// PR #2: Use TRACK_REGISTRY as source of truth, build legacy tracks array for UI compatibility
+const tracks: Array<TrackObject> = TRACK_REGISTRY.map((config) => ({
+  name: config.label,
+  sound: "", // LEGACY: no longer used, samples loaded via audioEngine
+  color: config.color,
+}));
 
 const colorMap: { [key: string]: string } = {
   // dark         light
@@ -286,7 +235,7 @@ type Instrument = {
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL as string,
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string,
+  import.meta.env.VITE_SUPABASE_ANON_KEY as string,
 );
 
 function App() {
@@ -305,6 +254,15 @@ function App() {
   const gridRef = useRef(grid);
   const playersInitializedRef = useRef(false);
   const [instruments, setInstruments] = useState<Array<Instrument>>([]);
+
+  // PR #2: New audio engine state
+  const playersMapRef = useRef<Map<TrackID, Tone.Player>>(new Map());
+  const manifestRef = useRef<BeatManifest>(getDefaultBeatManifest());
+  const trackIdsByRowRef = useRef<TrackID[]>(
+    [...TRACK_REGISTRY]
+      .sort((a, b) => a.rowIndex - b.rowIndex)
+      .map((c) => c.trackId),
+  );
 
   useEffect(() => {
     const instrumentsWrapper = async () => {
@@ -331,7 +289,7 @@ function App() {
     gridRef.current = grid;
   }, [grid]);
 
-  // init Players and Sequencer
+  // PR #2: Init sequencer with new audio engine architecture
   useEffect(() => {
     const sequencer = createSequencer(
       bpm,
@@ -339,13 +297,15 @@ function App() {
         setCurrentStep(step);
       },
       gridRef,
-      tracks,
+      playersMapRef.current,
+      manifestRef,
+      trackIdsByRowRef.current,
     );
     createSequencerRef.current = sequencer;
 
     return () => {
-      sequencer.dispose(); // clear upcoming transport scheduled events, prep sequencer obj for deletion
-      createSequencerRef.current = null; // unalive sequencer reference object
+      sequencer.dispose();
+      createSequencerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -358,28 +318,49 @@ function App() {
     }
   }, [loadedCount]);
 
-  function initPlayers(
-    tracks: Array<TrackObject>,
-    setLoadedCount: React.Dispatch<React.SetStateAction<number>>,
-  ) {
-    for (const track of tracks) {
-      const trackPath = track.sound;
+  // PR #2: Replaced with new audio engine loadAudioSamples
+  async function initPlayers() {
+    setIsLoading(true);
+    setAllPlayersReady(false);
+    setLoadedCount(0);
 
-      const player = new Tone.Player({
-        url: trackPath,
-        volume: -5, // starting volume of all initial players
-        onload: () => {
-          setLoadedCount((prev) => {
-            console.log("loadedCount:", prev + 1);
-            return prev + 1;
-          });
+    try {
+      // Resume audio context (required for autoplay policy)
+      const contextResumed = await resumeAudioContext();
+      if (!contextResumed) {
+        console.error("[Audio Context] Failed to resume");
+      }
+
+      // Load samples using the new audio engine
+      const playersMap = await loadAudioSamples(
+        manifestRef.current,
+        (loaded, total) => {
+          setLoadedCount(loaded);
+          console.log(`Loading samples: ${loaded}/${total}`);
         },
-        onerror: (error) => {
-          console.log(`Failed to load sample for ${track.name}:`, error);
-          setLoadedCount((prev) => prev + 1); // cont loaded anyway to avoid blocking
-        },
-      }).toDestination();
-      track.player = player;
+      );
+
+      // IMPORTANT: Clear and populate the existing Map instead of replacing it
+      // The sequencer holds a reference to playersMapRef.current
+      playersMapRef.current.clear();
+      playersMap.forEach((player, trackId) => {
+        playersMapRef.current.set(trackId, player);
+        console.log(`[Audio Engine] Loaded player for ${trackId}`);
+      });
+
+      setAllPlayersReady(true);
+      setIsLoading(false);
+
+      console.log(
+        `[Audio Engine] Loaded ${playersMapRef.current.size} players`,
+      );
+      console.log(
+        `[Audio Engine] Player map keys:`,
+        Array.from(playersMapRef.current.keys()),
+      );
+    } catch (err) {
+      console.error("[Audio Engine] Failed to load samples:", err);
+      setIsLoading(false);
     }
   }
 
@@ -398,7 +379,8 @@ function App() {
     setGrid(newGrid);
   }
 
-  function handleStartStopClick() {
+  // PR #2: Updated to use async audio engine
+  async function handleStartStopClick() {
     if (createSequencerRef.current === null) return;
 
     const isPlaying = Tone.getTransport().state === "started";
@@ -407,14 +389,25 @@ function App() {
       createSequencerRef.current.stop();
     } else {
       if (!playersInitializedRef.current) {
-        setIsLoading(true);
-        setAllPlayersReady(false);
-        initPlayers(tracks, setLoadedCount);
+        await initPlayers();
         playersInitializedRef.current = true;
+        // Auto-start after loading
+        if (createSequencerRef.current && allPlayersReady) {
+          createSequencerRef.current.start();
+        }
         return;
       }
       if (allPlayersReady) {
+        // Resume audio context before starting (CRITICAL for audio playback)
+        const resumed = await resumeAudioContext();
+        console.log(`[App] Audio context resumed: ${resumed}`);
+        if (!resumed) {
+          console.error(
+            "[App] Failed to resume audio context - audio may not play",
+          );
+        }
         createSequencerRef.current.start();
+        console.log("[App] Sequencer started");
       } else {
         setIsLoading(true);
       }
@@ -481,6 +474,7 @@ function App() {
     }
   }
 
+  // PR #2: Updated to modify manifest instead of individual players
   function handleDbChange(trackIndex: number, newDbValue: number) {
     console.log(`Volume for track ${trackIndex} updated to:`, newDbValue);
     setTrackVolumes((prev) => {
@@ -489,11 +483,11 @@ function App() {
       return updated;
     });
 
-    // update audio player
-    if (tracks[trackIndex].player) {
-      tracks[trackIndex].player.volume.value = newDbValue;
-    } else {
-      console.log("Player object hasn't been created for this track yet!");
+    // Update manifest with new volume
+    const trackId = trackIdsByRowRef.current[trackIndex];
+    if (trackId && manifestRef.current.tracks[trackId]) {
+      manifestRef.current.tracks[trackId].volumeDb = newDbValue;
+      console.log(`[Manifest] Updated ${trackId} volume to ${newDbValue}dB`);
     }
   }
 
@@ -557,7 +551,7 @@ function App() {
           <div>
             <PlayStopBtn
               customStyles=""
-              onClick={handleStartStopClick}
+              onClick={() => void handleStartStopClick()}
               disabled={isLoading}
             />
           </div>
