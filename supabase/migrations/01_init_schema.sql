@@ -1,11 +1,30 @@
 -- ============================================================================
 -- TR-08 Database Schema Initialization
 -- Migration: 01_init_schema.sql
--- Description: Creates the `beats` table with RLS policies for user isolation
+-- Description: Creates profiles and beats tables with optimized RLS
 -- ============================================================================
 
--- Create the beats table
--- Stores user-created beat patterns with JSONB data column
+-- 1. Create PROFILES table (Needed for the Trigger)
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  username TEXT,
+  avatar_url TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Enable RLS on profiles
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- Profile Policies (Optimized)
+CREATE POLICY "Public profiles are viewable by everyone"
+  ON public.profiles FOR SELECT USING (true);
+
+CREATE POLICY "Users can update their own profile"
+  ON public.profiles FOR UPDATE USING ((select auth.uid()) = id);
+
+-- ============================================================================
+
+-- 2. Create BEATS table
 CREATE TABLE IF NOT EXISTS public.beats (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -15,49 +34,69 @@ CREATE TABLE IF NOT EXISTS public.beats (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Create index on user_id for faster queries
+-- Create indexes
 CREATE INDEX IF NOT EXISTS idx_beats_user_id ON public.beats(user_id);
-
--- Create index on updated_at for sorting by recency
 CREATE INDEX IF NOT EXISTS idx_beats_updated_at ON public.beats(updated_at DESC);
 
--- ============================================================================
--- Row-Level Security (RLS) Policies
--- ============================================================================
-
--- Enable RLS on the beats table
+-- Enable RLS on beats
 ALTER TABLE public.beats ENABLE ROW LEVEL SECURITY;
 
--- Policy: Users can SELECT only their own beats
-CREATE POLICY "Users can view their own beats"
+-- ============================================================================
+-- RLS Policies (Optimized & PRD Compliant)
+-- ============================================================================
+
+-- Policy: Everyone can SEE beats (The Graffiti Wall)
+CREATE POLICY "Beats are public to view"
   ON public.beats
   FOR SELECT
-  USING (auth.uid() = user_id);
+  USING (true);
 
--- Policy: Users can INSERT beats with their own user_id
+-- Policy: Users can INSERT their own beats
+-- Fix: Used (select auth.uid()) for performance
 CREATE POLICY "Users can create their own beats"
   ON public.beats
   FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK ((select auth.uid()) = user_id);
 
--- Policy: Users can UPDATE only their own beats
+-- Policy: Users can UPDATE their own beats
+-- Fix: Used (select auth.uid()) for performance
 CREATE POLICY "Users can update their own beats"
   ON public.beats
   FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id)
+  WITH CHECK ((select auth.uid()) = user_id);
 
--- Policy: Users can DELETE only their own beats
+-- Policy: Users can DELETE their own beats
+-- Fix: Used (select auth.uid()) for performance
 CREATE POLICY "Users can delete their own beats"
   ON public.beats
   FOR DELETE
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 -- ============================================================================
--- Trigger: Auto-update updated_at timestamp
+-- TRIGGER: Auto-create Profile on Auth Signup
 -- ============================================================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, username)
+  VALUES (new.id, new.email)
+  ON CONFLICT (id) DO NOTHING;
 
--- Create function to update the updated_at column
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Drop trigger if exists to prevent duplicates on re-runs
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- ============================================================================
+-- TRIGGER: Auto-update updated_at timestamp
+-- ============================================================================
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -66,20 +105,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger to automatically update updated_at on UPDATE
+DROP TRIGGER IF EXISTS update_beats_updated_at ON public.beats;
+
 CREATE TRIGGER update_beats_updated_at
   BEFORE UPDATE ON public.beats
-  FOR EACH ROW
-  EXECUTE FUNCTION public.update_updated_at_column();
-
--- ============================================================================
--- Notes
--- ============================================================================
---
--- 1. RLS Policies ensure users can only access their own beats
--- 2. The `data` column stores BeatManifest as JSONB for flexibility
--- 3. The `beat_name` constraint enforces 1-25 character limit (validated client-side too)
--- 4. ON DELETE CASCADE ensures beats are deleted when user account is deleted
--- 5. The updated_at trigger automatically timestamps modifications
---
--- ============================================================================
+  FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();

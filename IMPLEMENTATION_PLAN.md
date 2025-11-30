@@ -5,34 +5,37 @@
 
 ---
 
-## Phase 1: Data Layer & Architecture (The Backbone)
+## Phase 1: Data Layer & Architecture (The Backbone) ✅ COMPLETED
 
 **Goal:** Establish the database, semantic types, and validation safety net.
 
-- [ ] **1.1 Database Infrastructure (Supabase)**
+- [x] **1.1 Database Infrastructure (Supabase)**
   - [x] Create `beats` table (JSONB 'data' column).
   - [x] Create `profiles` table.
-  - [ ] **Task:** Execute SQL for `on_auth_user_created` Trigger (Link Auth -> Profile).
+  - [x] Execute SQL for `on_auth_user_created` Trigger (Link Auth -> Profile).
   - [x] Enable RLS Policies (Public Read, Auth Write).
+  - [x] Add optimized RLS policies using `(select auth.uid())` pattern.
+  - [x] Add DELETE policy for user's own beats.
+  - [x] Add auto-update trigger for `updated_at` timestamp.
 
-- [ ] **1.2 Semantic Type Definitions**
-  - [ ] Install Zod: `npm install zod`
-  - [ ] Create `src/types/beat.ts`:
-    - Define `TrackID` union type (`bd_1` | `sd_1` ...).
+- [x] **1.2 Semantic Type Definitions**
+  - [x] Install Zod: `npm install zod`
+  - [x] Create `src/types/beat.ts`:
+    - Define `TrackID` union type (`kick_01` | `kick_02` | `bass_01` | `bass_02` | `snare_01` | `snare_02` | `synth_01` | `clap` | `hh_01` | `hh_02`).
     - Define `BeatManifest` interface (The JSON structure).
     - Implement Zod Schema `BeatManifestSchema` for runtime validation.
 
-- [ ] **1.3 The "Rosetta Stone" (Track Registry)**
-  - [ ] Create `src/config/trackConfig.ts`.
-  - [ ] Export a `TRACK_REGISTRY` object that maps `TrackID` -> `Sample File` + `UI Row Index`.
-  - [ ] **Why:** This allows us to convert the DB's "Semantic JSON" into the UI's "Array Grid".
+- [x] **1.3 The "Rosetta Stone" (Track Registry)**
+  - [x] Create `src/config/trackConfig.ts`.
+  - [x] Export a `TRACK_REGISTRY` object that maps `TrackID` -> `Sample File` + `UI Row Index`.
+  - [x] **Why:** This allows us to convert the DB's "Semantic JSON" into the UI's "Array Grid".
 
-- [ ] **1.4 Data Transformers**
-  - [ ] Create `src/utils/beatUtils.ts`.
-  - [ ] Implement `normalizeBeatData(json: any)`:
+- [x] **1.4 Data Transformers**
+  - [x] Create `src/lib/beatUtils.ts` (moved from `src/utils/` to `src/lib/`).
+  - [x] Implement `normalizeBeatData(json: any)`:
     - Uses `safeParse`.
     - Returns a guaranteed valid `BeatManifest`.
-  - [ ] Implement `toGridArray(manifest)` and `toManifest(gridArray)` converters using the Registry.
+  - [x] Implement `toGridArray(manifest)` and `toManifest(gridArray)` converters using the Registry.
 
 ---
 
