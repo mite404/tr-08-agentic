@@ -1,4 +1,4 @@
-import type { BeatManifest, TrackID } from "../types/beat";
+import type { BeatManifest, TrackID, TrackData } from "../types/beat";
 import { TRACK_REGISTRY } from "../config/trackConfig";
 
 /**
@@ -80,7 +80,7 @@ export function toManifest(grid: boolean[][], bpm: number): BeatManifest {
     (a, b) => a.rowIndex - b.rowIndex,
   );
 
-  const tracks: Record<TrackID, any> = {} as Record<TrackID, any>;
+  const tracks = {} as Record<TrackID, TrackData>;
 
   TRACK_REGISTRY_SORTED.forEach((config) => {
     const trackId = config.trackId;
@@ -153,7 +153,7 @@ export function toGridArray(manifest: BeatManifest): {
  * @param data - Untrusted beat data (potentially old schema version)
  * @returns Migrated BeatManifest in current schema version
  */
-export function migrateSchema(data: any): BeatManifest {
+export function migrateSchema(data: unknown): BeatManifest {
   // Currently only v1.0.0 exists, but future versions would add migration logic here
   // Example:
   // if (data.meta?.version === "0.9.0") {
