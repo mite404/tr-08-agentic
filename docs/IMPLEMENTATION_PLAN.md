@@ -53,41 +53,49 @@
 
 ---
 
-## Phase 2: Authentication & User Context
+## Phase 2: Authentication & User Context ✅ COMPLETED (PR #3)
 
 **Goal:** Users can identify themselves safely.
 
-- [ ] **2.1 Supabase Client**
-  - [ ] Initialize `src/lib/supabase.ts`.
-  - [ ] Set up Environment Variables.
+- [x] **2.1 Supabase Client**
+  - [x] Initialize `src/lib/supabase.ts`.
+  - [x] Set up Environment Variables (`.env.local`).
 
-- [ ] **2.2 Auth UI**
-  - [ ] Create `LoginModal` component.
-  - [ ] Implement `useAuth` hook to track Session state.
-  - [ ] **Check:** Ensure `profiles` row exists after first login.
+- [x] **2.2 Auth UI**
+  - [x] Create `LoginModal` component.
+  - [x] Implement `useAuth` hook to track Session state.
+  - [x] Add Google and GitHub OAuth providers.
+  - [x] **Check:** Ensure `profiles` row exists after first login (via SQL trigger).
 
 ---
 
-## Phase 3: Persistence (The "Graffiti Wall")
+## Phase 3: Persistence (The "Graffiti Wall") ✅ COMPLETED (PR #3)
 
 **Goal:** Connect the UI to the Database using the new Semantic Data Structure.
 
-- [ ] **3.1 The "Save" Hook**
-  - [ ] Logic:
-    1. Get current Grid/Knobs from State.
-    2. Convert to Semantic `BeatManifest` (using Registry).
-    3. Validate via Zod.
-    4. Insert into Supabase.
-  - [ ] UX: Debounce the Save button.
+- [x] **3.1 The "Save" Hook**
+  - [x] Create `src/hooks/useSaveBeat.ts`.
+  - [x] Logic:
+    1. Get current Grid/BPM/BeatName from State.
+    2. Convert to Semantic `BeatManifest` (using `toManifest()`).
+    3. Validate via Zod (`BeatManifestSchema`).
+    4. Insert into Supabase `beats` table.
+  - [x] UX: Implement debounced save (500ms via `saveBeatDebounced()`).
+  - [x] Validation: Beat name 1-25 chars, non-empty.
 
-- [ ] **3.2 The "Load" Hook**
-  - [ ] Logic: Fetch `ORDER BY created_at DESC LIMIT 1`.
-  - [ ] Logic: Run `normalizeBeatData` (The Safety Check).
-  - [ ] Logic: Hydrate React State (Grid + BPM + Knobs).
+- [x] **3.2 The "Load" Hook**
+  - [x] Create `src/hooks/useLoadBeat.ts`.
+  - [x] Logic: Fetch `ORDER BY created_at DESC LIMIT 1` (latest beat).
+  - [x] Logic: Run `normalizeBeatData()` (The Safety Check).
+  - [x] Logic: Hydrate React State (Grid + BPM + Beat Name) via `toGridArray()`.
+  - [x] Add `loadBeatById()` and `loadUserBeats()` for future use.
 
-- [ ] **3.3 Loading States**
-  - [ ] Create `SkeletonGrid` component (Visual placeholder).
-  - [ ] Block interaction until `isLoaded` is true.
+- [x] **3.3 UI Integration**
+  - [x] Add Save/Load buttons to `App.tsx`.
+  - [x] Add `LoginModal` with OAuth buttons.
+  - [x] Add loading states (`isSaving`, `loadingBeat`).
+  - [ ] Create `SkeletonGrid` component (deferred to PR #4).
+  - [ ] Block interaction until `isLoaded` is true (deferred to PR #4).
 
 ---
 

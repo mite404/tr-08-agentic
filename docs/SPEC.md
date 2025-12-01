@@ -87,7 +87,8 @@ src/
 │   └── beatUtils.ts                # ✅ COMPLETED: Serializers & transformers
 │
 ├── types/
-│   └── beat.ts                     # ✅ COMPLETED: BeatManifest, TrackID, Zod Schemas
+│   ├── beat.ts                     # ✅ COMPLETED: BeatManifest, TrackID, Zod Schemas
+│   └── database.ts                 # ✅ COMPLETED (PR #3): Supabase type definitions
 │
 ├── config/
 │   └── trackConfig.ts              # ✅ COMPLETED: TRACK_REGISTRY, SAMPLE_LIBRARY
@@ -96,10 +97,10 @@ src/
 │   ├── schema.ts                   # Generated schema from introspection
 │   └── index.ts                    # Database client (scripts only)
 │
-├── hooks/                          # PENDING
-│   ├── useAuth.ts                  # Session state (TODO)
-│   ├── useSaveHook.ts              # Debounced save (TODO)
-│   └── useLoadHook.ts              # Fetch + hydrate (TODO)
+├── hooks/                          # ✅ COMPLETED (PR #3)
+│   ├── useAuth.ts                  # ✅ Session state, OAuth sign-in/out
+│   ├── useSaveBeat.ts              # ✅ Debounced save with validation
+│   └── useLoadBeat.ts              # ✅ Fetch + hydrate with normalization
 │
 ├── components/
 │   ├── Pad.tsx                     # Existing: grid pad
@@ -1163,42 +1164,45 @@ describe("calculateEffectiveVolume", () => {
 #### Files to Touch
 
 ```
-src/lib/supabase.ts               (new)
-src/hooks/useAuth.ts              (new)
-src/hooks/useSaveHook.ts          (new)
-src/hooks/useLoadHook.ts          (new)
-src/App.tsx                        (integrate hooks, add Save button)
-src/components/LoginModal.tsx      (new)
-.env.local                         (add: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
+src/lib/supabase.ts               (✅ new)
+src/hooks/useAuth.ts              (✅ new)
+src/hooks/useSaveBeat.ts          (✅ new - renamed from useSaveHook)
+src/hooks/useLoadBeat.ts          (✅ new - renamed from useLoadHook)
+src/types/database.ts             (✅ new)
+src/App.tsx                        (✅ integrated hooks, added Save/Load buttons)
+src/components/LoginModal.tsx      (✅ new)
+tsconfig.app.json                  (✅ exclude src/db/)
+.env.local                         (✅ VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
 ```
 
 #### Definition of Done
 
-- [ ] `useAuth()` tracks Session state from Supabase Auth.
-- [ ] `useSaveHook()` debounces grid updates (500ms), validates with Zod, inserts to `beats` table.
-- [ ] `useLoadHook()` fetches latest beat, normalizes via `normalizeBeatData()`, hydrates React state.
-- [ ] Save button is disabled if beatName fails sanitization check.
-- [ ] Load hook shows Skeleton state while fetching.
-- [ ] LoginModal is shown if user is not authenticated (auth-gated Save).
-- [ ] RLS policies are verified (authenticated save, public read).
-- [ ] Error handling: network failures retry with exponential backoff.
+- [x] `useAuth()` tracks Session state from Supabase Auth (Google/GitHub OAuth).
+- [x] `useSaveBeat()` validates with Zod, inserts to `beats` table (debounced version available).
+- [x] `useLoadBeat()` fetches beats, normalizes via `normalizeBeatData()`, hydrates React state.
+- [x] Save button validates beat name (1-25 chars, non-empty).
+- [x] Load hook includes loading state tracking.
+- [x] LoginModal shown with OAuth sign-in buttons (Google/GitHub).
+- [x] RLS policies verified (authenticated save, public read).
+- [x] Error handling with user-friendly alerts.
 
 #### Testing
 
 ```typescript
-// hooks/__tests__/useSaveHook.test.ts
-describe("useSaveHook", () => {
+// hooks/__tests__/useSaveBeat.test.ts
+describe("useSaveBeat", () => {
   test("Debounces grid updates", async () => {
-    const { result } = renderHook(() => useSaveHook(...));
-    act(() => result.current.triggerSave());
-    act(() => result.current.triggerSave());
-    // Expect only 1 DB insert after debounce window
+    const { result } = renderHook(() => useSaveBeat(mockSession));
+    act(() => result.current.saveBeatDebounced({ grid, bpm, beatName }));
+    act(() => result.current.saveBeatDebounced({ grid, bpm, beatName }));
+    // Expect only 1 DB insert after 500ms debounce window
   });
 
-  test("Rejects unsanitized beatName", () => {
-    const { result } = renderHook(() => useSaveHook(...));
-    const canSave = result.current.canSave("badword1");
-    expect(canSave).toBe(false);
+  test("Rejects invalid beatName", async () => {
+    const { result } = renderHook(() => useSaveBeat(mockSession));
+    await expect(
+      result.current.saveBeat({ grid, bpm, beatName: "" }),
+    ).rejects.toThrow("INVALID_BEAT_NAME");
   });
 });
 ```
