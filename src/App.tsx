@@ -16,6 +16,12 @@ import { TRACK_REGISTRY } from "./config/trackConfig";
 import { getDefaultBeatManifest } from "./types/beat";
 import type { TrackID, BeatManifest } from "./types/beat";
 
+// PR #3: Import authentication and persistence hooks
+import { useAuth } from "./hooks/useAuth";
+import { useSaveBeat } from "./hooks/useSaveBeat";
+import { useLoadBeat } from "./hooks/useLoadBeat";
+import { LoginModal } from "./components/LoginModal";
+
 export type TrackObject = {
   name: string;
   sound: string;
@@ -253,7 +259,21 @@ function App() {
   const createSequencerRef = useRef<ReturnType<typeof createSequencer>>(null);
   const gridRef = useRef(grid);
   const playersInitializedRef = useRef(false);
-  const [instruments, setInstruments] = useState<Array<Instrument>>([]);
+
+  // PR #3: Authentication and persistence hooks
+  const {
+    session,
+    loading: authLoading,
+    signInWithGoogle,
+    signInWithGithub,
+    signOut,
+  } = useAuth();
+  const { saveBeat, isSaving, error: saveError } = useSaveBeat(session);
+  const {
+    loadLatestBeat,
+    isLoading: loadingBeat,
+    error: loadError,
+  } = useLoadBeat();
 
   // PR #2: New audio engine state
   const playersMapRef = useRef<Map<TrackID, Tone.Player>>(new Map());
@@ -277,7 +297,6 @@ function App() {
 
     if (data) {
       response = data;
-      setInstruments(response);
       console.log(response);
     } else {
       console.error("There was an issue:", error);
@@ -432,6 +451,40 @@ function App() {
     }
   }
 
+  // PR #3: Save beat handler
+  async function handleSaveBeat() {
+    if (!session) {
+      alert("Please sign in to save beats");
+      return;
+    }
+
+    try {
+      await saveBeat({ grid, bpm, beatName });
+      alert(`Beat "${beatName}" saved successfully!`);
+    } catch (err) {
+      console.error("[App] Save failed:", err);
+      alert(`Failed to save beat: ${saveError || "Unknown error"}`);
+    }
+  }
+
+  // PR #3: Load beat handler
+  async function handleLoadBeat() {
+    try {
+      const loadedBeat = await loadLatestBeat();
+      if (loadedBeat) {
+        setGrid(loadedBeat.grid);
+        setBpm(loadedBeat.bpm);
+        setBeatName(loadedBeat.beatName);
+        alert(`Loaded beat: "${loadedBeat.beatName}"`);
+      } else {
+        alert("No beats found");
+      }
+    } catch (err) {
+      console.error("[App] Load failed:", err);
+      alert(`Failed to load beat: ${loadError || "Unknown error"}`);
+    }
+  }
+
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter") {
       const userInput = event.currentTarget.value;
@@ -497,9 +550,40 @@ function App() {
       {/* device container */}
       <div className="rounded-xl bg-gray-600 p-4 pt-12 pr-8 pb-8 pl-8">
         {/* HEADER container */}
-        <div className="flex items-center">
-          <img className="w-[200px] p-6" src={mpcMark} alt="TR-08 Mark"></img>
-          {getDisplayTitle()}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center">
+            <img className="w-[200px] p-6" src={mpcMark} alt="TR-08 Mark"></img>
+            {getDisplayTitle()}
+          </div>
+
+          {/* PR #3: Auth and Save/Load Controls */}
+          <div className="flex flex-col gap-2">
+            <LoginModal
+              session={session}
+              signInWithGoogle={signInWithGoogle}
+              signInWithGithub={signInWithGithub}
+              signOut={signOut}
+              loading={authLoading}
+            />
+            {session && (
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveBeat}
+                  disabled={isSaving}
+                  className="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:bg-gray-500"
+                >
+                  {isSaving ? "Saving..." : "Save Beat"}
+                </button>
+                <button
+                  onClick={handleLoadBeat}
+                  disabled={loadingBeat}
+                  className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:bg-gray-500"
+                >
+                  {loadingBeat ? "Loading..." : "Load Latest"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* container for KNOB & GRID divs */}
@@ -564,13 +648,6 @@ function App() {
               onDecrementClick={handleDecrementBpm}
             />
           </div>
-        </div>
-        <div>
-          <ul>
-            {instruments.map((instrument) => (
-              <li key={instrument.name}>{instrument.name}</li>
-            ))}
-          </ul>
         </div>
       </div>
     </div>
