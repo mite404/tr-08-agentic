@@ -1,7 +1,8 @@
 # Implementation Plan: TR-08 v1.0
 
-**Status:** Active
-**Spec:** [PRD v2.1](./PRD.md)
+**Status:** Active (PR #4 Complete)
+**Last Updated:** 2025-12-01
+**Spec:** [PRD v2.2](./PRD.md)
 
 ---
 
@@ -110,20 +111,56 @@
   - [x] Add Save/Load buttons to `App.tsx`.
   - [x] Add loading states (`isSaving`, `loadingBeat`).
   - [x] Add error handling and user feedback.
-  - [ ] Create `SkeletonGrid` component (deferred to PR #4).
-  - [ ] Block interaction until `isLoaded` is true (deferred to PR #4).
+  - [x] Create `SkeletonGrid` component (completed in PR #4).
+  - [x] Block interaction until `isLoaded` is true (completed in PR #4).
 
 ---
 
-## Phase 4: Production Hardening
+## Phase 4: The Integration (UI Polish) ✅ COMPLETED (PR #4)
+
+**Goal:** Polish UI, implement loading skeletons, and enforce auth-only visibility.
+
+- [x] **4.1 Loading Skeleton Grid**
+  - [x] Create `src/components/SkeletonGrid.tsx`.
+  - [x] Layout: 10 rows × 16 columns = 160 cells.
+  - [x] Styling: Matches exact grid layout (`grid grid-cols-16 gap-1`).
+  - [x] Animation: `animate-pulse` for smooth loading feedback.
+  - [x] Purpose: Prevents Cumulative Layout Shift (CLS) during data load.
+
+- [x] **4.2 Mobile Responsiveness**
+  - [x] Create `src/components/PortraitBlocker.tsx`.
+  - [x] Logic: Detect `(orientation: portrait) and (max-width: 768px)`.
+  - [x] UI: Fixed full-screen overlay (`z-50`, `bg-black`).
+  - [x] Message: "Please Rotate Your Device to Play".
+  - [x] Implementation: `MediaQueryList` listener for orientation changes.
+
+- [x] **4.3 Component Polish**
+  - [x] Create `src/components/SaveButton.tsx` with loading spinner.
+  - [x] Create `src/components/LoadButton.tsx` with loading spinner.
+  - [x] Create `src/components/LoginModalButton.tsx` with modal and close button.
+  - [x] Dark-theme modal styling (`bg-gray-900`).
+  - [x] Proper error handling and user feedback.
+
+- [x] **4.4 App.tsx Integration**
+  - [x] Add auto-load "Graffiti Wall" on mount via `useEffect`.
+  - [x] Show `SkeletonGrid` while `isInitialDataLoaded` is false.
+  - [x] Auth-based UI logic:
+    - Guest users: Show only "Sign In" button.
+    - Authenticated users: Show "Save", "Load", and "Sign Out" buttons.
+  - [x] Mount `PortraitBlocker` at top level.
+  - [x] Remove unused imports and test code (instruments table references).
+
+---
+
+## Phase 5: Production Hardening
 
 **Goal:** Optimization and Error Handling.
 
-- [ ] **4.1 Audio Architecture Check**
+- [ ] **5.1 Audio Architecture Check**
   - [ ] Verify `Tone.Players` are in `useRef`.
   - [ ] Verify `useEffect` updates volumes based on DB data.
   - [ ] Add `Tone.context.resume()` handler on "Play" click.
 
-- [ ] **4.2 Asset Optimization**
+- [ ] **5.2 Asset Optimization**
   - [ ] Convert WAVs to MP3/OGG.
   - [ ] Implement Pre-loader utility.

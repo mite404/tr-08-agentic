@@ -6,7 +6,6 @@ import { PlayStopBtn } from "./components/PlayStopBtn";
 import { createSequencer, togglePad } from "./sequencer";
 import { Knob } from "./components/Knob";
 import * as Tone from "tone";
-import { createClient } from "@supabase/supabase-js";
 
 import mpcMark from "./assets/images/MPC_mark.png";
 
@@ -20,7 +19,13 @@ import type { TrackID, BeatManifest } from "./types/beat";
 import { useAuth } from "./hooks/useAuth";
 import { useSaveBeat } from "./hooks/useSaveBeat";
 import { useLoadBeat } from "./hooks/useLoadBeat";
-import { LoginModal } from "./components/LoginModal";
+
+// PR #4: Import UI components for loading states and auth
+import { SkeletonGrid } from "./components/SkeletonGrid";
+import { PortraitBlocker } from "./components/PortraitBlocker";
+import { SaveButton } from "./components/SaveButton";
+import { LoadButton } from "./components/LoadButton";
+import { LoginModalButton } from "./components/LoginModalButton";
 
 export type TrackObject = {
   name: string;
@@ -234,16 +239,6 @@ const colorMap: { [key: string]: string } = {
   "bg-purple-900": "bg-purple-500",
 };
 
-type Instrument = {
-  id: number;
-  name: string;
-};
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL as string,
-  import.meta.env.VITE_SUPABASE_ANON_KEY as string,
-);
-
 function App() {
   const [bpm, setBpm] = useState(140);
   const [grid, setGrid] = useState(initialGrid);
@@ -275,6 +270,9 @@ function App() {
     error: loadError,
   } = useLoadBeat();
 
+  // PR #4: Track initial data loading state
+  const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
+
   // PR #2: New audio engine state
   const playersMapRef = useRef<Map<TrackID, Tone.Player>>(new Map());
   const manifestRef = useRef<BeatManifest>(getDefaultBeatManifest());
@@ -284,24 +282,30 @@ function App() {
       .map((c) => c.trackId),
   );
 
+  // PR #4: Auto-load the latest beat on mount (The Graffiti Wall)
   useEffect(() => {
-    const instrumentsWrapper = async () => {
-      await getInstruments();
+    const loadInitialData = async () => {
+      try {
+        setIsInitialDataLoaded(false);
+        const loadedBeat = await loadLatestBeat();
+        if (loadedBeat) {
+          setGrid(loadedBeat.grid);
+          setBpm(loadedBeat.bpm);
+          setBeatName(loadedBeat.beatName);
+          console.log(`[App] Auto-loaded beat: "${loadedBeat.beatName}"`);
+        } else {
+          console.log("[App] No beats found, using default grid");
+        }
+      } catch (err) {
+        console.error("[App] Auto-load failed:", err);
+      } finally {
+        setIsInitialDataLoaded(true);
+      }
     };
-    void instrumentsWrapper();
+
+    void loadInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  async function getInstruments() {
-    let response: Array<Instrument> | null = [];
-    const { data, error } = await supabase.from("instruments").select("*");
-
-    if (data) {
-      response = data;
-      console.log(response);
-    } else {
-      console.error("There was an issue:", error);
-    }
-  }
 
   // giving callback in createSequencer fresh state of grid
   useEffect(() => {
@@ -545,112 +549,129 @@ function App() {
   }
 
   return (
-    // whole page container
-    <div className="flex min-h-screen items-center justify-center bg-gray-950">
-      {/* device container */}
-      <div className="rounded-xl bg-gray-600 p-4 pt-12 pr-8 pb-8 pl-8">
-        {/* HEADER container */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center">
-            <img className="w-[200px] p-6" src={mpcMark} alt="TR-08 Mark"></img>
-            {getDisplayTitle()}
-          </div>
+    <>
+      {/* PR #4: Portrait blocker for mobile devices */}
+      <PortraitBlocker />
 
-          {/* PR #3: Auth and Save/Load Controls */}
-          <div className="flex flex-col gap-2">
-            <LoginModal
-              session={session}
-              signInWithGoogle={signInWithGoogle}
-              signInWithGithub={signInWithGithub}
-              signOut={signOut}
-              loading={authLoading}
-            />
-            {session && (
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSaveBeat}
-                  disabled={isSaving}
-                  className="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:bg-gray-500"
-                >
-                  {isSaving ? "Saving..." : "Save Beat"}
-                </button>
-                <button
-                  onClick={handleLoadBeat}
-                  disabled={loadingBeat}
-                  className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:bg-gray-500"
-                >
-                  {loadingBeat ? "Loading..." : "Load Latest"}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+      {/* whole page container */}
+      <div className="flex min-h-screen items-center justify-center bg-gray-950">
+        {/* device container */}
+        <div className="rounded-xl bg-gray-600 p-4 pt-12 pr-8 pb-8 pl-8">
+          {/* HEADER container */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center">
+              <img
+                className="w-[200px] p-6"
+                src={mpcMark}
+                alt="TR-08 Mark"
+              ></img>
+              {getDisplayTitle()}
+            </div>
 
-        {/* container for KNOB & GRID divs */}
-        <div className="flex w-full flex-row">
-          {/* KNOB container */}
-          <div className="flex-none pt-3.5 pr-1.5">
-            {tracks.map((_track, trackIndex) => {
-              return (
-                <Knob
-                  // eslint-disable-next-line react-x/no-array-index-key
-                  key={trackIndex}
-                  _trackIndex={trackIndex}
-                  inputDb={trackVolumes[trackIndex]}
-                  onDbChange={(newDbValue) => {
-                    handleDbChange(trackIndex, newDbValue);
-                  }}
+            {/* PR #4: Auth Controls - Conditional on session */}
+            <div className="flex items-center gap-3">
+              {!session ? (
+                // Guest: Show only Sign In button
+                <LoginModalButton
+                  session={session}
+                  signInWithGoogle={signInWithGoogle}
+                  signInWithGithub={signInWithGithub}
+                  signOut={signOut}
+                  loading={authLoading}
                 />
-              );
-            })}
+              ) : (
+                // Authenticated: Show Save, Load, and Sign Out
+                <>
+                  <SaveButton onClick={handleSaveBeat} isSaving={isSaving} />
+                  <LoadButton
+                    onClick={handleLoadBeat}
+                    isLoading={loadingBeat}
+                  />
+                  <LoginModalButton
+                    session={session}
+                    signInWithGoogle={signInWithGoogle}
+                    signInWithGithub={signInWithGithub}
+                    signOut={signOut}
+                    loading={authLoading}
+                  />
+                </>
+              )}
+            </div>
           </div>
-          {/* beat grid container */}
-          <div className="flex-1 rounded-md border-10 border-gray-900">
-            {/* beat grid */}
-            <div className="grid grid-cols-16 gap-1 p-0.5">
-              {grid.map((track, rowIndex) => {
-                return track.map((_, colIndex) => {
-                  return (
-                    <Pad
-                      // eslint-disable-next-line react-x/no-array-index-key
-                      key={`${rowIndex}-${colIndex}`}
-                      color={getActiveColor(
-                        tracks[rowIndex].color,
-                        grid[rowIndex][colIndex],
-                      )}
-                      isActive={grid[rowIndex][colIndex]}
-                      isCurrentStep={colIndex === currentStep}
-                      is16thNote={colIndex % 4 !== 0}
-                      onClick={() => handlePadClick(rowIndex, colIndex)}
-                    />
-                  );
-                });
+
+          {/* container for KNOB & GRID divs */}
+          <div className="flex w-full flex-row">
+            {/* KNOB container */}
+            <div className="flex-none pt-3.5 pr-1.5">
+              {tracks.map((_track, trackIndex) => {
+                return (
+                  <Knob
+                    // eslint-disable-next-line react-x/no-array-index-key
+                    key={trackIndex}
+                    _trackIndex={trackIndex}
+                    inputDb={trackVolumes[trackIndex]}
+                    onDbChange={(newDbValue) => {
+                      handleDbChange(trackIndex, newDbValue);
+                    }}
+                  />
+                );
               })}
+            </div>
+            {/* beat grid container */}
+            <div className="flex-1 rounded-md border-10 border-gray-900">
+              {/* PR #4: Show skeleton while loading initial data */}
+              {!isInitialDataLoaded ? (
+                <div className="p-0.5">
+                  <SkeletonGrid />
+                </div>
+              ) : (
+                /* beat grid */
+                <div className="grid grid-cols-16 gap-1 p-0.5">
+                  {grid.map((track, rowIndex) => {
+                    return track.map((_, colIndex) => {
+                      return (
+                        <Pad
+                          // eslint-disable-next-line react-x/no-array-index-key
+                          key={`${rowIndex}-${colIndex}`}
+                          color={getActiveColor(
+                            tracks[rowIndex].color,
+                            grid[rowIndex][colIndex],
+                          )}
+                          isActive={grid[rowIndex][colIndex]}
+                          isCurrentStep={colIndex === currentStep}
+                          is16thNote={colIndex % 4 !== 0}
+                          onClick={() => handlePadClick(rowIndex, colIndex)}
+                        />
+                      );
+                    });
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* control buttons container */}
+          <div className="mx-auto grid max-w-3/4 grid-cols-2 justify-center gap-2 p-6 pt-6">
+            <div>
+              <PlayStopBtn
+                customStyles=""
+                onClick={() => void handleStartStopClick()}
+                disabled={isLoading}
+              />
+            </div>
+
+            {/* set tempo controls container */}
+            <div className="grid grid-cols-1">
+              <TempoDisplay
+                bpmValue={bpm}
+                onIncrementClick={handleIncrementBpm}
+                onDecrementClick={handleDecrementBpm}
+              />
             </div>
           </div>
         </div>
-
-        {/* control buttons container */}
-        <div className="mx-auto grid max-w-3/4 grid-cols-2 justify-center gap-2 p-6 pt-6">
-          <div>
-            <PlayStopBtn
-              customStyles=""
-              onClick={() => void handleStartStopClick()}
-              disabled={isLoading}
-            />
-          </div>
-
-          {/* set tempo controls container */}
-          <div className="grid grid-cols-1">
-            <TempoDisplay
-              bpmValue={bpm}
-              onIncrementClick={handleIncrementBpm}
-              onDecrementClick={handleDecrementBpm}
-            />
-          </div>
-        </div>
       </div>
-    </div>
+    </>
   );
 }
 

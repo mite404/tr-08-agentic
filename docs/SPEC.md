@@ -1,6 +1,6 @@
 # TR-08 v1.0: System Specification
 
-**Status:** Active | **Version:** 1.0 | **Date:** 2025-11-18
+**Status:** Active | **Version:** 1.0 | **Last Updated:** 2025-12-01 (PR #4 Complete)
 
 ---
 
@@ -108,8 +108,12 @@ src/
 │   ├── PlayStopBtn.tsx             # Existing: play/stop toggle
 │   ├── TempoDisplay.tsx            # Existing: BPM +/-
 │   ├── Knob.tsx                    # ✅ COMPLETED: Volume knob component
-│   ├── LoginModal.tsx              # TODO: Auth gateway
-│   └── SkeletonGrid.tsx            # TODO: Loading placeholder
+│   ├── LoginModal.tsx              # ✅ COMPLETED (PR #4): Auth gateway (deprecated)
+│   ├── LoginModalButton.tsx        # ✅ COMPLETED (PR #4): Modal with sign-in/out
+│   ├── SaveButton.tsx              # ✅ COMPLETED (PR #4): Save with loading state
+│   ├── LoadButton.tsx              # ✅ COMPLETED (PR #4): Load with loading state
+│   ├── SkeletonGrid.tsx            # ✅ COMPLETED (PR #4): Loading placeholder (10x16)
+│   └── PortraitBlocker.tsx         # ✅ COMPLETED (PR #4): Mobile portrait overlay
 │
 └── assets/
     ├── samples/                    # 10x WAV files (unchanged)
@@ -997,32 +1001,16 @@ export function migrateSchema(data: any): BeatManifest {
 
 **Portrait Mode (<768px):**
 
-```typescript
-// src/components/PortraitBlocker.tsx
-export function PortraitBlocker(): JSX.Element | null {
-  const [isPortrait, setIsPortrait] = useState(
-    window.matchMedia("(orientation: portrait) and (max-width: 768px)").matches
-  );
+✅ **COMPLETED (PR #4):** See `src/components/PortraitBlocker.tsx`
 
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(orientation: portrait) and (max-width: 768px)");
-    const listener = (e: MediaQueryListEvent) => setIsPortrait(e.matches);
-    mediaQuery.addEventListener("change", listener);
-    return () => mediaQuery.removeEventListener("change", listener);
-  }, []);
+The PortraitBlocker component:
 
-  if (!isPortrait) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-      <div className="text-center text-white">
-        <h1 className="text-2xl font-bold mb-4">Rotate Your Device</h1>
-        <p>The 16-step grid requires landscape orientation.</p>
-      </div>
-    </div>
-  );
-}
-```
+- Uses `window.matchMedia("(orientation: portrait) and (max-width: 768px)")`
+- Returns `null` in landscape mode (does not render)
+- Shows fixed full-screen overlay (`z-50`) with black background (`bg-black`)
+- Displays "Please Rotate Your Device to Play" message centered on screen
+- Implements `MediaQueryList` listener for orientation changes
+- Prevents interaction with grid until device is rotated to landscape
 
 ### 6.4 Visibility Change (Background Throttling)
 
