@@ -82,38 +82,41 @@ src/
 ├── index.css                       # Global Tailwind
 ├── App.css                         # App-specific styles
 │
-├── lib/
-│   ├── supabase.ts                 # Supabase client init (new)
-│   └── beatUtils.ts                # Serializers & transformers (new)
+├── lib/                            # MOVED FROM utils/
+│   ├── audioEngine.ts              # ✅ COMPLETED: Audio context, sample loading, playback
+│   └── beatUtils.ts                # ✅ COMPLETED: Serializers & transformers
 │
 ├── types/
-│   └── beat.ts                     # BeatManifest, TrackID, Zod Schemas (new)
+│   └── beat.ts                     # ✅ COMPLETED: BeatManifest, TrackID, Zod Schemas
 │
 ├── config/
-│   └── trackConfig.ts              # TRACK_REGISTRY (new)
+│   └── trackConfig.ts              # ✅ COMPLETED: TRACK_REGISTRY, SAMPLE_LIBRARY
 │
-├── hooks/
-│   ├── useAuth.ts                  # Session state (new)
-│   ├── useSaveHook.ts              # Debounced save (new)
-│   └── useLoadHook.ts              # Fetch + hydrate (new)
+├── db/                             # NEW: Drizzle ORM (schema management only)
+│   ├── schema.ts                   # Generated schema from introspection
+│   └── index.ts                    # Database client (scripts only)
+│
+├── hooks/                          # PENDING
+│   ├── useAuth.ts                  # Session state (TODO)
+│   ├── useSaveHook.ts              # Debounced save (TODO)
+│   └── useLoadHook.ts              # Fetch + hydrate (TODO)
 │
 ├── components/
 │   ├── Pad.tsx                     # Existing: grid pad
 │   ├── Button.tsx                  # Existing: generic button
 │   ├── PlayStopBtn.tsx             # Existing: play/stop toggle
 │   ├── TempoDisplay.tsx            # Existing: BPM +/-
-│   ├── LoginModal.tsx              # NEW: Auth gateway
-│   └── SkeletonGrid.tsx            # NEW: Loading placeholder
+│   ├── Knob.tsx                    # ✅ COMPLETED: Volume knob component
+│   ├── LoginModal.tsx              # TODO: Auth gateway
+│   └── SkeletonGrid.tsx            # TODO: Loading placeholder
 │
-├── assets/
-│   ├── samples/                    # 10x WAV files (unchanged)
-│   └── images/
-│       └── MPC_mark.png
-
-└── utils/
-    ├── profanityFilter.ts          # String validation (new)
-    └── errors.ts                   # Error codes & messages (new)
+└── assets/
+    ├── samples/                    # 10x WAV files (unchanged)
+    └── images/
+        └── MPC_mark.png
 ```
+
+**Note:** `src/utils/` has been removed. All utilities moved to `src/lib/`.
 
 ### 2.3 State Management Strategy
 
@@ -191,12 +194,12 @@ export interface TrackData {
 export interface BeatManifest {
   meta: {
     version: string; // "1.0.0" - enables schema migration
-    engine: "TR-08"; // Hard constraint; rejects mismatched saves
+    engine: string; // "tone.js@15.1.22" (not hard constraint)
   };
   global: {
     bpm: number; // 40-300 inclusive
     swing: number; // 0.0-1.0; currently unused (future)
-    masterVolumeDb: number; // -Infinity to 0
+    masterVolumeDb: number; // -60 to +6 dB
   };
   tracks: Record<TrackID, TrackData>; // Dictionary pattern
 }
@@ -207,12 +210,11 @@ export interface BeatManifest {
  */
 export interface BeatRecord {
   id: string; // UUID
-  user_id: string; // UUID (FK -> profiles.id)
-  name: string; // Max 50 chars, sanitized
-  bpm: number; // Denormalized (also in data.global.bpm)
+  user_id: string; // UUID (FK -> auth.users.id)
+  beat_name: string; // Max 25 chars, sanitized
   data: BeatManifest; // JSONB column
   created_at: string; // ISO 8601 timestamp
-  updated_at?: string; // ISO 8601 timestamp
+  updated_at: string; // ISO 8601 timestamp (auto-updated via trigger)
 }
 
 /**
@@ -220,8 +222,9 @@ export interface BeatRecord {
  * Tracks AudioContext lifecycle.
  */
 export interface AudioContextState {
-  isRunning: boolean; // Tone.context.state === "running"
-  canPlay: boolean; // isRunning && allPlayersReady
+  isResumed: boolean; // Has audio context been resumed?
+  isLoading: boolean; // Are samples currently loading?
+  loadedCount: number; // Number of successfully loaded samples
   failureReason?: string; // e.g., "AUTOPLAY_BLOCKED", "SAMPLE_LOAD_TIMEOUT"
 }
 ```

@@ -15,6 +15,7 @@ dist-ssr
 # Environment variables (CRITICAL - DO NOT COMMIT)
 .env
 .env.local
+.env.*.local
 .env.development
 .env.development.local
 .env.production
@@ -32,3 +33,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Drizzle
+drizzle/
