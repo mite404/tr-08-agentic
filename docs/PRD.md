@@ -95,16 +95,16 @@ interface BeatManifest {
 
 // Fixed Semantic Keys (The "DNA" of the drum machine)
 type TrackID =
-  | "bd_1"
-  | "bd_2" // Bass Drums
-  | "sd_1"
-  | "sd_2" // Snares/Claps
-  | "lt_1"
-  | "mt_1" // Toms/Congas/Bass Synths
-  | "ch_1"
-  | "oh_1" // Hi-Hats
-  | "cy_1"
-  | "cb_1"; // Cymbal/Cowbell
+  | "kick_01"
+  | "kick_02" // Kick drums
+  | "bass_01"
+  | "bass_02" // Bass synths
+  | "snare_01"
+  | "snare_02" // Snares/Claps
+  | "synth_01" // Synth stab
+  | "clap" // Clap
+  | "hh_01"
+  | "hh_02"; // Hi-hats
 
 interface TrackData {
   sampleId: string; // "KICK_01" (Allows future sample swapping)
@@ -117,8 +117,14 @@ interface TrackData {
 
 ### 4.3 Audio Engine Integration
 
-- **Track Registry:** The app maintains a configuration file (`trackConfig.ts`) that maps these `TrackID`s to specific `Tone.Player` instances and specific Rows in the UI Grid.
-- **Volume Logic:** `Knob Angle` (UI) <-> `dB` (Logic). The DB only stores `dB`.
+- **Track Registry:** The app maintains a configuration file (`src/config/trackConfig.ts`) that exports `TRACK_REGISTRY`. This object maps semantic `TrackID`s to:
+  - Sample identifiers (e.g., `KICK_01`)
+  - UI Grid row indices
+  - Visual colors for each track
+  - This enables the "Rosetta Stone" transformation: DB's Semantic JSON ↔ UI's Array Grid.
+- **Volume Calculation:** The app uses `calculateEffectiveVolume()` to apply the strict mute/solo hierarchy.
+- **Audio Playback:** The `loadAudioSamples()` function pre-loads all Tone.Player instances; `playTrack()` handles playback with calculated volumes.
+- **Volume Logic:** `Knob Angle` (UI) ↔ `dB` (Logic). The DB only stores `dB`.
 
 ---
 
