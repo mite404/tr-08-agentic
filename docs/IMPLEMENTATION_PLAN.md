@@ -48,8 +48,9 @@
 - [x] **1.6 Development Tooling**
   - [x] Install Drizzle ORM (`drizzle-orm`, `drizzle-kit`, `postgres`).
   - [x] Create `drizzle.config.ts` for schema management.
-  - [x] Create `src/db/schema.ts` and `src/db/index.ts` (for scripts only).
+  - [x] Create `src/db/schema.ts` and `src/db/index.ts` (for Node.js scripts only).
   - [x] Add database scripts to package.json (`db:introspect`, `db:generate`, `db:migrate`, etc.).
+  - [x] Exclude `src/db/` from browser TypeScript config (`tsconfig.app.json`).
 
 ---
 
@@ -73,7 +74,20 @@
 
 **Goal:** Connect the UI to the Database using the new Semantic Data Structure.
 
-- [x] **3.1 The "Save" Hook**
+- [x] **3.1 Supabase Client & Types**
+  - [x] Create `src/lib/supabase.ts` with client initialization.
+  - [x] Create `src/types/database.ts` with TypeScript types for `beats` and `profiles` tables.
+  - [x] Load environment variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
+
+- [x] **3.2 Authentication Hook**
+  - [x] Create `src/hooks/useAuth.ts`.
+  - [x] Implement session state tracking.
+  - [x] Implement Google OAuth sign-in.
+  - [x] Implement GitHub OAuth sign-in.
+  - [x] Implement sign-out functionality.
+  - [x] Create `src/components/LoginModal.tsx` for OAuth UI.
+
+- [x] **3.3 The "Save" Hook**
   - [x] Create `src/hooks/useSaveBeat.ts`.
   - [x] Logic:
     1. Get current Grid/BPM/BeatName from State.
@@ -83,17 +97,19 @@
   - [x] UX: Implement debounced save (500ms via `saveBeatDebounced()`).
   - [x] Validation: Beat name 1-25 chars, non-empty.
 
-- [x] **3.2 The "Load" Hook**
+- [x] **3.4 The "Load" Hook**
   - [x] Create `src/hooks/useLoadBeat.ts`.
   - [x] Logic: Fetch `ORDER BY created_at DESC LIMIT 1` (latest beat).
   - [x] Logic: Run `normalizeBeatData()` (The Safety Check).
   - [x] Logic: Hydrate React State (Grid + BPM + Beat Name) via `toGridArray()`.
   - [x] Add `loadBeatById()` and `loadUserBeats()` for future use.
 
-- [x] **3.3 UI Integration**
+- [x] **3.5 UI Integration**
+  - [x] Add `LoginModal` to `App.tsx`.
+  - [x] Initialize `useAuth`, `useSaveBeat`, `useLoadBeat` hooks in `App.tsx`.
   - [x] Add Save/Load buttons to `App.tsx`.
-  - [x] Add `LoginModal` with OAuth buttons.
   - [x] Add loading states (`isSaving`, `loadingBeat`).
+  - [x] Add error handling and user feedback.
   - [ ] Create `SkeletonGrid` component (deferred to PR #4).
   - [ ] Block interaction until `isLoaded` is true (deferred to PR #4).
 

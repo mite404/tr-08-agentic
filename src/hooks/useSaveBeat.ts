@@ -85,26 +85,30 @@ export function useSaveBeat(session: Session | null): UseSaveBeatReturn {
         });
 
         if (dbError) {
-          console.error("[Save] Database error:", dbError);
+          // Log detailed error info for debugging RLS/auth issues
+          console.error("[Save] Database error:", {
+            code: dbError.code,
+            message: dbError.message,
+            details: (dbError as any).details,
+            hint: (dbError as any).hint,
+          });
           setError(`Failed to save: ${dbError.message}`);
-          throw new Error("DATABASE_ERROR");
+          throw new Error(`DATABASE_ERROR: ${dbError.code}`);
         }
 
         // Success!
         setLastSaved(new Date());
         console.log(`[Save] Beat "${trimmedName}" saved successfully`);
       } catch (err) {
-        console.error("[Save] Save failed:", err);
-        if (!error) {
-          // Only set error if not already set
-          setError(err instanceof Error ? err.message : "Unknown error");
-        }
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.error("[Save] Save failed:", errorMessage);
+        setError(errorMessage);
         throw err;
       } finally {
         setIsSaving(false);
       }
     },
-    [session, error],
+    [session],
   );
 
   /**
