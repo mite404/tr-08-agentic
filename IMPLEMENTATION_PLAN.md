@@ -36,6 +36,20 @@
     - Uses `safeParse`.
     - Returns a guaranteed valid `BeatManifest`.
   - [x] Implement `toGridArray(manifest)` and `toManifest(gridArray)` converters using the Registry.
+  - [x] Implement `calculateEffectiveVolume(manifest, trackId)` for mute/solo/volume hierarchy.
+  - [x] Implement `migrateSchema(data)` for version compatibility.
+
+- [x] **1.5 Audio Engine**
+  - [x] Create `src/lib/audioEngine.ts`.
+  - [x] Implement `resumeAudioContext()` for browser autoplay policy compliance.
+  - [x] Implement `loadAudioSamples(manifest, onLoadProgress)` with timeout and error handling.
+  - [x] Implement `playTrack(player, effectiveVolume, now)` for sample playback.
+
+- [x] **1.6 Development Tooling**
+  - [x] Install Drizzle ORM (`drizzle-orm`, `drizzle-kit`, `postgres`).
+  - [x] Create `drizzle.config.ts` for schema management.
+  - [x] Create `src/db/schema.ts` and `src/db/index.ts` (for scripts only).
+  - [x] Add database scripts to package.json (`db:introspect`, `db:generate`, `db:migrate`, etc.).
 
 ---
 
