@@ -37,5 +37,8 @@ dist-ssr
 # Drizzle
 drizzle/
 
+# Supabase CLI temporary files (contains connection strings and project metadata)
+supabase/.temp/
+
 # Test files (optional - remove from gitignore to commit)
 test-supabase.ts
