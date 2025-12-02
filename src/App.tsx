@@ -598,8 +598,10 @@ function App() {
             {/* PR #5: Auth Controls - Conditional on session with loading state */}
             <div className="flex items-center gap-3">
               {authLoading ? (
-                // Loading: Show spinner or text while checking auth state
-                <span className="text-sm text-gray-400">Loading...</span>
+                // Loading: Show visible text while checking auth state
+                <div className="px-4 py-2 text-sm font-medium text-gray-200">
+                  Loading...
+                </div>
               ) : !session ? (
                 // Guest: Show only Sign In button
                 <LoginModalButton
