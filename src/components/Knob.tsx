@@ -4,6 +4,7 @@ type KnobProps = {
   _trackIndex: number;
   inputDb: number;
   onDbChange: (newDbValue: number) => void;
+  disabled?: boolean; // PR #6: Visual feedback for failed tracks
 };
 
 // conversion constants
@@ -35,7 +36,12 @@ function getDbFromAngle(angleValue: number): number {
 
 // @ts-expect-error _trackIndex is intentionally unused for semantic clarity
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function Knob({ _trackIndex, inputDb, onDbChange }: KnobProps) {
+export function Knob({
+  _trackIndex,
+  inputDb,
+  onDbChange,
+  disabled = false,
+}: KnobProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const rotationAngle = getAngleFromDb(inputDb);
@@ -61,7 +67,7 @@ export function Knob({ _trackIndex, inputDb, onDbChange }: KnobProps) {
       const newDb = getDbFromAngle(newAngle);
       // console.log("dbValue: ", newDb, "rotationAngle: ", newAngle);
 
-      onDbChange(newDb); // 🔥 Fires repeatedly during drag
+      onDbChange(newDb); // Fires repeatedly during drag
     }
 
     function handleWindowMouseUp() {
@@ -80,10 +86,13 @@ export function Knob({ _trackIndex, inputDb, onDbChange }: KnobProps) {
   }, [isDragging, rotationAngle, onDbChange]); // rotationAngle needed to be added for fresh value
 
   return (
-    <div className="pb-1">
+    <div
+      className={`pb-1 ${disabled ? "pointer-events-none opacity-40 grayscale" : ""}`}
+      title={disabled ? "This track failed to load" : undefined}
+    >
       <div className="flex h-[25px] w-[25px] items-center justify-center rounded-full bg-gray-900">
         <div
-          className="flex h-[20px] w-[20px] cursor-pointer justify-center rounded-full bg-amber-500"
+          className="flex h-5 w-5 cursor-pointer justify-center rounded-full bg-amber-500"
           style={{ transform: `rotate(${renderKnob}deg)` }}
           onMouseDown={handleMouseDown}
         >

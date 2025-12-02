@@ -4,6 +4,7 @@ type PadProps = {
   isCurrentStep: boolean;
   is16thNote: boolean;
   onClick: () => void;
+  disabled?: boolean; // PR #6: Visual feedback for failed tracks
 };
 
 export function Pad({
@@ -12,8 +13,18 @@ export function Pad({
   isCurrentStep,
   is16thNote,
   onClick,
+  disabled = false, // PR #6: Default to enabled
 }: PadProps) {
-  // console.log("current step:", isCurrentStep);
+  // PR #6: If disabled, force gray background, remove interactivity, add grayscale
+  if (disabled) {
+    return (
+      <button
+        className="[rounded-[10px]] aspect-2/1 h-[25px] w-full cursor-not-allowed rounded-sm bg-gray-800 p-2 opacity-30 grayscale"
+        disabled
+        title="This track failed to load"
+      ></button>
+    );
+  }
 
   return (
     <button

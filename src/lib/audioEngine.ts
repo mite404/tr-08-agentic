@@ -40,79 +40,165 @@ export async function resumeAudioContext(): Promise<boolean> {
 }
 
 /**
+ * Result object returned by loadAudioSamples.
+ * Contains both successfully loaded players and a list of failed track IDs.
+ *
+ * PR #6: Added failedTrackIds for visual feedback
+ */
+export interface LoadAudioResult {
+  players: Map<TrackID, Tone.Player>;
+  failedTrackIds: TrackID[];
+}
+
+/**
+ * Helper: Wraps a promise with a timeout that rejects if not resolved in time.
+ * Used to prevent individual track loads from hanging indefinitely.
+ *
+ * @param promise - The promise to wrap
+ * @param timeoutMs - Timeout in milliseconds
+ * @param errorMessage - Error message if timeout occurs
+ * @returns Promise that rejects on timeout
+ */
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  errorMessage: string,
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(errorMessage)), timeoutMs),
+    ),
+  ]);
+}
+
+/**
  * Loads audio samples for all tracks in the manifest.
  * Uses TRACK_REGISTRY as the source of truth for track configuration.
  *
  * CONTRACT:
+ * - BULLETPROOF: ALWAYS returns a valid LoadAudioResult, NEVER throws, NEVER hangs
+ * - Individual Timeout: Each track load has 2-second timeout
+ * - Global Timeout: 10-second failsafe for entire operation
+ * - Partial Success: Returns successfully loaded tracks even if some fail
  * - Idempotent: safe to call multiple times
  * - Does NOT start Transport; only prepares players
- * - Returns: Map<TrackID, Tone.Player>
- * - Errors: Log but don't block; allow partial playback
- * - Timeout: 10 seconds total; app remains usable even if samples fail to load
  *
  * PR #5: Added 10-second timeout with Promise.race to prevent indefinite hangs
+ * PR #6: Returns failedTrackIds for UI feedback on broken tracks
+ * PR #6 (Bulletproof): Individual 2s timeouts, guaranteed return, explicit status tracking
  *
  * @param manifest - Beat manifest containing track data
  * @param onLoadProgress - Optional callback for tracking load progress (loaded, total)
- * @returns Promise<Map<TrackID, Tone.Player>> - Map of loaded players
+ * @returns Promise<LoadAudioResult> - Object with loaded players and failed track IDs
  */
 export async function loadAudioSamples(
   manifest: BeatManifest,
   onLoadProgress?: (loaded: number, total: number) => void,
-): Promise<Map<TrackID, Tone.Player>> {
+): Promise<LoadAudioResult> {
   const players = new Map<TrackID, Tone.Player>();
+  const loadedTracks = new Set<TrackID>();
+  const failedTracks = new Set<TrackID>();
   let loadedCount = 0;
   const totalTracks = TRACK_REGISTRY.length;
 
-  const loadPromises = TRACK_REGISTRY.map(async (config) => {
-    const trackId = config.trackId;
-    const trackData = manifest.tracks[trackId];
+  const INDIVIDUAL_TIMEOUT_MS = 2000; // 2 seconds per track
+  const GLOBAL_TIMEOUT_MS = 10000; // 10 seconds total
 
-    if (!trackData) {
-      loadedCount++;
-      onLoadProgress?.(loadedCount, totalTracks);
-      return;
-    }
+  // Track loading logic wrapped in try-catch to guarantee it never throws
+  const loadAllTracks = async (): Promise<void> => {
+    const loadPromises = TRACK_REGISTRY.map(async (config) => {
+      const trackId = config.trackId;
+      const trackData = manifest.tracks[trackId];
 
-    try {
-      const sampleUrl = getSampleUrl(trackData.sampleId);
-      if (!sampleUrl) {
-        console.error(
-          `[Sample URL Not Found] ${trackId}: ${trackData.sampleId}`,
-        );
+      if (!trackData) {
         loadedCount++;
         onLoadProgress?.(loadedCount, totalTracks);
         return;
       }
 
-      const player = new Tone.Player(sampleUrl).toDestination();
-      await player.load(sampleUrl);
+      try {
+        const sampleUrl = getSampleUrl(trackData.sampleId);
+        if (!sampleUrl) {
+          console.error(
+            `[Sample URL Not Found] ${trackId}: ${trackData.sampleId}`,
+          );
+          failedTracks.add(trackId);
+          loadedCount++;
+          onLoadProgress?.(loadedCount, totalTracks);
+          return;
+        }
 
-      players.set(trackId, player);
+        const player = new Tone.Player(sampleUrl).toDestination();
 
-      loadedCount++;
-      onLoadProgress?.(loadedCount, totalTracks);
-    } catch (err) {
-      console.error(`[Sample Load Failed] ${trackId}:`, err);
-      loadedCount++;
-      onLoadProgress?.(loadedCount, totalTracks);
-      // Continue without this sample
-    }
-  });
+        // PR #6 (Bulletproof): Individual 2-second timeout per track
+        await withTimeout(
+          player.load(sampleUrl),
+          INDIVIDUAL_TIMEOUT_MS,
+          `Track ${trackId} load timeout (${INDIVIDUAL_TIMEOUT_MS}ms)`,
+        );
 
-  // PR #5: Race with 10-second timeout - if timeout wins, log warning but resolve
-  const timeoutPromise = new Promise<void>((resolve) => {
+        players.set(trackId, player);
+        loadedTracks.add(trackId);
+
+        loadedCount++;
+        onLoadProgress?.(loadedCount, totalTracks);
+      } catch (err) {
+        console.error(`[Sample Load Failed] ${trackId}:`, err);
+        failedTracks.add(trackId);
+        loadedCount++;
+        onLoadProgress?.(loadedCount, totalTracks);
+        // Continue without this sample
+      }
+    });
+
+    await Promise.allSettled(loadPromises); // Use allSettled to ensure all attempts complete
+  };
+
+  // PR #6 (Bulletproof): Global timeout as failsafe
+  const globalTimeoutPromise = new Promise<void>((resolve) => {
     setTimeout(() => {
       console.warn(
-        "[Audio Engine] Audio load timed out after 10 seconds. App remains usable but audio may be silent.",
+        `[Audio Engine] Global timeout reached (${GLOBAL_TIMEOUT_MS}ms). Proceeding with partial load.`,
       );
       resolve();
-    }, 10000);
+    }, GLOBAL_TIMEOUT_MS);
   });
 
-  await Promise.race([Promise.all(loadPromises), timeoutPromise]);
+  try {
+    // Race between loading all tracks and global timeout
+    await Promise.race([loadAllTracks(), globalTimeoutPromise]);
+  } catch (err) {
+    // This should never happen due to internal error handling, but guarantee no throw
+    console.error("[Audio Engine] Unexpected error during load:", err);
+  }
 
-  return players;
+  // PR #6 (Bulletproof): Mark any track that's not explicitly loaded as failed
+  const failedTrackIds: TrackID[] = [];
+  for (const config of TRACK_REGISTRY) {
+    const trackId = config.trackId;
+    const trackData = manifest.tracks[trackId];
+
+    // Skip tracks not in manifest
+    if (!trackData) continue;
+
+    // If track exists in manifest but isn't loaded, it failed
+    if (!loadedTracks.has(trackId)) {
+      if (!failedTracks.has(trackId)) {
+        console.warn(
+          `[Audio Engine] Track ${trackId} neither loaded nor explicitly failed - marking as failed`,
+        );
+      }
+      failedTrackIds.push(trackId);
+    }
+  }
+
+  console.log(
+    `[Audio Engine] Load complete: ${loadedTracks.size} loaded, ${failedTrackIds.length} failed`,
+  );
+
+  // GUARANTEED RETURN: Always returns valid object, never undefined or throws
+  return { players, failedTrackIds };
 }
 
 /**
