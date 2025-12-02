@@ -27,6 +27,9 @@ import { SaveButton } from "./components/SaveButton";
 import { LoadButton } from "./components/LoadButton";
 import { LoginModalButton } from "./components/LoginModalButton";
 
+// PR #5: Import error boundary for crash protection
+import { ErrorBoundary } from "./components/ErrorBoundary";
+
 export type TrackObject = {
   name: string;
   sound: string;
@@ -255,6 +258,9 @@ function App() {
   const gridRef = useRef(grid);
   const playersInitializedRef = useRef(false);
 
+  // PR #5: Browser lifecycle management - prevent updates when backgrounded
+  const isPageHiddenRef = useRef(false);
+
   // PR #3: Authentication and persistence hooks
   const {
     session,
@@ -312,6 +318,26 @@ function App() {
     gridRef.current = grid;
   }, [grid]);
 
+  // PR #5: Browser lifecycle management - handle visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      isPageHiddenRef.current = document.hidden;
+      console.log(`[App] Page visibility changed: hidden=${document.hidden}`);
+
+      // When page becomes visible again, sync the playhead to current transport position
+      if (!document.hidden && createSequencerRef.current) {
+        const position = Tone.Transport.position;
+        console.log(`[App] Page visible, syncing playhead to ${position}`);
+        // The sequencer's onStep callback will update the UI on the next step
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
   // PR #2: Init sequencer with new audio engine architecture
   useEffect(() => {
     const sequencer = createSequencer(
@@ -323,6 +349,7 @@ function App() {
       playersMapRef.current,
       manifestRef,
       trackIdsByRowRef.current,
+      isPageHiddenRef, // PR #5: Pass ref to prevent updates when backgrounded
     );
     createSequencerRef.current = sequencer;
 
@@ -568,9 +595,12 @@ function App() {
               {getDisplayTitle()}
             </div>
 
-            {/* PR #4: Auth Controls - Conditional on session */}
+            {/* PR #5: Auth Controls - Conditional on session with loading state */}
             <div className="flex items-center gap-3">
-              {!session ? (
+              {authLoading ? (
+                // Loading: Show spinner or text while checking auth state
+                <span className="text-sm text-gray-400">Loading...</span>
+              ) : !session ? (
                 // Guest: Show only Sign In button
                 <LoginModalButton
                   session={session}
@@ -619,34 +649,37 @@ function App() {
             </div>
             {/* beat grid container */}
             <div className="flex-1 rounded-md border-10 border-gray-900">
-              {/* PR #4: Show skeleton while loading initial data */}
-              {!isInitialDataLoaded ? (
-                <div className="p-0.5">
-                  <SkeletonGrid />
-                </div>
-              ) : (
-                /* beat grid */
-                <div className="grid grid-cols-16 gap-1 p-0.5">
-                  {grid.map((track, rowIndex) => {
-                    return track.map((_, colIndex) => {
-                      return (
-                        <Pad
-                          // eslint-disable-next-line react-x/no-array-index-key
-                          key={`${rowIndex}-${colIndex}`}
-                          color={getActiveColor(
-                            tracks[rowIndex].color,
-                            grid[rowIndex][colIndex],
-                          )}
-                          isActive={grid[rowIndex][colIndex]}
-                          isCurrentStep={colIndex === currentStep}
-                          is16thNote={colIndex % 4 !== 0}
-                          onClick={() => handlePadClick(rowIndex, colIndex)}
-                        />
-                      );
-                    });
-                  })}
-                </div>
-              )}
+              {/* PR #5: Wrap grid in ErrorBoundary for crash protection */}
+              <ErrorBoundary>
+                {/* PR #4: Show skeleton while loading initial data */}
+                {!isInitialDataLoaded ? (
+                  <div className="p-0.5">
+                    <SkeletonGrid />
+                  </div>
+                ) : (
+                  /* beat grid */
+                  <div className="grid grid-cols-16 gap-1 p-0.5">
+                    {grid.map((track, rowIndex) => {
+                      return track.map((_, colIndex) => {
+                        return (
+                          <Pad
+                            // eslint-disable-next-line react-x/no-array-index-key
+                            key={`${rowIndex}-${colIndex}`}
+                            color={getActiveColor(
+                              tracks[rowIndex].color,
+                              grid[rowIndex][colIndex],
+                            )}
+                            isActive={grid[rowIndex][colIndex]}
+                            isCurrentStep={colIndex === currentStep}
+                            is16thNote={colIndex % 4 !== 0}
+                            onClick={() => handlePadClick(rowIndex, colIndex)}
+                          />
+                        );
+                      });
+                    })}
+                  </div>
+                )}
+              </ErrorBoundary>
             </div>
           </div>
 
