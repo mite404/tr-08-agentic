@@ -254,6 +254,9 @@ function App() {
   const [trackVolumes, setTrackVolumes] = useState<number[]>(
     Array(10).fill(-5),
   );
+  // PR #6: Track failed audio samples for visual feedback
+  const [failedTrackIds, setFailedTrackIds] = useState<TrackID[]>([]);
+
   const createSequencerRef = useRef<ReturnType<typeof createSequencer>>(null);
   const gridRef = useRef(grid);
   const playersInitializedRef = useRef(false);
@@ -338,6 +341,16 @@ function App() {
     };
   }, []);
 
+  // PR #6: Show one-time warning when tracks fail to load
+  useEffect(() => {
+    if (failedTrackIds.length > 0) {
+      console.warn(`[App] Failed tracks detected:`, failedTrackIds);
+      window.alert(
+        `⚠️ Warning: Audio assets for ${failedTrackIds.length} track(s) failed to load.\n\nFailed tracks: ${failedTrackIds.join(", ")}\n\nThese tracks will be disabled (grayed out).`,
+      );
+    }
+  }, [failedTrackIds.length]); // Only run when the count changes
+
   // PR #2: Init sequencer with new audio engine architecture
   useEffect(() => {
     const sequencer = createSequencer(
@@ -382,13 +395,12 @@ function App() {
       }
 
       // Load samples using the new audio engine
-      const playersMap = await loadAudioSamples(
-        manifestRef.current,
-        (loaded, total) => {
+      // PR #6 (Bulletproof): loadAudioSamples ALWAYS returns a valid result, never throws
+      const { players: playersMap, failedTrackIds: failed } =
+        await loadAudioSamples(manifestRef.current, (loaded, total) => {
           setLoadedCount(loaded);
           console.log(`Loading samples: ${loaded}/${total}`);
-        },
-      );
+        });
 
       // IMPORTANT: Clear and populate the existing Map instead of replacing it
       // The sequencer holds a reference to playersMapRef.current
@@ -398,18 +410,30 @@ function App() {
         console.log(`[Audio Engine] Loaded player for ${trackId}`);
       });
 
-      setAllPlayersReady(true);
-      setIsLoading(false);
+      // PR #6: Store failed track IDs for UI feedback (useEffect will show alert)
+      setFailedTrackIds(failed);
+
+      // PR #6 (Bulletproof): Partial success is OK - allow playback with working tracks
+      const hasAnyPlayers = playersMapRef.current.size > 0;
+      setAllPlayersReady(hasAnyPlayers);
 
       console.log(
-        `[Audio Engine] Loaded ${playersMapRef.current.size} players`,
+        `[Audio Engine] Loaded ${playersMapRef.current.size} players, ${failed.length} failed`,
       );
       console.log(
         `[Audio Engine] Player map keys:`,
         Array.from(playersMapRef.current.keys()),
       );
     } catch (err) {
-      console.error("[Audio Engine] Failed to load samples:", err);
+      // PR #6 (Bulletproof): This should never happen since loadAudioSamples never throws
+      // But guarantee loading state is cleared if something unexpected occurs
+      console.error(
+        "[Audio Engine] Unexpected error during initialization:",
+        err,
+      );
+      alert("⚠️ Audio initialization failed. Please reload the page.");
+    } finally {
+      // PR #6 (Bulletproof): GUARANTEED to clear loading state, even on unexpected errors
       setIsLoading(false);
     }
   }
@@ -636,6 +660,10 @@ function App() {
             {/* KNOB container */}
             <div className="flex-none pt-3.5 pr-1.5">
               {tracks.map((_track, trackIndex) => {
+                // PR #6: Check if this track failed to load
+                const trackId = trackIdsByRowRef.current[trackIndex];
+                const isDisabled = failedTrackIds.includes(trackId);
+
                 return (
                   <Knob
                     // eslint-disable-next-line react-x/no-array-index-key
@@ -645,6 +673,7 @@ function App() {
                     onDbChange={(newDbValue) => {
                       handleDbChange(trackIndex, newDbValue);
                     }}
+                    disabled={isDisabled}
                   />
                 );
               })}
@@ -662,6 +691,10 @@ function App() {
                   /* beat grid */
                   <div className="grid grid-cols-16 gap-1 p-0.5">
                     {grid.map((track, rowIndex) => {
+                      // PR #6: Check if this track failed to load
+                      const trackId = trackIdsByRowRef.current[rowIndex];
+                      const isDisabled = failedTrackIds.includes(trackId);
+
                       return track.map((_, colIndex) => {
                         return (
                           <Pad
@@ -675,6 +708,7 @@ function App() {
                             isCurrentStep={colIndex === currentStep}
                             is16thNote={colIndex % 4 !== 0}
                             onClick={() => handlePadClick(rowIndex, colIndex)}
+                            disabled={isDisabled}
                           />
                         );
                       });
