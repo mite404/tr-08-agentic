@@ -65,6 +65,7 @@ export function createSequencer(
   playersMap: Map<TrackID, Tone.Player>,
   manifestRef: RefObject<BeatManifest>,
   trackIdsByRow: TrackID[],
+  isPageHiddenRef?: RefObject<boolean>,
 ) {
   let currentStep = 0;
 
@@ -121,9 +122,11 @@ export function createSequencer(
       playTrack(player, effectiveVolume, time);
     }
 
-    // Schedule UI update
+    // Schedule UI update (only if page is visible - PR #5: Browser lifecycle)
     Tone.Draw.schedule(() => {
-      onStep(stepToPlay);
+      if (!isPageHiddenRef?.current) {
+        onStep(stepToPlay);
+      }
     }, time);
 
     // Advance to next step
@@ -138,6 +141,7 @@ export function createSequencer(
     stop() {
       transport.stop();
       currentStep = 0;
+      console.log("UI Update:", currentStep);
       onStep(currentStep);
     },
 

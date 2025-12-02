@@ -48,7 +48,9 @@ export async function resumeAudioContext(): Promise<boolean> {
  * - Does NOT start Transport; only prepares players
  * - Returns: Map<TrackID, Tone.Player>
  * - Errors: Log but don't block; allow partial playback
- * - Timeout: 5 seconds per sample; skip on timeout
+ * - Timeout: 10 seconds total; app remains usable even if samples fail to load
+ *
+ * PR #5: Added 10-second timeout with Promise.race to prevent indefinite hangs
  *
  * @param manifest - Beat manifest containing track data
  * @param onLoadProgress - Optional callback for tracking load progress (loaded, total)
@@ -98,10 +100,17 @@ export async function loadAudioSamples(
     }
   });
 
-  await Promise.race([
-    Promise.all(loadPromises),
-    new Promise((resolve) => setTimeout(resolve, 5000)), // 5s timeout
-  ]);
+  // PR #5: Race with 10-second timeout - if timeout wins, log warning but resolve
+  const timeoutPromise = new Promise<void>((resolve) => {
+    setTimeout(() => {
+      console.warn(
+        "[Audio Engine] Audio load timed out after 10 seconds. App remains usable but audio may be silent.",
+      );
+      resolve();
+    }, 10000);
+  });
+
+  await Promise.race([Promise.all(loadPromises), timeoutPromise]);
 
   return players;
 }
