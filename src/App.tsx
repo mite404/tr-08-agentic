@@ -5,6 +5,7 @@ import { TempoDisplay } from "./components/TempoDisplay";
 import { PlayStopBtn } from "./components/PlayStopBtn";
 import { createSequencer, togglePad } from "./sequencer";
 import { Knob } from "./components/Knob";
+import { Analyzer } from "./components/Analyzer";
 import * as Tone from "tone";
 
 import mpcMark from "./assets/images/MPC_mark.png";
@@ -654,7 +655,7 @@ function App() {
               )}
             </div>
           </div>
-
+          <Analyzer />
           {/* container for KNOB & GRID divs */}
           <div className="flex w-full flex-row">
             {/* KNOB container */}
