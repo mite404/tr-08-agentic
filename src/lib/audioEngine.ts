@@ -2,6 +2,15 @@ import * as Tone from "tone";
 import type { BeatManifest, TrackID } from "../types/beat";
 import { getSampleUrl, TRACK_REGISTRY } from "../config/trackConfig";
 
+let masterChannel: Tone.Channel | null = null;
+
+export function getMasterChannel(): Tone.Channel {
+  if (!masterChannel) {
+    masterChannel = new Tone.Channel().toDestination();
+  }
+  return masterChannel;
+}
+
 /**
  * TR-08 Audio Engine
  *
@@ -129,7 +138,7 @@ export async function loadAudioSamples(
           return;
         }
 
-        const player = new Tone.Player(sampleUrl).toDestination();
+        const player = new Tone.Player(sampleUrl).connect(getMasterChannel());
 
         // PR #6 (Bulletproof): Individual 2-second timeout per track
         await withTimeout(
