@@ -1,19 +1,20 @@
 # TR-08 v1.0 Implementation Checklist
 
-**Status:** ✅ **v1.0 RELEASED** | **Last Updated:** 2025-12-01
+**Status:** ✅ **v1.0 RELEASED + PR #6 ENHANCEMENTS** | **Last Updated:** 2026-01-12
 
 ---
 
 ## Release Summary
 
-**All 5 PRs completed. Production-ready drum machine with:**
+**All 6 PRs completed. Production-ready drum machine with:**
 
 - Persistent beat storage (Supabase)
-- Real-time sequencer with Tone.js
+- Real-time sequencer with Tone.js master effects chain (Compressor + Limiter)
 - Auth integration (Google, GitHub OAuth)
 - Error boundaries and crash protection
 - Mobile-optimized UX
 - Browser lifecycle management
+- Bulletproof audio loading with individual track timeouts (PR #6)
 
 ---
 
@@ -93,19 +94,28 @@
 - [x] Update `src/App.tsx` to call resumeAudioContext on Play button
 - [x] Add progress callbacks for sample loading UI feedback
 - [x] Initialize master effects chain (Compressor + Limiter) on master bus
-  - Compressor: 8:1 ratio, -12dB threshold, 5ms attack, 70ms release
-  - Limiter: -4dB threshold (brick-wall ceiling at -2dB)
-- [x] Fix AudioMotionAnalyzer to not create duplicate audio path (`connectSpeakers: false`)
+  - [x] Compressor: 8:1 ratio, -12dB threshold, 5ms attack, 70ms release
+  - [x] Limiter: -4dB threshold (brick-wall ceiling at -2dB)
+  - [x] Auto-initialize via `getMasterChannel()` on first use
+  - [x] All players connect to master channel (→ effects chain)
+- [x] Fix AudioMotionAnalyzer to not create duplicate audio path
+  - [x] Set `connectSpeakers: false` in constructor options
+  - [x] Tap analyzer input from native audio node (listen-only)
+  - [x] Resolve phasing issues from duplicate stereo paths
 
 **Definition of Done:** ✅ ALL COMPLETE
 
-- resumeAudioContext called BEFORE sequencer.start()
-- loadAudioSamples initializes all 10 Tone.Player instances
-- calculateEffectiveVolume respects Mute > Solo > Volume hierarchy
-- Playback works with loaded players and manifest data
-- Progress bar shows sample loading status
-- Master bus compression/limiting applied without phasing issues
-- Analyzer visualizes audio without creating duplicate output path
+- [x] resumeAudioContext called BEFORE sequencer.start()
+- [x] loadAudioSamples initializes all 10 Tone.Player instances
+- [x] calculateEffectiveVolume respects Mute > Solo > Volume hierarchy
+- [x] Playback works with loaded players and manifest data
+- [x] Progress bar shows sample loading status
+- [x] Master bus compression/limiting applied without phasing issues
+- [x] Analyzer visualizes audio without creating duplicate output path
+- [x] All players connected to `getMasterChannel()` (effects chain)
+- [x] Master effects chain auto-initializes on first use
+- [x] Compressor and Limiter are stereo (Web Audio API DynamicsCompressorNode)
+- [x] No wet/dry controls on dynamics processors (always 100% wet)
 
 ---
 
@@ -178,6 +188,116 @@
 - Error Boundary catches React errors and shows "Reload Page" button
 - Audio load timeout resolves successfully (app usable but possibly silent)
 - Logging follows structured format: `[Module] Message`
+
+---
+
+### Phase 6: Bulletproof Audio Loading (PR #6)
+
+**Objective:** Eliminate audio loading edge cases with individual track timeouts and comprehensive failure tracking.
+
+**Status:** ✅ COMPLETE
+
+#### Implementation Details
+
+**1. Dual Timeout Architecture**
+
+- [x] **Individual Track Timeout:** 2 seconds per track (prevents slow network from blocking others)
+- [x] **Global Timeout:** 20 seconds for entire operation (catches systemic issues)
+- [x] **withTimeout Helper:** Wraps promises with timeout rejection mechanism
+- [x] **Promise.allSettled:** Ensures all track loads complete (success or failure)
+
+**2. Enhanced Return Type**
+
+```typescript
+export interface LoadAudioResult {
+  players: Map<TrackID, Tone.Player>;
+  failedTrackIds: TrackID[]; // PR #6: Track which samples failed
+}
+```
+
+**3. Failure Tracking**
+
+- [x] Track failed samples by TrackID (not silent failure)
+- [x] Identify URL resolution failures (`getSampleUrl` returns null)
+- [x] Mark timeouts and errors explicitly in console
+- [x] Return complete list of failed tracks for UI feedback
+
+**4. Guaranteed Returns**
+
+- [x] Function NEVER throws (wrapped in try-catch)
+- [x] ALWAYS returns valid `LoadAudioResult` (never undefined)
+- [x] Partial success acceptable (e.g., 8/10 samples loaded)
+- [x] App remains usable even with failed samples
+
+**5. Master Channel Integration**
+
+- [x] All players connect to `getMasterChannel()` instead of `toDestination()`
+- [x] Ensures all samples route through master effects chain
+- [x] Single point of compression/limiting for all tracks
+
+#### Code Changes in `src/lib/audioEngine.ts`
+
+**Before (PR #5):**
+
+```typescript
+export async function loadAudioSamples(...): Promise<Map<TrackID, Tone.Player>>
+```
+
+**After (PR #6):**
+
+```typescript
+export async function loadAudioSamples(...): Promise<LoadAudioResult>
+```
+
+**Key Improvements:**
+
+1. Individual 2-second timeout per track (prevents cascade failure)
+2. Global 20-second failsafe (prevents indefinite hangs)
+3. Explicit `failedTrackIds` array for UI integration
+4. `Promise.allSettled` instead of `Promise.all` (some failures don't block others)
+5. Guaranteed no-throw behavior (wrapped in try-catch)
+
+**Definition of Done:** ✅ ALL COMPLETE
+
+- [x] Individual timeouts (2s) prevent network slowdowns from blocking all tracks
+- [x] Global timeout (20s) ensures operation completes eventually
+- [x] Failed track IDs returned for UI feedback
+- [x] All players connect to master channel effects chain
+- [x] Function never throws (app always gets valid result)
+- [x] Partial success is valid state (8/10 samples acceptable)
+- [x] Console logging distinguishes between different failure types
+- [x] Promise.allSettled ensures all attempts complete before returning
+
+---
+
+### Phase 7: v1.1 Features (Pitch & Accent)
+
+**Objective:** Implement per-track tuning and a global accent pattern to increase musical expressiveness.
+
+**7.1 Data Schema & Types (PR #7)**
+
+- [ ] Update `TrackID` enum to include `"ac_01"` (Accent Track)
+- [ ] Update `TrackData` interface to include `pitch: number` (-12 to +12 semitones)
+- [ ] Update Zod schema to validate pitch range and allow `ac_01`
+- [ ] Update `TRACK_REGISTRY` with Accent track config (`rowIndex: 10`, `sampleId: "VIRTUAL_ACCENT"`)
+- [ ] Update `normalizeBeatData` to inject default pitch (0) and empty accent track for v1.0 beats
+
+**7.2 Audio Engine Physics (PR #8)**
+
+- [ ] Implement Pitch Logic: Calculate `playbackRate = 2 ^ (semitones / 12)` in `playTrack`
+- [ ] Handle "VIRTUAL_ACCENT" in `loadAudioSamples` (skip loading, just mark ready)
+- [ ] Implement Accent Logic in `sequencer.ts`:
+  - [ ] Check `grid['ac_01'][step]` on every tick
+  - [ ] If active, apply Accent Multiplier (derived from Accent volume knob) to all triggering tracks
+  - [ ] Formula: `FinalVol = TrackVol + (IsAccented ? AccentStrength : 0)`
+
+**7.3 UI Integration (PR #9)**
+
+- [ ] Add "Knob Mode" Toggle [ VOL | TUNE ] above the knob column
+  - [ ] **VOL Mode:** Knobs control `volumeDb`
+  - [ ] **TUNE Mode:** Knobs control `pitch` (-12 to +12)
+- [ ] Update `SequencerGrid` to render the 11th row (Accent) automatically via Registry
+- [ ] Style the Accent row distinctively (e.g., different LED color) to distinguish it from instruments
 
 ---
 
@@ -332,13 +452,13 @@ Examples:
 
 ### Performance Metrics (SLOs)
 
-| Metric               | Target  | Status         |
-| -------------------- | ------- | -------------- |
-| TTI                  | < 1.5s  | ✅ Met         |
-| Save latency         | < 30ms  | ✅ Met         |
-| Load latency         | < 100ms | ✅ Met         |
-| Audio context resume | < 50ms  | ✅ Met         |
-| Audio load timeout   | 10s     | ✅ Implemented |
+| Metric               | Target  | Status                                                   |
+| -------------------- | ------- | -------------------------------------------------------- |
+| TTI                  | < 1.5s  | ✅ Met                                                   |
+| Save latency         | < 30ms  | ✅ Met                                                   |
+| Load latency         | < 100ms | ✅ Met                                                   |
+| Audio context resume | < 50ms  | ✅ Met                                                   |
+| Audio load timeout   | 20s     | ✅ Implemented (PR #6: Individual 2s/track + 20s global) |
 
 ---
 
@@ -361,6 +481,6 @@ Examples:
 
 ---
 
-**Release Date:** December 1, 2025  
-**Version:** 1.0  
+**Release Date:** December 1, 2025 (v1.0) | Updated: January 12, 2026 (PR #6)  
+**Version:** 1.0 + PR #6 Enhancements  
 **Status:** Production Ready ✅
