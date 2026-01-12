@@ -3,12 +3,55 @@ import type { BeatManifest, TrackID } from "../types/beat";
 import { getSampleUrl, TRACK_REGISTRY } from "../config/trackConfig";
 
 let masterChannel: Tone.Channel | null = null;
+let masterCompressor: Tone.Compressor | null = null;
+let masterLimiter: Tone.Limiter | null = null;
+
+// DEBUG: Set to true to bypass compressor/limiter (direct channel -> destination)
+const BYPASS_MASTER_EFFECTS = false;
+
+/**
+ * Initializes the master effects chain: Channel -> Compressor -> Limiter -> Destination
+ * This is called automatically by getMasterChannel() to ensure effects are always in place.
+ */
+function initializeMasterEffects(): void {
+  if (masterChannel) {
+    return; // Already initialized
+  }
+
+  // Create master channel (not connected to destination yet)
+  masterChannel = new Tone.Channel();
+
+  if (BYPASS_MASTER_EFFECTS) {
+    // DEBUG MODE: Direct connection, no effects
+    masterChannel.toDestination();
+    console.log("[Master Effects] BYPASSED - Direct to destination");
+    return;
+  }
+
+  // Create compressor with specified settings
+  masterCompressor = new Tone.Compressor({
+    threshold: -12, // dB
+    ratio: 8, // 8:1 compression ratio
+    attack: 0.005, // 5ms attack
+    release: 0.07, // 70ms release
+  });
+
+  // Create limiter for master bus limiting
+  masterLimiter = new Tone.Limiter(-4); // -4dB ceiling
+
+  // Wire the chain: Channel -> Compressor -> Limiter -> Destination
+  masterChannel.chain(masterCompressor, masterLimiter, Tone.getDestination());
+
+  console.log(
+    "[Master Effects] Chain initialized: Channel -> Compressor -> Limiter -> Destination",
+  );
+}
 
 export function getMasterChannel(): Tone.Channel {
   if (!masterChannel) {
-    masterChannel = new Tone.Channel().toDestination();
+    initializeMasterEffects();
   }
-  return masterChannel;
+  return masterChannel as Tone.Channel;
 }
 
 /**
@@ -112,7 +155,7 @@ export async function loadAudioSamples(
   const totalTracks = TRACK_REGISTRY.length;
 
   const INDIVIDUAL_TIMEOUT_MS = 2000; // 2 seconds per track
-  const GLOBAL_TIMEOUT_MS = 10000; // 10 seconds total
+  const GLOBAL_TIMEOUT_MS = 20000; // 20 seconds total
 
   // Track loading logic wrapped in try-catch to guarantee it never throws
   const loadAllTracks = async (): Promise<void> => {
