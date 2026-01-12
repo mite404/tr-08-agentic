@@ -1,6 +1,6 @@
 # TR-08 v1.0: System Specification
 
-**Status:** ✅ v1.0 Released | **Version:** 1.0 | **Last Updated:** 2025-12-01 (PR #5 Complete)
+**Status:** ✅ v1.0 Released + PR #6 Enhancements | **Version:** 1.0 | **Last Updated:** 2026-01-12 (PR #6: Bulletproof Audio Loading)
 
 ---
 
@@ -784,20 +784,72 @@ export function toGridArray(manifest: BeatManifest): {
 
 ### 4.3 Audio Context & Player Initialization
 
-#### File: `src/lib/audioEngine.ts` (new)
+#### File: `src/lib/audioEngine.ts`
+
+**Master Effects Chain Initialization** (PR #2):
 
 ```typescript
-import * as Tone from "tone";
-import { BeatManifest, TrackID } from "../types/beat";
-import { getSampleUrl, TRACK_REGISTRY } from "../config/trackConfig";
+let masterChannel: Tone.Channel | null = null;
+let masterCompressor: Tone.Compressor | null = null;
+let masterLimiter: Tone.Limiter | null = null;
+
+const BYPASS_MASTER_EFFECTS = false; // DEBUG flag
 
 /**
- * AUDIO CONTEXT RESUME (Forced on first user gesture)
+ * Initializes the master effects chain: Channel -> Compressor -> Limiter -> Destination
+ * Called automatically by getMasterChannel() to ensure effects are always in place.
+ */
+function initializeMasterEffects(): void {
+  if (masterChannel) {
+    return; // Already initialized
+  }
+
+  masterChannel = new Tone.Channel();
+
+  if (BYPASS_MASTER_EFFECTS) {
+    masterChannel.toDestination();
+    console.log("[Master Effects] BYPASSED - Direct to destination");
+    return;
+  }
+
+  // Compressor: 8:1 ratio, -12dB threshold, 5ms attack, 70ms release
+  masterCompressor = new Tone.Compressor({
+    threshold: -12, // dB
+    ratio: 8, // 8:1 compression ratio
+    attack: 0.005, // 5ms attack
+    release: 0.07, // 70ms release
+  });
+
+  // Limiter: -4dB ceiling (acts as brick-wall at approximately -2dB with headroom)
+  masterLimiter = new Tone.Limiter(-4);
+
+  // Wire the chain: Channel -> Compressor -> Limiter -> Destination
+  masterChannel.chain(masterCompressor, masterLimiter, Tone.getDestination());
+
+  console.log(
+    "[Master Effects] Chain initialized: Channel -> Compressor -> Limiter -> Destination",
+  );
+}
+
+export function getMasterChannel(): Tone.Channel {
+  if (!masterChannel) {
+    initializeMasterEffects();
+  }
+  return masterChannel as Tone.Channel;
+}
+```
+
+**Audio Context Resume & Sample Loading** (PR #2, Enhanced in PR #6):
+
+```typescript
+/**
+ * Resumes the Tone.js audio context.
+ * Must be called in response to a user gesture (e.g., Play button click).
  *
  * CONTRACT:
- * - Call this BEFORE starting the Transport.
- * - Browser autoplay policy requires user interaction.
- * - Timeout: 50ms max; don't block UI if context fails.
+ * - Call this BEFORE starting the Transport
+ * - Browser autoplay policy requires user interaction
+ * - Returns true if audio context is running, false otherwise
  */
 export async function resumeAudioContext(): Promise<boolean> {
   try {
@@ -812,71 +864,139 @@ export async function resumeAudioContext(): Promise<boolean> {
 }
 
 /**
- * LOAD SAMPLES (Initialize Tone.Player instances)
+ * Result object for audio sample loading (PR #6 Enhancement)
+ */
+export interface LoadAudioResult {
+  players: Map<TrackID, Tone.Player>;
+  failedTrackIds: TrackID[];
+}
+
+/**
+ * BULLETPROOF Audio Loading (PR #6 Complete)
  *
  * CONTRACT:
- * - Idempotent: safe to call multiple times.
- * - Does NOT start Transport; only prepares players.
- * - Returns: Map<TrackID, Tone.Player>
- * - Errors: Log but don't block; allow partial playback.
- * - Timeout: 5 seconds per sample; skip on timeout.
+ * - ALWAYS returns valid LoadAudioResult - NEVER throws, NEVER hangs
+ * - Individual Timeout: Each track has 2-second timeout
+ * - Global Timeout: 20-second failsafe for entire operation
+ * - Partial Success: Returns loaded tracks even if some fail
+ * - Idempotent: Safe to call multiple times
+ * - Does NOT start Transport; only prepares players
+ * - All players connect to master channel effects chain
+ *
+ * PR #5: Added 10-second timeout with Promise.race
+ * PR #6: Upgraded to bulletproof pattern with individual timeouts, failedTrackIds tracking
+ *
+ * @param manifest - Beat manifest containing track data
+ * @param onLoadProgress - Optional callback for tracking load progress (loaded, total)
+ * @returns Promise<LoadAudioResult> - Loaded players and failed track IDs
  */
 export async function loadAudioSamples(
   manifest: BeatManifest,
   onLoadProgress?: (loaded: number, total: number) => void,
-): Promise<Map<TrackID, Tone.Player>> {
+): Promise<LoadAudioResult> {
   const players = new Map<TrackID, Tone.Player>();
+  const loadedTracks = new Set<TrackID>();
+  const failedTracks = new Set<TrackID>();
   let loadedCount = 0;
   const totalTracks = TRACK_REGISTRY.length;
 
-  const loadPromises = TRACK_REGISTRY.map(async (config) => {
-    const trackId = config.trackId as TrackID;
-    const trackData = manifest.tracks[trackId];
+  const INDIVIDUAL_TIMEOUT_MS = 2000; // 2 seconds per track
+  const GLOBAL_TIMEOUT_MS = 20000; // 20 seconds total
 
-    if (!trackData) {
-      loadedCount++;
-      onLoadProgress?.(loadedCount, totalTracks);
-      return;
-    }
+  // Guaranteed no-throw loading logic
+  const loadAllTracks = async (): Promise<void> => {
+    const loadPromises = TRACK_REGISTRY.map(async (config) => {
+      const trackId = config.trackId;
+      const trackData = manifest.tracks[trackId];
 
-    try {
-      const sampleUrl = getSampleUrl(trackData.sampleId);
-      const player = new Tone.Player(sampleUrl);
-      await player.load();
+      if (!trackData) {
+        loadedCount++;
+        onLoadProgress?.(loadedCount, totalTracks);
+        return;
+      }
 
-      player.toDestination(); // Connect to output
-      players.set(trackId, player);
+      try {
+        const sampleUrl = getSampleUrl(trackData.sampleId);
+        if (!sampleUrl) {
+          console.error(
+            `[Sample URL Not Found] ${trackId}: ${trackData.sampleId}`,
+          );
+          failedTracks.add(trackId);
+          loadedCount++;
+          onLoadProgress?.(loadedCount, totalTracks);
+          return;
+        }
 
-      loadedCount++;
-      onLoadProgress?.(loadedCount, totalTracks);
-    } catch (err) {
-      console.error(`[Sample Load Failed] ${trackId}:`, err);
-      loadedCount++;
-      onLoadProgress?.(loadedCount, totalTracks);
-      // Continue without this sample
-    }
+        // Connect player to master channel effects chain
+        const player = new Tone.Player(sampleUrl).connect(getMasterChannel());
+
+        // Individual 2-second timeout per track
+        await withTimeout(
+          player.load(sampleUrl),
+          INDIVIDUAL_TIMEOUT_MS,
+          `Track ${trackId} load timeout (${INDIVIDUAL_TIMEOUT_MS}ms)`,
+        );
+
+        players.set(trackId, player);
+        loadedTracks.add(trackId);
+        loadedCount++;
+        onLoadProgress?.(loadedCount, totalTracks);
+      } catch (err) {
+        console.error(`[Sample Load Failed] ${trackId}:`, err);
+        failedTracks.add(trackId);
+        loadedCount++;
+        onLoadProgress?.(loadedCount, totalTracks);
+      }
+    });
+
+    await Promise.allSettled(loadPromises);
+  };
+
+  // Global timeout failsafe
+  const globalTimeoutPromise = new Promise<void>((resolve) => {
+    setTimeout(() => {
+      console.warn(
+        `[Audio Engine] Global timeout reached (${GLOBAL_TIMEOUT_MS}ms). Proceeding with partial load.`,
+      );
+      resolve();
+    }, GLOBAL_TIMEOUT_MS);
   });
 
-  await Promise.race([
-    Promise.all(loadPromises),
-    new Promise((resolve) => setTimeout(resolve, 5000)), // 5s timeout
-  ]);
+  try {
+    await Promise.race([loadAllTracks(), globalTimeoutPromise]);
+  } catch (err) {
+    console.error("[Audio Engine] Unexpected error during load:", err);
+  }
 
-  return players;
+  // Mark any manifest track not explicitly loaded as failed
+  const failedTrackIds: TrackID[] = [];
+  for (const config of TRACK_REGISTRY) {
+    const trackId = config.trackId;
+    const trackData = manifest.tracks[trackId];
+    if (trackData && !loadedTracks.has(trackId)) {
+      failedTrackIds.push(trackId);
+    }
+  }
+
+  console.log(
+    `[Audio Engine] Load complete: ${loadedTracks.size} loaded, ${failedTrackIds.length} failed`,
+  );
+
+  return { players, failedTrackIds };
 }
 
 /**
  * PLAY TRACK (Trigger a single sample)
  *
  * CONTRACT:
- * - Called once per 16th note step if the grid[trackIndex][step] is true.
- * - Checks effective volume using the Mute > Solo > Knob hierarchy.
- * - Idempotent per step (safe to call multiple times for same step).
+ * - Called once per 16th note step if the grid[trackIndex][step] is true
+ * - Checks effective volume using the Mute > Solo > Knob hierarchy
+ * - Idempotent per step (safe to call multiple times for same step)
  */
 export function playTrack(
   player: Tone.Player | undefined,
   effectiveVolume: number,
-  now: number, // Tone.now()
+  now: number,
 ): void {
   if (!player) return;
   if (effectiveVolume === -Infinity) return; // Muted
@@ -889,6 +1009,60 @@ export function playTrack(
   }
 }
 ```
+
+### 4.4 Spectrum Analyzer Integration
+
+#### File: `src/components/Analyzer.tsx`
+
+**Purpose:** Real-time audio spectrum visualization using AudioMotionAnalyzer library.
+
+**Critical Implementation Detail (PR #2 Fix):**
+
+The AudioMotionAnalyzer must be configured with `connectSpeakers: false` to prevent creating a duplicate audio path to the speakers. Without this setting, the analyzer would create two independent output paths:
+
+1. `Channel → Limiter → Destination` (correct)
+2. `Channel → Analyzer → Destination` (duplicate - causes phasing)
+
+When both stereo signals reach the speakers independently, they can cause phase cancellation and audio artifacts.
+
+```typescript
+const analyzer = new AudioMotionAnalyzer(containerRef.current, {
+  audioCtx: Tone.context.rawContext._nativeContext,
+  connectSpeakers: false, // CRITICAL: Prevent duplicate audio path
+  mode: 2, // 1/12th octave bands
+  barSpace: 0.6, // Space between bars
+  ledBars: true, // LED-style visual bars
+});
+
+const masterChannel = getMasterChannel();
+
+// Connect analyzer input to the native audio node of master channel
+const gainWrapper = (masterChannel as any).output.output.output.input;
+const nativeNode = gainWrapper._nativeAudioNode as AudioNode;
+analyzer.connectInput(nativeNode);
+```
+
+**Signal Flow:**
+
+```
+All Tone.Player Instances
+          ↓
+    getMasterChannel()
+          ↓
+    [Master Effects Chain]
+    Compressor (8:1) → Limiter (-4dB)
+          ↓
+    Split Point:
+    ├─ To Destination (speakers) [PRIMARY]
+    └─ To Analyzer Input (spectrum visualization) [ANALYSIS ONLY]
+```
+
+**Why This Matters:**
+
+- **No Duplicate Audio Path:** The analyzer taps into the audio chain as a listener, not as a router
+- **Correct Master Level:** All volume calculations and effects apply uniformly
+- **No Phasing Issues:** Stereo signals reach speakers through a single path
+- **PR #2 Discovery:** This fix resolved phasing/reverb effects that appeared when both compressor and limiter were active
 
 ---
 
@@ -981,35 +1155,43 @@ export function migrateSchema(data: any): BeatManifest {
 
 ## 6. Failure Modes & Degradation
 
-### 6.1 Audio Context Suspension — PR #5 UPDATED
+### 6.1 Audio Context Suspension — PR #6 ENHANCED
 
-**Implementation:** `src/lib/audioEngine.ts` (L107-113)
+**Implementation:** `src/lib/audioEngine.ts` (Master effects + bulletproof loading)
 
-| Scenario                                        | Handling                                                                     |
-| ----------------------------------------------- | ---------------------------------------------------------------------------- |
-| AudioContext blocked by browser autoplay policy | Prompt user: "Click PLAY to start audio"                                     |
-| AudioContext resume fails (timeout)             | Log error, disable playback, show alert                                      |
-| Sample load timeout (>10s)                      | Log warning, resolve Promise, allow partial playback (app usable but silent) |
-| Failed samples                                  | Skip individual samples, continue with loaded ones                           |
+| Scenario                                        | Handling                                                                      |
+| ----------------------------------------------- | ----------------------------------------------------------------------------- |
+| AudioContext blocked by browser autoplay policy | Prompt user: "Click PLAY to start audio"                                      |
+| AudioContext resume fails (timeout)             | Log error, disable playback, show alert                                       |
+| Individual sample load timeout (>2s)            | Mark track as failed, continue loading other tracks (PR #6)                   |
+| Global audio load timeout (>20s)                | Resolve Promise with partial load, allow playback of loaded samples (PR #6)   |
+| Failed samples                                  | Return `failedTrackIds` array, app shows which tracks are unavailable (PR #6) |
+| Network slowdown                                | Individual 2s timeout per track prevents cascade failure (PR #6)              |
 
-**Timeout Implementation (PR #5):**
+**Bulletproof Loading Architecture (PR #6):**
 
 ```typescript
-// In loadAudioSamples:
-const timeoutPromise = new Promise<void>((resolve) => {
-  setTimeout(() => {
-    console.warn(
-      "[Audio Engine] Audio load timed out after 10 seconds. App remains usable but audio may be silent.",
-    );
-    resolve(); // Resolve, don't reject - app stays functional
-  }, 10000);
-});
+// Individual 2-second timeout per track
+const INDIVIDUAL_TIMEOUT_MS = 2000; // Prevents single slow track from blocking others
 
-await Promise.race([Promise.all(loadPromises), timeoutPromise]);
-return players; // Return whatever loaded before timeout
+// Global 20-second failsafe
+const GLOBAL_TIMEOUT_MS = 20000; // Ensures operation completes eventually
+
+// Returns both players AND failed track IDs
+export interface LoadAudioResult {
+  players: Map<TrackID, Tone.Player>;
+  failedTrackIds: TrackID[]; // Explicit failure tracking
+}
 ```
 
-**Key Guarantee:** The app never crashes due to audio load delays. Worst case: silent playback.
+**Key Guarantees (PR #6):**
+
+- The app **NEVER hangs** on audio load (20s global timeout)
+- The app **NEVER throws** from audio load (wrapped in try-catch)
+- Individual track failures **DO NOT block** other tracks (2s individual timeouts)
+- Partial success is **VALID state** (8/10 samples acceptable)
+- Failed samples are **TRACKED and reported** for UI feedback
+- Worst case: partial playback with known failures (not silent crash)
 
 ### 6.2 Network & Database Failures
 
@@ -1334,6 +1516,52 @@ describe("SkeletonGrid", () => {
 
 ---
 
+## PR #7: Data Schema & Type Expansion
+
+**Goal:** Update the "Contracts" to support the new data fields without breaking existing saves.
+
+1.  **Update `TrackID`:** Add `ac_01` (Accent) to the enum.
+2.  **Update `TrackData`:** Add `pitch: number` property.
+3.  **Update `BeatManifestSchema` (Zod):**
+    - Add validation for `pitch` (min -12, max 12).
+    - Add `ac_01` to the allowed keys.
+4.  **Update `normalizeBeatData`:**
+    - **Crucial:** When loading old v1.0 beats (which lack `pitch`), inject default `pitch: 0`.
+    - When loading old beats (which lack `ac_01`), inject an empty accent track.
+5.  **Update `TRACK_REGISTRY`:** Add the entry for `ac_01`.
+    - _Note:_ It won't have a sample URL. We need to handle `sampleId: null` or a specific "virtual" flag.
+
+## PR #8: Audio Engine Physics
+
+**Goal:** Teach the audio engine how to "bend time" (Pitch) and "boost gain" (Accent).
+
+1.  **Pitch Logic:**
+    - Update `playTrack` signature to accept `pitchSemis`.
+    - Calculate `playbackRate`.
+    - Apply `source.playbackRate.value = rate`.
+2.  **Accent Logic:**
+    - Update `loadAudioSamples`: Skip loading a file if `sampleId` is "VIRTUAL_ACCENT".
+    - Update `sequencer.ts`:
+      - On every step, check: `Is grid['ac_01'][step] === true?`
+      - If yes, calculate an **Accent Multiplier** based on the Accent Track's volume knob.
+      - Pass this multiplier to `playTrack` for every instrument.
+3.  **Signal Flow Update:**
+    - `playTrack` logic: `Final Volume = Track Volume + (IsAccented ? AccentStrength : 0)`.
+
+## PR #9: UI Integration
+
+**Goal:** Expose the new controls.
+
+1.  **Knob Mode Toggle:**
+    - Add a toggle switch in `App.tsx`.
+    - Pass `knobMode` ("vol" | "pitch") to the `ControlPanel`.
+    - Update `Knob` to render differently based on mode (e.g., center zero for pitch).
+2.  **Grid Rendering:**
+    - The `SequencerGrid` will automatically render the 11th row because it iterates `TRACK_REGISTRY`.
+    - Ensure the Accent row looks distinct (maybe a different color LED).
+
+---
+
 ## Summary Table
 
 | PR  | Title        | Files       | Hours | Tests       | Blocker Dependencies | Status      |
@@ -1377,7 +1605,163 @@ describe("SkeletonGrid", () => {
 
 ---
 
-## Appendix: Error Codes & Messages
+## Appendix A: Library Integration Patterns
+
+### Integration Challenge: Tone.js + AudioMotionAnalyzer
+
+**Problem:** Integrating a vanilla JavaScript spectrum analyzer (AudioMotionAnalyzer) with a high-level audio abstraction library (Tone.js) requires understanding multiple layers of wrapper abstractions.
+
+**Root Cause:** Libraries wrap the Web Audio API differently for developer convenience, but third-party libraries expect native Web Audio objects.
+
+### The Wrapper Stack
+
+When you use Tone.js, audio signals pass through multiple abstraction layers:
+
+```
+Your Code (TypeScript)
+    ↓
+Tone.js wrappers (ToneAudioNode, Channel, Player, etc.)
+    ├─ _Channel, _PanVol, _Volume, _Gain (Tone abstractions)
+    ├─ Added features: scheduling, transport, BPM, parameter automation
+    └─ Convenience methods: .toDestination(), .chain(), etc.
+    ↓
+standardized-audio-context wrappers (cross-browser compatibility)
+    ├─ Normalize Safari vs Chrome vs Firefox differences
+    ├─ Polyfill missing features in older browsers
+    └─ Ensure consistent behavior across platforms
+    ↓
+Native Web Audio API (Browser implementation)
+    ├─ GainNode, DynamicsCompressorNode, AudioContext
+    ├─ Direct hardware audio access
+    └─ What third-party libraries expect to receive
+```
+
+### Why You Can't Just Use `source:` Constructor Option
+
+**Simple case** (works with `source:` parameter):
+
+```tsx
+// If you had a plain <audio> element
+const audioEl = document.getElementById("audio");
+const audioMotion = new AudioMotionAnalyzer(container, {
+  source: audioEl, // ← Audiomotion handles context creation & connection
+});
+```
+
+**Your complex case** (requires manual `audioCtx:` + `connectInput()`):
+
+```tsx
+// You have:
+// - 10 individual Tone.Player nodes
+// - Master channel with effects chain
+// - Scheduled playback via Transport
+// - Complex audio graph
+
+// If you used `source:`, audiomotion would:
+// 1. Create a SECOND, separate AudioContext
+// 2. Try to connect nodes from FIRST context to SECOND context
+// 3. Browser throws: "cannot connect to an AudioNode belonging to a different audio context"
+```
+
+### The Solution Pattern
+
+```tsx
+// Step 1: Tell AudioMotionAnalyzer to use Tone's existing context
+const analyzer = new AudioMotionAnalyzer(containerRef.current, {
+  audioCtx: Tone.context.rawContext._nativeContext, // ← Use existing context
+  connectSpeakers: false, // ← Don't create duplicate output path
+  mode: 2,
+  barSpace: 0.6,
+  ledBars: true,
+});
+
+// Step 2: Manually connect analyzer to the right point in your audio graph
+const masterChannel = getMasterChannel();
+
+// Step 3: Unwrap Tone.js layers to reach the native GainNode
+const gainWrapper = (masterChannel as any).output.output.output.input;
+const nativeNode = gainWrapper._nativeAudioNode as AudioNode;
+
+// Step 4: Connect analyzer's input to this native node
+analyzer.connectInput(nativeNode);
+```
+
+### Understanding the Unwrapping Chain
+
+```
+Tone.Channel                                    ← What you create
+  .output → Tone._PanVol (pan + volume)
+    .output → Tone._Volume (volume control)
+      .output → Tone._Gain (internal gain)
+        .input → standardized-audio-context wrapper
+          ._nativeAudioNode → GainNode (NATIVE - what AudioMotionAnalyzer needs) ✓
+```
+
+Each layer adds functionality:
+
+- **Tone.\_Channel:** High-level mixer with .chain(), .toDestination()
+- **Tone.\_PanVol:** Stereo panning + volume combined
+- **Tone.\_Volume:** Volume automation interface
+- **Tone.\_Gain:** Internal scheduler integration
+- **standardized-audio-context:** Browser compatibility layer
+- **Native GainNode:** Raw Web Audio API
+
+### Key Principles for Future Library Integration
+
+1. **Shared AudioContext:** All nodes must belong to the same AudioContext. You cannot mix nodes from different contexts.
+
+2. **Wrapper Asymmetry:** Library A might wrap Web Audio one way, Library B another way. There's no standard.
+
+3. **Debugging Strategy:**
+   - Log the object types: `console.log(channel.output.constructor.name)`
+   - Check for `.rawContext` or `._nativeAudioNode` properties
+   - Verify the context reference matches: `channel.context === analyzer.audioCtx`
+
+4. **Access Pattern:**
+   - Simple libraries: Use public APIs (`player.toDestination()`)
+   - Complex integrations: You may need to access private/internal properties (hence `any` type assertion)
+
+5. **Connection Methods:**
+   - Tone.js: Use `.connect()`, `.toDestination()`, `.chain()`
+   - Web Audio API: Use `node.connect(destination)`
+   - Third-party: Check documentation for `connectInput()`, `setSource()`, etc.
+
+### Visual Comparison: Simple vs Complex Audio Graphs
+
+**Simple (works with `source:` option):**
+
+```
+<audio> element
+    ↓ (AudioMotionAnalyzer creates this automatically)
+MediaElementSourceNode
+    ↓
+AudioMotionAnalyzer
+    ↓
+Destination (speakers)
+```
+
+**Complex (requires manual `audioCtx:` + `connectInput()`):**
+
+```
+              Tone.Transport (scheduler)
+                      ↓
+Player₁  Player₂  Player₃ ... Player₁₀
+   ↓       ↓        ↓          ↓
+   └───────┴────────┴──────────┘
+              ↓
+      Master Channel (with effects)
+       ┌──────────────┐
+       ├─ Compressor  │
+       ├─ Limiter     │
+       └──────────────┘
+         ↙        ↘
+    Analyzer    Destination
+  (visualization) (speakers)
+```
+
+---
+
+## Appendix B: Error Codes & Messages
 
 ### Audio Engine
 
@@ -1404,4 +1788,4 @@ describe("SkeletonGrid", () => {
 
 ---
 
-**End of SPEC.md** | **Last Updated:** 2025-11-18
+**End of SPEC.md** | **Last Updated:** 2026-01-12 (Appendix A: Library Integration Patterns Added)
