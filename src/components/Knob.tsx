@@ -11,7 +11,7 @@ type KnobProps = {
 // const KNOB_STARTING_ANGLE = 320; // -5dB starting position
 const MIN_ROTATION_ANGLE = 10;
 const MAX_ROTATION_ANGLE = 256;
-const MIN_DB = -25;
+const MIN_DB = -45;
 const MAX_DB = 5;
 const KNOB_LINE_OFFSET = -130;
 

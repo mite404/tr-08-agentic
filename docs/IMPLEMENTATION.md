@@ -21,14 +21,56 @@
 
 ### Phase 1: Foundation (PR #1)
 
-**Objective:** Types, validation, database schema.
+**Objective:** Establish the database, semantic types, and validation safety net.
 
-- [x] Create `src/types/beat.ts` with TypeScript types and Zod schemas
-- [x] Create `src/config/trackConfig.ts` with TRACK_REGISTRY and SAMPLE_LIBRARY
-- [x] Create `src/lib/beatUtils.ts` with serializers (toManifest, toGridArray, normalizeBeatData)
-- [x] Set up Supabase migrations (01_init_schema.sql) with RLS policies
-- [x] Add Zod dependency to package.json
-- [x] Verify schema round-trip symmetry (grid ↔ manifest ↔ grid)
+**1.1 Database Infrastructure (Supabase)**
+
+- [x] Create `beats` table (JSONB 'data' column)
+- [x] Create `profiles` table
+- [x] Execute SQL for `on_auth_user_created` Trigger (Link Auth -> Profile)
+- [x] Enable RLS Policies (Public Read, Auth Write)
+- [x] Add optimized RLS policies using `(select auth.uid())` pattern
+- [x] Add DELETE policy for user's own beats
+- [x] Add auto-update trigger for `updated_at` timestamp
+
+**1.2 Semantic Type Definitions**
+
+- [x] Install Zod: `npm install zod`
+- [x] Create `src/types/beat.ts`:
+  - Define `TrackID` union type (`kick_01` | `kick_02` | `bass_01` | `bass_02` | `snare_01` | `snare_02` | `synth_01` | `clap` | `hh_01` | `hh_02`)
+  - Define `BeatManifest` interface (The JSON structure)
+  - Implement Zod Schema `BeatManifestSchema` for runtime validation
+
+**1.3 The "Rosetta Stone" (Track Registry)**
+
+- [x] Create `src/config/trackConfig.ts`
+- [x] Export a `TRACK_REGISTRY` object that maps `TrackID` -> `Sample File` + `UI Row Index`
+- [x] **Why:** This allows us to convert the DB's "Semantic JSON" into the UI's "Array Grid"
+
+**1.4 Data Transformers**
+
+- [x] Create `src/lib/beatUtils.ts`
+- [x] Implement `normalizeBeatData(json: any)`:
+  - Uses `safeParse`
+  - Returns a guaranteed valid `BeatManifest`
+- [x] Implement `toGridArray(manifest)` and `toManifest(gridArray)` converters using the Registry
+- [x] Implement `calculateEffectiveVolume(manifest, trackId)` for mute/solo/volume hierarchy
+- [x] Implement `migrateSchema(data)` for version compatibility
+
+**1.5 Audio Engine**
+
+- [x] Create `src/lib/audioEngine.ts`
+- [x] Implement `resumeAudioContext()` for browser autoplay policy compliance
+- [x] Implement `loadAudioSamples(manifest, onLoadProgress)` with timeout and error handling
+- [x] Implement `playTrack(player, effectiveVolume, now)` for sample playback
+
+**1.6 Development Tooling**
+
+- [x] Install Drizzle ORM (`drizzle-orm`, `drizzle-kit`, `postgres`)
+- [x] Create `drizzle.config.ts` for schema management
+- [x] Create `src/db/schema.ts` and `src/db/index.ts` (for Node.js scripts only)
+- [x] Add database scripts to package.json (`db:introspect`, `db:generate`, `db:migrate`, etc.)
+- [x] Exclude `src/db/` from browser TypeScript config (`tsconfig.app.json`)
 
 **Definition of Done:** ✅ ALL COMPLETE
 
@@ -50,6 +92,10 @@
 - [x] Refactor `src/sequencer.ts` to use audio engine and manifest
 - [x] Update `src/App.tsx` to call resumeAudioContext on Play button
 - [x] Add progress callbacks for sample loading UI feedback
+- [x] Initialize master effects chain (Compressor + Limiter) on master bus
+  - Compressor: 8:1 ratio, -12dB threshold, 5ms attack, 70ms release
+  - Limiter: -4dB threshold (brick-wall ceiling at -2dB)
+- [x] Fix AudioMotionAnalyzer to not create duplicate audio path (`connectSpeakers: false`)
 
 **Definition of Done:** ✅ ALL COMPLETE
 
@@ -58,6 +104,8 @@
 - calculateEffectiveVolume respects Mute > Solo > Volume hierarchy
 - Playback works with loaded players and manifest data
 - Progress bar shows sample loading status
+- Master bus compression/limiting applied without phasing issues
+- Analyzer visualizes audio without creating duplicate output path
 
 ---
 
