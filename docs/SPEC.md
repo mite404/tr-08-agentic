@@ -1516,6 +1516,8 @@ describe("SkeletonGrid", () => {
 
 ---
 
+## v1.1 Feature Implementation
+
 ## PR #7: Data Schema & Type Expansion
 
 **Goal:** Update the "Contracts" to support the new data fields without breaking existing saves.
@@ -1535,18 +1537,18 @@ describe("SkeletonGrid", () => {
 
 **Goal:** Teach the audio engine how to "bend time" (Pitch) and "boost gain" (Accent).
 
-1.  **Pitch Logic:**
-    - Update `playTrack` signature to accept `pitchSemis`.
-    - Calculate `playbackRate`.
-    - Apply `source.playbackRate.value = rate`.
-2.  **Accent Logic:**
-    - Update `loadAudioSamples`: Skip loading a file if `sampleId` is "VIRTUAL_ACCENT".
-    - Update `sequencer.ts`:
-      - On every step, check: `Is grid['ac_01'][step] === true?`
-      - If yes, calculate an **Accent Multiplier** based on the Accent Track's volume knob.
-      - Pass this multiplier to `playTrack` for every instrument.
+1.  **Pitch:** Calculate playback rate: `rate = 2 ^ (pitch / 12)`.
+
+2.  **Accent (Ghost Note):**
+    - Look up `trackData.accents[stepIndex]`.
+    - If `true` -> Subtract 7dB from the volume (Ghost note).
+    - If `false` -> Play at Knob volume.
 3.  **Signal Flow Update:**
     - `playTrack` logic: `Final Volume = Track Volume + (IsAccented ? AccentStrength : 0)`.
+
+**Goal:** Teach the engine to interpret `pitch` and the new `accents` array.
+
+**Updated Logic for `playTrack`:**
 
 ## PR #9: UI Integration
 

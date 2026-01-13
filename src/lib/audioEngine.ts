@@ -260,16 +260,19 @@ export async function loadAudioSamples(
  * CONTRACT:
  * - Called once per 16th note step if grid[trackIndex][step] is true
  * - Checks effective volume using the Mute > Solo > Knob hierarchy
+ * - Applies pitch shifting via playback rate (v1.1)
  * - Idempotent per step (safe to call multiple times for same step)
  *
  * @param player - Tone.Player instance for this track
  * @param effectiveVolume - Volume in dB (-Infinity to +6)
  * @param now - Tone.now() timestamp for precise scheduling
+ * @param pitchSemis - Pitch shift in semitones (-12 to +12, 0 = no shift) [v1.1]
  */
 export function playTrack(
   player: Tone.Player | undefined,
   effectiveVolume: number,
   now: number,
+  pitchSemis: number = 0,
 ): void {
   if (!player) {
     console.log("[playTrack] No player provided");
@@ -281,8 +284,18 @@ export function playTrack(
   }
 
   try {
+    // v1.1: Apply pitch shifting via playback rate
+    // Formula: rate = 2^(semitones/12)
+    // Safety: Always set playbackRate to ensure clean state (even if pitch is 0)
+    if (pitchSemis === 0) {
+      player.playbackRate = 1; // Strict reset to normal speed
+    } else {
+      const rate = Math.pow(2, pitchSemis / 12);
+      player.playbackRate = rate;
+    }
+
     console.log(
-      `[playTrack] Setting volume to ${effectiveVolume}dB, starting at ${now}`,
+      `[playTrack] Setting volume to ${effectiveVolume}dB, pitch ${pitchSemis} semitones (rate ${player.playbackRate}), starting at ${now}`,
     );
     player.volume.value = effectiveVolume;
     player.start(now);
