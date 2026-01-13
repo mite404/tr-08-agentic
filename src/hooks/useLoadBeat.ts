@@ -26,6 +26,8 @@ export interface LoadedBeatData {
   bpm: number;
   beatName: string;
   trackVolumes: Record<TrackID, number>;
+  trackPitches: Record<TrackID, number>; // v1.1
+  trackAccents: Record<TrackID, boolean[]>; // v1.1
   beatId: string;
   createdAt: string;
   updatedAt: string;

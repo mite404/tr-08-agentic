@@ -108,18 +108,26 @@ export function createSequencer(
         continue;
       }
 
-      // Calculate effective volume using the signal hierarchy
+      // v1.1: Retrieve accent state for this specific cell
+      const trackData = manifestRef.current.tracks[trackId];
+      const isAccented = trackData?.accents?.[stepToPlay] ?? false;
+
+      // v1.1: Retrieve pitch value for this track
+      const pitchSemis = trackData?.pitch ?? 0;
+
+      // Calculate effective volume using the signal hierarchy (with accent)
       const effectiveVolume = calculateEffectiveVolume(
         manifestRef.current,
         trackId,
+        isAccented, // v1.1: Pass Ghost Note state
       );
 
       console.log(
-        `[Sequencer] Playing ${trackId} at step ${stepToPlay}, volume: ${effectiveVolume}dB`,
+        `[Sequencer] Playing ${trackId} at step ${stepToPlay}, volume: ${effectiveVolume}dB, pitch: ${pitchSemis} semitones, accented: ${isAccented}`,
       );
 
-      // Play the track
-      playTrack(player, effectiveVolume, time);
+      // Play the track with pitch
+      playTrack(player, effectiveVolume, time, pitchSemis); // v1.1: Pass pitch
     }
 
     // Schedule UI update (only if page is visible - PR #5: Browser lifecycle)

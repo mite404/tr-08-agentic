@@ -15,10 +15,12 @@ export function Analyzer() {
     void Tone.start();
 
     // Create AudioMotionAnalyzer with Tone's context
+    // Note: We need _nativeContext because AudioMotionAnalyzer requires native Web Audio API context
     const analyzer = new AudioMotionAnalyzer(
       containerRef.current, // Where to draw it
       {
-        audioCtx: Tone.context.rawContext._nativeContext,
+        audioCtx: (Tone.context.rawContext as any)
+          ._nativeContext as AudioContext,
         connectSpeakers: false, // CRITICAL: Don't create duplicate audio path to speakers
         mode: 2, // 1/12th octave bands (nice look)
         barSpace: 0.6, // Space between bars

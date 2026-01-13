@@ -32,6 +32,9 @@ export type TrackID =
 /**
  * Per-track configuration including sample assignment, volume, mute/solo state,
  * and the 16-step sequence pattern.
+ *
+ * v1.1: Added pitch property for per-track pitch shifting
+ * v1.1: Added accents array for per-cell velocity control
  */
 export interface TrackData {
   sampleId: string; // Reference to SAMPLE_LIBRARY key
@@ -39,6 +42,8 @@ export interface TrackData {
   mute: boolean; // Mute state (overrides solo)
   solo: boolean; // Solo state (silences non-solo tracks)
   steps: boolean[]; // 16-step sequence (true = trigger, false = silent)
+  accents: boolean[]; // 16-step accent pattern (true = -7dB softer, false = 0dB full) [v1.1]
+  pitch: number; // Pitch shift in semitones (-12 to +12, 0 = no shift) [v1.1]
 }
 
 /**
@@ -102,6 +107,8 @@ export const TrackIDSchema = z.enum([
 
 /**
  * Zod schema for TrackData with runtime validation.
+ * v1.1: Added pitch field with -12 to +12 semitone range, defaults to 0
+ * v1.1: Added accents array for per-cell velocity (defaults to all false)
  */
 export const TrackDataSchema = z.object({
   sampleId: z.string().min(1),
@@ -109,6 +116,8 @@ export const TrackDataSchema = z.object({
   mute: z.boolean(),
   solo: z.boolean(),
   steps: z.array(z.boolean()).length(16),
+  accents: z.array(z.boolean()).length(16).default(Array(16).fill(false)), // v1.1: Accent pattern
+  pitch: z.number().min(-12).max(12).default(0), // v1.1: Pitch shift in semitones
 });
 
 /**
@@ -131,12 +140,34 @@ export const BeatManifestSchema = z.object({
  * Normalizes and validates untrusted beat data from the database or user input.
  * Returns a Result-style object with either valid data or an error.
  *
+ * v1.1 Migration: Automatically adds missing pitch fields (defaults to 0) for v1.0 beats.
+ * Also adds ac_01 track if missing (for backward compatibility).
+ *
  * @param data - Untrusted data to validate
  * @returns { valid: true, data: BeatManifest } | { valid: false, error: string }
  */
 export function normalizeBeatData(
   data: unknown,
 ): { valid: true; data: BeatManifest } | { valid: false; error: string } {
+  // v1.1: Pre-process data to inject missing fields for backward compatibility
+  if (data && typeof data === "object" && "tracks" in data) {
+    const manifest = data as any;
+
+    // Inject pitch: 0 and accents: Array(16).fill(false) into any track that doesn't have them
+    for (const trackId in manifest.tracks) {
+      if (manifest.tracks[trackId]) {
+        // Add pitch if missing
+        if (typeof manifest.tracks[trackId].pitch === "undefined") {
+          manifest.tracks[trackId].pitch = 0;
+        }
+        // Add accents if missing (v1.0 beats won't have this)
+        if (typeof manifest.tracks[trackId].accents === "undefined") {
+          manifest.tracks[trackId].accents = Array(16).fill(false);
+        }
+      }
+    }
+  }
+
   const result = BeatManifestSchema.safeParse(data);
   if (!result.success) {
     return { valid: false, error: result.error.message };
@@ -148,6 +179,8 @@ export function normalizeBeatData(
  * Returns a default BeatManifest with all tracks initialized to empty patterns.
  * This is used when creating a new beat or when database data is corrupted.
  *
+ * v1.1: Added pitch: 0 and accents: [] to all tracks
+ *
  * @returns Default BeatManifest with sensible initial values
  */
 export function getDefaultBeatManifest(): BeatManifest {
@@ -158,6 +191,8 @@ export function getDefaultBeatManifest(): BeatManifest {
       mute: false,
       solo: false,
       steps: Array(16).fill(false) as boolean[],
+      accents: Array(16).fill(false) as boolean[], // v1.1
+      pitch: 0, // v1.1
     },
     kick_02: {
       sampleId: "KICK_02",
@@ -165,6 +200,8 @@ export function getDefaultBeatManifest(): BeatManifest {
       mute: false,
       solo: false,
       steps: Array(16).fill(false) as boolean[],
+      accents: Array(16).fill(false) as boolean[], // v1.1
+      pitch: 0, // v1.1
     },
     bass_01: {
       sampleId: "BASS_TONE",
@@ -172,6 +209,8 @@ export function getDefaultBeatManifest(): BeatManifest {
       mute: false,
       solo: false,
       steps: Array(16).fill(false) as boolean[],
+      accents: Array(16).fill(false) as boolean[], // v1.1
+      pitch: 0, // v1.1
     },
     bass_02: {
       sampleId: "BASS_01",
@@ -179,6 +218,8 @@ export function getDefaultBeatManifest(): BeatManifest {
       mute: false,
       solo: false,
       steps: Array(16).fill(false) as boolean[],
+      accents: Array(16).fill(false) as boolean[], // v1.1
+      pitch: 0, // v1.1
     },
     snare_01: {
       sampleId: "CLAP",
@@ -186,6 +227,8 @@ export function getDefaultBeatManifest(): BeatManifest {
       mute: false,
       solo: false,
       steps: Array(16).fill(false) as boolean[],
+      accents: Array(16).fill(false) as boolean[], // v1.1
+      pitch: 0, // v1.1
     },
     snare_02: {
       sampleId: "SNARE_02",
@@ -193,6 +236,8 @@ export function getDefaultBeatManifest(): BeatManifest {
       mute: false,
       solo: false,
       steps: Array(16).fill(false) as boolean[],
+      accents: Array(16).fill(false) as boolean[], // v1.1
+      pitch: 0, // v1.1
     },
     synth_01: {
       sampleId: "STAB_DM",
@@ -200,6 +245,8 @@ export function getDefaultBeatManifest(): BeatManifest {
       mute: false,
       solo: false,
       steps: Array(16).fill(false) as boolean[],
+      accents: Array(16).fill(false) as boolean[], // v1.1
+      pitch: 0, // v1.1
     },
     clap: {
       sampleId: "STAB_C",
@@ -207,6 +254,8 @@ export function getDefaultBeatManifest(): BeatManifest {
       mute: false,
       solo: false,
       steps: Array(16).fill(false) as boolean[],
+      accents: Array(16).fill(false) as boolean[], // v1.1
+      pitch: 0, // v1.1
     },
     hh_01: {
       sampleId: "HAT_CLS",
@@ -214,6 +263,8 @@ export function getDefaultBeatManifest(): BeatManifest {
       mute: false,
       solo: false,
       steps: Array(16).fill(false) as boolean[],
+      accents: Array(16).fill(false) as boolean[], // v1.1
+      pitch: 0, // v1.1
     },
     hh_02: {
       sampleId: "HAT_OPN",
@@ -221,11 +272,13 @@ export function getDefaultBeatManifest(): BeatManifest {
       mute: false,
       solo: false,
       steps: Array(16).fill(false) as boolean[],
+      accents: Array(16).fill(false) as boolean[], // v1.1
+      pitch: 0, // v1.1
     },
   };
 
   return {
-    meta: { version: "1.0.0", engine: "tone.js@15.1.22" },
+    meta: { version: "1.1.0", engine: "tone.js@15.1.22" }, // v1.1
     global: { bpm: 140, swing: 0, masterVolumeDb: 0 },
     tracks: defaultTracks,
   };

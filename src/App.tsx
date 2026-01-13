@@ -11,10 +11,15 @@ import * as Tone from "tone";
 import mpcMark from "./assets/images/MPC_mark.png";
 
 // PR #2: Import new audio engine and track registry
-import { loadAudioSamples, resumeAudioContext } from "./lib/audioEngine";
+import {
+  loadAudioSamples,
+  resumeAudioContext,
+  playTrack,
+} from "./lib/audioEngine";
 import { TRACK_REGISTRY } from "./config/trackConfig";
 import { getDefaultBeatManifest } from "./types/beat";
 import type { TrackID, BeatManifest } from "./types/beat";
+import { calculateEffectiveVolume } from "./lib/beatUtils";
 
 // PR #3: Import authentication and persistence hooks
 import { useAuth } from "./hooks/useAuth";
@@ -438,6 +443,63 @@ function App() {
       setIsLoading(false);
     }
   }
+
+  // PR #8: Console Harness for manual testing of pitch and accent
+  useEffect(() => {
+    // Expose debug API to window for manual testing
+    (window as any).tr08 = {
+      play: async (
+        trackId: TrackID,
+        pitch: number = 0,
+        accent: boolean = false,
+      ) => {
+        // Ensure audio context is running
+        await resumeAudioContext();
+
+        // Get player from map
+        const player = playersMapRef.current.get(trackId);
+        if (!player) {
+          console.error(`[Console Harness] Player not found for ${trackId}`);
+          return;
+        }
+
+        // Calculate volume with accent
+        const effectiveVolume = calculateEffectiveVolume(
+          manifestRef.current,
+          trackId,
+          accent,
+        );
+
+        // Play immediately
+        playTrack(player, effectiveVolume, Tone.now(), pitch);
+        console.log(
+          `[Console Harness] Playing ${trackId} | pitch: ${pitch} semitones | accent: ${accent} | volume: ${effectiveVolume}dB`,
+        );
+      },
+
+      // Helper to list available tracks
+      tracks: () => {
+        console.log(
+          "Available tracks:",
+          Array.from(playersMapRef.current.keys()),
+        );
+      },
+
+      // Helper to show current manifest
+      manifest: () => {
+        console.log("Current manifest:", manifestRef.current);
+      },
+    };
+
+    console.log("🎹 TR-08 Console Harness Ready!");
+    console.log("Try: window.tr08.play('kick_01', 0, false)");
+    console.log("     window.tr08.play('kick_01', 12, false)  // +1 octave");
+    console.log("     window.tr08.play('kick_01', -12, false) // -1 octave");
+    console.log("     window.tr08.play('kick_01', 0, true)    // ghost note");
+    console.log(
+      "     window.tr08.tracks()                    // list all tracks",
+    );
+  }, []);
 
   const getActiveColor = (baseColor: string, isActive: boolean): string => {
     if (!isActive) {
