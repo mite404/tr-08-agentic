@@ -28,12 +28,15 @@ export function Pad({
     );
   }
 
-  // PR #9: Calculate opacity - accented notes are softer (opacity-50 when active+accented)
+  // PR #10: 3-State visual feedback
+  // OFF: opacity-20 (very dim)
+  // ON Normal: opacity-100 (full brightness)
+  // ON Ghost: opacity-50 (medium, ghosted)
   const baseOpacity = isActive
     ? isAccented
       ? "opacity-50"
       : "opacity-100"
-    : "opacity-50";
+    : "opacity-20";
 
   return (
     <button

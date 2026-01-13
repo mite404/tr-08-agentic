@@ -3,7 +3,7 @@ import "./App.css";
 import { Pad } from "./components/Pad";
 import { TempoDisplay } from "./components/TempoDisplay";
 import { PlayStopBtn } from "./components/PlayStopBtn";
-import { createSequencer, togglePad } from "./sequencer";
+import { createSequencer } from "./sequencer";
 import { Knob } from "./components/Knob";
 import { Analyzer } from "./components/Analyzer";
 import * as Tone from "tone";
@@ -262,8 +262,6 @@ function App() {
   );
   // PR #9: Track pitch values for pitch knobs
   const [trackPitches, setTrackPitches] = useState<number[]>(Array(10).fill(0));
-  // PR #9: Pad mode toggle for step vs ghost note editing
-  const [padMode, setPadMode] = useState<"step" | "ghost">("step");
   // PR #6: Track failed audio samples for visual feedback
   const [failedTrackIds, setFailedTrackIds] = useState<TrackID[]>([]);
 
@@ -520,35 +518,41 @@ function App() {
     }
   };
 
-  // PR #9: Updated to support step vs ghost mode
+  // PR #10: 3-State Pad Interaction (OFF → ON Normal → ON Ghost → OFF)
   function handlePadClick(rowIndex: number, colIndex: number) {
-    console.log(`Clicked: row ${rowIndex}, col ${colIndex}, mode: ${padMode}`);
+    const trackId = trackIdsByRowRef.current[rowIndex];
+    if (!trackId || !manifestRef.current.tracks[trackId]) {
+      return;
+    }
 
-    if (padMode === "step") {
-      // Standard mode: Toggle note on/off
-      const newGrid = togglePad(grid, rowIndex, colIndex);
+    const trackData = manifestRef.current.tracks[trackId];
+    const isActive = grid[rowIndex][colIndex];
+    const isAccented = trackData.accents[colIndex];
+
+    // Determine current state and cycle to next
+    if (!isActive) {
+      // State 1: OFF → Turn ON (Normal Volume)
+      const newGrid = structuredClone(grid);
+      newGrid[rowIndex][colIndex] = true;
+      trackData.steps[colIndex] = true;
+      trackData.accents[colIndex] = false;
       setGrid(newGrid);
+      console.log(`[3-State] ${trackId} step ${colIndex}: OFF → ON (Normal)`);
+    } else if (isActive && !isAccented) {
+      // State 2: ON (Normal) → ON (Ghost)
+      trackData.accents[colIndex] = true;
+      setGrid([...grid]); // Force re-render
+      console.log(
+        `[3-State] ${trackId} step ${colIndex}: ON (Normal) → ON (Ghost)`,
+      );
     } else {
-      // Ghost mode: Toggle accent (only if pad is already active)
-      const trackId = trackIdsByRowRef.current[rowIndex];
-      if (trackId && manifestRef.current.tracks[trackId]) {
-        const trackData = manifestRef.current.tracks[trackId];
-        const isActive = grid[rowIndex][colIndex];
-
-        if (isActive) {
-          // Toggle accent for this cell
-          trackData.accents[colIndex] = !trackData.accents[colIndex];
-          console.log(
-            `[Ghost Mode] Toggled accent for ${trackId} step ${colIndex}: ${trackData.accents[colIndex]}`,
-          );
-          // Force re-render by updating grid reference
-          setGrid([...grid]);
-        } else {
-          console.log(
-            `[Ghost Mode] Cannot accent inactive pad at ${rowIndex},${colIndex}`,
-          );
-        }
-      }
+      // State 3: ON (Ghost) → OFF
+      const newGrid = structuredClone(grid);
+      newGrid[rowIndex][colIndex] = false;
+      trackData.steps[colIndex] = false;
+      trackData.accents[colIndex] = false;
+      setGrid(newGrid);
+      console.log(`[3-State] ${trackId} step ${colIndex}: ON (Ghost) → OFF`);
     }
   }
 
@@ -780,29 +784,6 @@ function App() {
             </div>
           </div>
           <Analyzer />
-          {/* PR #9: Mode Toggle UI */}
-          <div className="mb-4 flex justify-center gap-2">
-            <button
-              className={`rounded px-4 py-2 font-medium transition-colors ${
-                padMode === "step"
-                  ? "bg-cyan-500 text-black"
-                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-              }`}
-              onClick={() => setPadMode("step")}
-            >
-              STEP
-            </button>
-            <button
-              className={`rounded px-4 py-2 font-medium transition-colors ${
-                padMode === "ghost"
-                  ? "bg-amber-500 text-black"
-                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-              }`}
-              onClick={() => setPadMode("ghost")}
-            >
-              GHOST
-            </button>
-          </div>
 
           {/* container for KNOBS & GRID divs */}
           <div className="flex w-full flex-row">
