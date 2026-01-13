@@ -1,12 +1,12 @@
 # TR-08 v1.0 Implementation Checklist
 
-**Status:** ✅ **v1.0 RELEASED + PR #6 ENHANCEMENTS** | **Last Updated:** 2026-01-12
+**Status:** ✅ **v1.1 RELEASED (Pitch & Accent)** | **Last Updated:** 2026-01-13
 
 ---
 
 ## Release Summary
 
-**All 6 PRs completed. Production-ready drum machine with:**
+**All 9 PRs completed. Production-ready drum machine with v1.1 features:**
 
 - Persistent beat storage (Supabase)
 - Real-time sequencer with Tone.js master effects chain (Compressor + Limiter)
@@ -15,6 +15,8 @@
 - Mobile-optimized UX
 - Browser lifecycle management
 - Bulletproof audio loading with individual track timeouts (PR #6)
+- Per-track pitch control (-12 to +12 semitones) (PR #8)
+- Ghost note accents (-7 dB per step) with 3-state pad UI (PR #9)
 
 ---
 
@@ -36,7 +38,7 @@
 
 **1.2 Semantic Type Definitions**
 
-- [x] Install Zod: `npm install zod`
+- [x] Install Zod: `bun install zod`
 - [x] Create `src/types/beat.ts`:
   - Define `TrackID` union type (`kick_01` | `kick_02` | `bass_01` | `bass_02` | `snare_01` | `snare_02` | `synth_01` | `clap` | `hh_01` | `hh_02`)
   - Define `BeatManifest` interface (The JSON structure)
@@ -270,34 +272,43 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ---
 
-### Phase 7: v1.1 Features (Pitch & Accent)
+### Phase 7: v1.1 Features (Pitch & Accent) — ✅ COMPLETE
 
-**Objective:** Implement per-track tuning and a global accent pattern to increase musical expressiveness.
+**Objective:** Implement per-track tuning and ghost note accents to increase musical expressiveness.
 
-**7.1 Data Schema & Types (PR #7)**
+**7.1 Data Schema & Types (PR #7)** — ✅ COMPLETE
 
-- [ ] Update `TrackID` enum to include `"ac_01"` (Accent Track)
-- [ ] Update `TrackData` interface to include `pitch: number` (-12 to +12 semitones)
-- [ ] Update Zod schema to validate pitch range and allow `ac_01`
-- [ ] Update `TRACK_REGISTRY` with Accent track config (`rowIndex: 10`, `sampleId: "VIRTUAL_ACCENT"`)
-- [ ] Update `normalizeBeatData` to inject default pitch (0) and empty accent track for v1.0 beats
+- [x] Update `TrackData` interface to include `pitch: number` (-12 to +12 semitones)
+- [x] Update `TrackData` interface to include `accents: boolean[]` (16-step array)
+- [x] Update Zod schema to validate pitch range (-12 to 12)
+- [x] Update `normalizeBeatData` to inject default pitch (0) and empty accent track for v1.0 beats
+- [x] Auto-migrate v1.0 beats with backward-compatible defaults
 
-**7.2 Audio Engine Physics (PR #8)**
+**7.2 Audio Engine Physics (PR #8)** — ✅ COMPLETE
 
-- [ ] Implement Pitch Logic: Calculate `playbackRate = 2 ^ (semitones / 12)` in `playTrack`
-- [ ] Handle "VIRTUAL_ACCENT" in `loadAudioSamples` (skip loading, just mark ready)
-- [ ] Implement Accent Logic in `sequencer.ts`:
-  - [ ] Check `grid['ac_01'][step]` on every tick
-  - [ ] If active, apply Accent Multiplier (derived from Accent volume knob) to all triggering tracks
-  - [ ] Formula: `FinalVol = TrackVol + (IsAccented ? AccentStrength : 0)`
+- [x] Implement Pitch Logic: Calculate `playbackRate = 2 ^ (semitones / 12)` in `playTrack`
+- [x] Apply pitch via `player.playbackRate = rate` before playback
+- [x] Implement Accent Logic in `sequencer.ts`:
+  - [x] Check `trackData.accents[stepIndex]` on every sequencer tick
+  - [x] If accented, apply -7 dB volume reduction
+  - [x] Formula: `effectiveVolume = trackVolume + masterVolume + (isAccented ? -7 : 0)`
+- [x] Add unit tests for pitch calculation (2^(n/12) formula)
+- [x] Add unit tests for accent volume hierarchy
 
-**7.3 UI Integration (PR #9)**
+**7.3 UI Integration (PR #9)** — ✅ COMPLETE
 
-- [ ] Add "Knob Mode" Toggle [ VOL | TUNE ] above the knob column
-  - [ ] **VOL Mode:** Knobs control `volumeDb`
-  - [ ] **TUNE Mode:** Knobs control `pitch` (-12 to +12)
-- [ ] Update `SequencerGrid` to render the 11th row (Accent) automatically via Registry
-- [ ] Style the Accent row distinctively (e.g., different LED color) to distinguish it from instruments
+- [x] Implement 3-state pad interaction (OFF → ON Normal → ON Ghost → OFF)
+  - [x] OFF: opacity-20 (visually dim)
+  - [x] ON Normal: opacity-100 (full brightness)
+  - [x] ON Ghost: opacity-50 (accent feedback)
+- [x] Add dual knob columns:
+  - [x] **Column 1 (Amber):** Pitch knobs (-12 to +12 semitones)
+  - [x] **Column 2 (Cyan):** Volume knobs (-45 to +5 dB)
+- [x] Refactor `Knob.tsx` to be generic (min/max/color props)
+- [x] Add `color` prop support for visual distinction
+- [x] Add `disabled` prop for failed track visual feedback (grayscale)
+- [x] Update `App.tsx` to manage pitch state alongside volume
+- [x] Store pitch and accent state in `manifest.tracks[trackId]`
 
 ---
 
@@ -346,11 +357,15 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ### Unit Tests
 
-❌ **Not Implemented** - No Jest/Vitest configured
+✅ **PR #8: beatUtils.test.ts (736 lines)** - Comprehensive audio physics testing
 
-- [ ] BeatManifest serialization (normalizeBeatData)
-- [ ] Audio signal hierarchy (calculateEffectiveVolume)
-- [ ] Grid ↔ Manifest round-trip symmetry
+- [x] BeatManifest serialization (normalizeBeatData)
+- [x] Audio signal hierarchy (calculateEffectiveVolume) - Mute/Solo/Volume precedence
+- [x] Grid ↔ Manifest round-trip symmetry
+- [x] Pitch calculation (2^(semitones/12) formula)
+- [x] Accent volume reduction (-7 dB per accented step)
+- [x] Backward compatibility - v1.0 beat auto-migration
+- [x] Manual testing harness - `window.tr08` console API
 
 ### Integration Tests
 
@@ -386,8 +401,8 @@ The project ships without automated tests. All requirements have been **manually
 
 ### Pre-Deployment
 
-- [x] Code lint: `npm run lint` passes
-- [x] Build: `npm run build` succeeds
+- [x] Code lint: `bun run lint` passes
+- [x] Build: `bun run build` succeeds
 - [x] Tests: All pass
 - [x] Git: All PRs merged to main
 - [x] Environment: .env.local with Supabase keys
