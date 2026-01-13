@@ -5,6 +5,7 @@ type PadProps = {
   is16thNote: boolean;
   onClick: () => void;
   disabled?: boolean; // PR #6: Visual feedback for failed tracks
+  isAccented?: boolean; // PR #9: Ghost note visual feedback
 };
 
 export function Pad({
@@ -14,6 +15,7 @@ export function Pad({
   is16thNote,
   onClick,
   disabled = false, // PR #6: Default to enabled
+  isAccented = false, // PR #9: Default to not accented
 }: PadProps) {
   // PR #6: If disabled, force gray background, remove interactivity, add grayscale
   if (disabled) {
@@ -26,9 +28,16 @@ export function Pad({
     );
   }
 
+  // PR #9: Calculate opacity - accented notes are softer (opacity-50 when active+accented)
+  const baseOpacity = isActive
+    ? isAccented
+      ? "opacity-50"
+      : "opacity-100"
+    : "opacity-50";
+
   return (
     <button
-      className={`aspect-2/1 cursor-pointer rounded-sm hover:opacity-80 ${color} ${isActive ? "opacity-100" : "opacity-50"} ${isCurrentStep ? "brightness-175" : ""} ${is16thNote ? "brightness-135" : ""} [rounded-[10px] h-[25px] w-full p-2`}
+      className={`aspect-2/1 cursor-pointer rounded-sm hover:opacity-80 ${color} ${baseOpacity} ${isCurrentStep ? "brightness-175" : ""} ${is16thNote ? "brightness-135" : ""} [rounded-[10px] h-[25px] w-full p-2`}
       onClick={onClick}
     ></button>
   );

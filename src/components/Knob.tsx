@@ -1,66 +1,61 @@
 import { useState, useEffect } from "react";
 
 type KnobProps = {
-  _trackIndex: number;
-  inputDb: number;
-  onDbChange: (newDbValue: number) => void;
-  disabled?: boolean; // PR #6: Visual feedback for failed tracks
+  value: number; // Current value (was 'inputDb')
+  min: number; // Minimum value (e.g., -45 for volume, -12 for pitch)
+  max: number; // Maximum value (e.g., 5 for volume, 12 for pitch)
+  onChange: (newValue: number) => void; // Callback with new value
+  color?: string; // Optional color class for the knob (e.g., "bg-amber-500")
+  disabled?: boolean; // Visual feedback for failed tracks
 };
 
-// conversion constants
-// const KNOB_STARTING_ANGLE = 320; // -5dB starting position
+// Internal visual constants (Physical limits of the knob graphic)
 const MIN_ROTATION_ANGLE = 10;
 const MAX_ROTATION_ANGLE = 256;
-const MIN_DB = -45;
-const MAX_DB = 5;
 const KNOB_LINE_OFFSET = -130;
 
-// convert input dB level to rotation angle
-function getAngleFromDb(dbValue: number): number {
-  return (
-    ((dbValue - MIN_DB) / (MAX_DB - MIN_DB)) *
-      (MAX_ROTATION_ANGLE - MIN_ROTATION_ANGLE) +
-    MIN_ROTATION_ANGLE
-  );
-}
-
-// convert input angle to dB level
-function getDbFromAngle(angleValue: number): number {
-  return (
-    ((angleValue - MIN_ROTATION_ANGLE) /
-      (MAX_ROTATION_ANGLE - MIN_ROTATION_ANGLE)) *
-      (MAX_DB - MIN_DB) +
-    MIN_DB
-  );
-}
-
-export function Knob({ inputDb, onDbChange, disabled = false }: KnobProps) {
+export function Knob({
+  value,
+  min,
+  max,
+  onChange,
+  color = "bg-cyan-500",
+  disabled = false,
+}: KnobProps) {
   const [isDragging, setIsDragging] = useState(false);
 
-  const rotationAngle = getAngleFromDb(inputDb);
+  // 1. Calculate visual angle based on percentage
+  // Formula: Percent * RangeAngle + StartAngle
+  const percentage = (value - min) / (max - min);
+  const rotationAngle =
+    percentage * (MAX_ROTATION_ANGLE - MIN_ROTATION_ANGLE) + MIN_ROTATION_ANGLE;
+
   const renderKnob = rotationAngle + KNOB_LINE_OFFSET;
 
   function handleMouseDown() {
-    setIsDragging(true);
+    if (!disabled) setIsDragging(true);
   }
 
   useEffect(() => {
     function handleWindowMouseMove(event: MouseEvent) {
-      // allows new angle with full movement unclamped
+      // 2. Drag Logic: Calculate new angle
+      // Note: We use -movementY so dragging UP increases value
       let newAngle = rotationAngle - event.movementY;
 
-      // possible oneliner solution: newAngle = Math.max(10, Math.min(270, newAngle))
+      // Clamp visual rotation
       if (newAngle > MAX_ROTATION_ANGLE) {
         newAngle = MAX_ROTATION_ANGLE;
       } else if (newAngle < MIN_ROTATION_ANGLE) {
         newAngle = MIN_ROTATION_ANGLE;
       }
 
-      // convert clamped angle back to dB
-      const newDb = getDbFromAngle(newAngle);
-      // console.log("dbValue: ", newDb, "rotationAngle: ", newAngle);
+      // 3. Convert Angle back to Value using dynamic min/max
+      const anglePercent =
+        (newAngle - MIN_ROTATION_ANGLE) /
+        (MAX_ROTATION_ANGLE - MIN_ROTATION_ANGLE);
+      const newValue = anglePercent * (max - min) + min;
 
-      onDbChange(newDb); // Fires repeatedly during drag
+      onChange(newValue);
     }
 
     function handleWindowMouseUp() {
@@ -76,7 +71,7 @@ export function Knob({ inputDb, onDbChange, disabled = false }: KnobProps) {
       window.removeEventListener("mousemove", handleWindowMouseMove);
       window.removeEventListener("mouseup", handleWindowMouseUp);
     };
-  }, [isDragging, rotationAngle, onDbChange]); // rotationAngle needed to be added for fresh value
+  }, [isDragging, rotationAngle, min, max, onChange]);
 
   return (
     <div
@@ -85,7 +80,7 @@ export function Knob({ inputDb, onDbChange, disabled = false }: KnobProps) {
     >
       <div className="flex h-[25px] w-[25px] items-center justify-center rounded-full bg-gray-900">
         <div
-          className="flex h-5 w-5 cursor-pointer justify-center rounded-full bg-amber-500"
+          className={`flex h-5 w-5 cursor-pointer justify-center rounded-full ${color}`}
           style={{ transform: `rotate(${renderKnob}deg)` }}
           onMouseDown={handleMouseDown}
         >

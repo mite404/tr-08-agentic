@@ -260,6 +260,10 @@ function App() {
   const [trackVolumes, setTrackVolumes] = useState<number[]>(
     Array(10).fill(-5),
   );
+  // PR #9: Track pitch values for pitch knobs
+  const [trackPitches, setTrackPitches] = useState<number[]>(Array(10).fill(0));
+  // PR #9: Pad mode toggle for step vs ghost note editing
+  const [padMode, setPadMode] = useState<"step" | "ghost">("step");
   // PR #6: Track failed audio samples for visual feedback
   const [failedTrackIds, setFailedTrackIds] = useState<TrackID[]>([]);
 
@@ -307,6 +311,13 @@ function App() {
           setGrid(loadedBeat.grid);
           setBpm(loadedBeat.bpm);
           setBeatName(loadedBeat.beatName);
+
+          // PR #9: Load pitch values into UI state
+          const pitchArray = trackIdsByRowRef.current.map(
+            (trackId) => loadedBeat.trackPitches[trackId] ?? 0,
+          );
+          setTrackPitches(pitchArray);
+
           console.log(`[App] Auto-loaded beat: "${loadedBeat.beatName}"`);
         } else {
           console.log("[App] No beats found, using default grid");
@@ -509,11 +520,36 @@ function App() {
     }
   };
 
+  // PR #9: Updated to support step vs ghost mode
   function handlePadClick(rowIndex: number, colIndex: number) {
-    console.log(`Clicked: row ${rowIndex}, col ${colIndex}`);
+    console.log(`Clicked: row ${rowIndex}, col ${colIndex}, mode: ${padMode}`);
 
-    const newGrid = togglePad(grid, rowIndex, colIndex);
-    setGrid(newGrid);
+    if (padMode === "step") {
+      // Standard mode: Toggle note on/off
+      const newGrid = togglePad(grid, rowIndex, colIndex);
+      setGrid(newGrid);
+    } else {
+      // Ghost mode: Toggle accent (only if pad is already active)
+      const trackId = trackIdsByRowRef.current[rowIndex];
+      if (trackId && manifestRef.current.tracks[trackId]) {
+        const trackData = manifestRef.current.tracks[trackId];
+        const isActive = grid[rowIndex][colIndex];
+
+        if (isActive) {
+          // Toggle accent for this cell
+          trackData.accents[colIndex] = !trackData.accents[colIndex];
+          console.log(
+            `[Ghost Mode] Toggled accent for ${trackId} step ${colIndex}: ${trackData.accents[colIndex]}`,
+          );
+          // Force re-render by updating grid reference
+          setGrid([...grid]);
+        } else {
+          console.log(
+            `[Ghost Mode] Cannot accent inactive pad at ${rowIndex},${colIndex}`,
+          );
+        }
+      }
+    }
   }
 
   // PR #2: Updated to use async audio engine
@@ -593,6 +629,13 @@ function App() {
         setGrid(loadedBeat.grid);
         setBpm(loadedBeat.bpm);
         setBeatName(loadedBeat.beatName);
+
+        // PR #9: Load pitch values into UI state
+        const pitchArray = trackIdsByRowRef.current.map(
+          (trackId) => loadedBeat.trackPitches[trackId] ?? 0,
+        );
+        setTrackPitches(pitchArray);
+
         alert(`Loaded beat: "${loadedBeat.beatName}"`);
       } else {
         alert("No beats found");
@@ -662,6 +705,25 @@ function App() {
     }
   }
 
+  // PR #9: Handle pitch changes from pitch knobs
+  function handlePitchChange(trackIndex: number, newPitchValue: number) {
+    console.log(`Pitch for track ${trackIndex} updated to:`, newPitchValue);
+    setTrackPitches((prev) => {
+      const updated = [...prev];
+      updated[trackIndex] = newPitchValue;
+      return updated;
+    });
+
+    // Update manifest with new pitch
+    const trackId = trackIdsByRowRef.current[trackIndex];
+    if (trackId && manifestRef.current.tracks[trackId]) {
+      manifestRef.current.tracks[trackId].pitch = newPitchValue;
+      console.log(
+        `[Manifest] Updated ${trackId} pitch to ${newPitchValue} semitones`,
+      );
+    }
+  }
+
   return (
     <>
       {/* PR #4: Portrait blocker for mobile devices */}
@@ -718,28 +780,79 @@ function App() {
             </div>
           </div>
           <Analyzer />
-          {/* container for KNOB & GRID divs */}
-          <div className="flex w-full flex-row">
-            {/* KNOB container */}
-            <div className="flex-none pt-3.5 pr-1.5">
-              {tracks.map((_track, trackIndex) => {
-                // PR #6: Check if this track failed to load
-                const trackId = trackIdsByRowRef.current[trackIndex];
-                const isDisabled = failedTrackIds.includes(trackId);
+          {/* PR #9: Mode Toggle UI */}
+          <div className="mb-4 flex justify-center gap-2">
+            <button
+              className={`rounded px-4 py-2 font-medium transition-colors ${
+                padMode === "step"
+                  ? "bg-cyan-500 text-black"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              }`}
+              onClick={() => setPadMode("step")}
+            >
+              STEP
+            </button>
+            <button
+              className={`rounded px-4 py-2 font-medium transition-colors ${
+                padMode === "ghost"
+                  ? "bg-amber-500 text-black"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              }`}
+              onClick={() => setPadMode("ghost")}
+            >
+              GHOST
+            </button>
+          </div>
 
-                return (
-                  <Knob
-                    // eslint-disable-next-line react-x/no-array-index-key
-                    key={trackIndex}
-                    _trackIndex={trackIndex}
-                    inputDb={trackVolumes[trackIndex]}
-                    onDbChange={(newDbValue) => {
-                      handleDbChange(trackIndex, newDbValue);
-                    }}
-                    disabled={isDisabled}
-                  />
-                );
-              })}
+          {/* container for KNOBS & GRID divs */}
+          <div className="flex w-full flex-row">
+            {/* PR #9: Two-column KNOB container (Pitch + Volume) */}
+            <div className="flex flex-none gap-1 pt-3.5 pr-1.5">
+              {/* Column 1: Pitch Knobs */}
+              <div className="flex flex-col">
+                {tracks.map((_track, trackIndex) => {
+                  const trackId = trackIdsByRowRef.current[trackIndex];
+                  const isDisabled = failedTrackIds.includes(trackId);
+
+                  return (
+                    <Knob
+                      // eslint-disable-next-line react-x/no-array-index-key
+                      key={`pitch-${trackIndex}`}
+                      value={trackPitches[trackIndex]}
+                      min={-12}
+                      max={12}
+                      onChange={(newValue) =>
+                        handlePitchChange(trackIndex, newValue)
+                      }
+                      color="bg-amber-500"
+                      disabled={isDisabled}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* Column 2: Volume Knobs */}
+              <div className="flex flex-col">
+                {tracks.map((_track, trackIndex) => {
+                  const trackId = trackIdsByRowRef.current[trackIndex];
+                  const isDisabled = failedTrackIds.includes(trackId);
+
+                  return (
+                    <Knob
+                      // eslint-disable-next-line react-x/no-array-index-key
+                      key={`volume-${trackIndex}`}
+                      value={trackVolumes[trackIndex]}
+                      min={-45}
+                      max={5}
+                      onChange={(newValue) =>
+                        handleDbChange(trackIndex, newValue)
+                      }
+                      color="bg-cyan-500"
+                      disabled={isDisabled}
+                    />
+                  );
+                })}
+              </div>
             </div>
             {/* beat grid container */}
             <div className="flex-1 rounded-md border-10 border-gray-900">
@@ -759,6 +872,12 @@ function App() {
                       const isDisabled = failedTrackIds.includes(trackId);
 
                       return track.map((_, colIndex) => {
+                        // PR #9: Get accent state for this cell
+                        const isAccented =
+                          manifestRef.current.tracks[trackId]?.accents?.[
+                            colIndex
+                          ] ?? false;
+
                         return (
                           <Pad
                             // eslint-disable-next-line react-x/no-array-index-key
@@ -772,6 +891,7 @@ function App() {
                             is16thNote={colIndex % 4 !== 0}
                             onClick={() => handlePadClick(rowIndex, colIndex)}
                             disabled={isDisabled}
+                            isAccented={isAccented}
                           />
                         );
                       });
