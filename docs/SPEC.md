@@ -1,6 +1,6 @@
 # TR-08 v1.0: System Specification
 
-**Status:** ✅ v1.0 Released + PR #6 Enhancements | **Version:** 1.0 | **Last Updated:** 2026-01-12 (PR #6: Bulletproof Audio Loading)
+**Status:** ✅ v1.1 Released (Pitch & Accent) + Master Effects | **Version:** 1.1 | **Last Updated:** 2026-01-13 (PR #8-9: Pitch Control & Accent UI)
 
 ---
 
@@ -1064,6 +1064,68 @@ All Tone.Player Instances
 - **No Phasing Issues:** Stereo signals reach speakers through a single path
 - **PR #2 Discovery:** This fix resolved phasing/reverb effects that appeared when both compressor and limiter were active
 
+### 4.5 Pitch Control & Accent Notes (v1.1 Features)
+
+#### Pitch Shifting Implementation
+
+**File:** `src/lib/audioEngine.ts:playTrack()` and `src/sequencer.ts`
+
+Pitch shifting is implemented using playback rate modulation. The formula converts musical semitones to linear playback rate:
+
+```
+playbackRate = 2^(semitones / 12)
+```
+
+**Examples:**
+
+- Pitch +12 semitones = playbackRate 2.0 (one octave higher, double speed)
+- Pitch +5 semitones = playbackRate 1.335 (perfect fourth higher)
+- Pitch 0 semitones = playbackRate 1.0 (original pitch)
+- Pitch -12 semitones = playbackRate 0.5 (one octave lower, half speed)
+
+**Range:** -12 to +12 semitones (2 octaves of pitch bend)
+
+**Integration:** The sequencer reads `manifest.tracks[trackId].pitch` and applies it in `playTrack()` via `player.playbackRate = rate`.
+
+#### Accent/Ghost Notes Implementation
+
+**File:** `src/lib/beatUtils.ts:calculateEffectiveVolume()` and `src/sequencer.ts`
+
+Accents (ghost notes) reduce a track's volume by 7 dB for specific steps. This creates syncopated rhythms without adding new tracks.
+
+**Volume Formula:**
+
+```
+effectiveVolume = trackVolume + masterVolume + (isAccented ? -7 : 0)
+```
+
+**Step Resolution:** Each track has a 16-element boolean array (`accents[]`) corresponding to 16 steps. When a step is marked as accented, playback volume drops 7 dB (perceptually ~half as loud).
+
+**3-State Pad Interaction (UI):**
+
+- **OFF:** Opacity 20 (not active)
+- **ON (Normal):** Opacity 100 (full volume)
+- **ON (Ghost/Accent):** Opacity 50 (7 dB reduction)
+- Cycling: `OFF → ON → Ghost → OFF`
+
+**Control:** Accent state stored in `manifest.tracks[trackId].accents[stepIndex]`, toggled by clicking pads multiple times.
+
+#### Type Updates (v1.1)
+
+```typescript
+interface TrackData {
+  sampleId: string; // Unchanged
+  volumeDb: number; // Unchanged
+  mute: boolean; // Unchanged
+  solo: boolean; // Unchanged
+  steps: boolean[]; // Unchanged
+  pitch: number; // NEW: -12 to +12 semitones
+  accents: boolean[]; // NEW: 16-step accent pattern
+}
+```
+
+**Backward Compatibility:** The `normalizeBeatData()` function auto-migrates v1.0 beats by injecting default values: `pitch: 0`, `accents: Array(16).fill(false)`.
+
 ---
 
 ## 5. Data & Security Annex
@@ -1572,7 +1634,11 @@ describe("SkeletonGrid", () => {
 | #2  | Audio Engine | 3 touch     | 3-4   | Unit        | PR #1                | ✅ COMPLETE |
 | #3  | Pipes        | 7 new/touch | 4-5   | Integration | PR #1                | ✅ COMPLETE |
 | #4  | Integration  | 6 new/touch | 3-4   | Component   | PR #3                | ✅ COMPLETE |
-| #5  | Hardening    | 4 new/touch | 3-4   | E2E         | PR #4                | ✅ COMPLETE |
+| #5  | Hardening    | 4 touch     | 3-4   | Manual      | PR #4                | ✅ COMPLETE |
+| #6  | Audio Load   | 1 refactor  | 2-3   | Manual      | PR #2                | ✅ COMPLETE |
+| #7  | Data Schema  | 2 touch     | 2-3   | Unit        | PR #1                | ✅ COMPLETE |
+| #8  | Audio Engine | 2 touch     | 2-3   | Unit        | PR #2, #7            | ✅ COMPLETE |
+| #9  | UI Pitch     | 3 touch     | 2-3   | Component   | PR #8                | ✅ COMPLETE |
 
 **Total Effort:** ~16-20 hours (actual) | **Status:** ALL PRS COMPLETE - v1.0 RELEASED
 
@@ -1580,30 +1646,34 @@ describe("SkeletonGrid", () => {
 
 ## 8. Execution Checklist
 
-### Pre-Implementation
+### One-Time Pre-Release Setup (Completed ✅)
 
-- [ ] Supabase project created + dev environment configured.
-- [ ] Environment variables (.env.local) populated.
-- [ ] `npm install zod` executed.
-- [ ] Git branch created: `feat/tr-08-v1`.
+- [x] Supabase project created + dev environment configured.
+- [x] Environment variables (.env.local) populated with Supabase keys.
+- [x] Dependencies installed: `bun install` (includes Zod, Tone.js, React, etc.).
+- [x] Git repository initialized, main branch established.
+- [x] Initial commit with project scaffolding complete.
 
-### Per PR
+**Note:** These steps are completed once at project start. They are NOT repeated for each PR.
+
+### Per PR (During Development)
 
 - [ ] Branch from main (or previous PR branch).
-- [ ] Implement files per PR scope.
-- [ ] Run: `npm run lint`, `npm run build` (no errors).
-- [ ] Run tests: `npm run test` (all passing).
-- [ ] Create PR with description linking to this SPEC.md.
-- [ ] Code review: Verify Definition of Done checklist.
-- [ ] Merge to main.
+- [ ] Implement files per PR scope (see PR definitions above).
+- [ ] Run: `bun run lint` (no style errors).
+- [ ] Run: `bun run build` (no TypeScript errors).
+- [ ] Run tests: `bun run test` (all passing, if applicable).
+- [ ] Create PR with clear description linking to SPEC.md sections.
+- [ ] Code review: Verify Definition of Done checklist for the PR.
+- [ ] Merge to main after approval.
 
-### Post-Implementation
+### Post-Release (v1.0/v1.1 Verification — Completed ✅)
 
-- [ ] Deploy to staging environment.
-- [ ] E2E test: Guest load → Create beat → Save beat → Load as new session.
-- [ ] Performance audit: TTI, Save latency, Load latency.
-- [ ] Mobile audit: Portrait blocker, landscape playback.
-- [ ] Deploy to production.
+- [x] Deploy to staging environment.
+- [x] E2E test: Guest load → Create beat → Play → Save → Load beat.
+- [x] Performance audit: TTI, Save latency, Load latency meet SLOs.
+- [x] Mobile audit: Portrait blocker, landscape playback functional.
+- [x] Deploy to production.
 
 ---
 

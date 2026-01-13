@@ -11,10 +11,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Development Commands
 
 ```bash
-npm run dev          # Start development server with Vite HMR
-npm run build        # Compile TypeScript and build for production
-npm run lint         # Run ESLint on all TS/TSX files
-npm run preview      # Preview production build locally
+bun run dev          # Start development server with Vite HMR
+bun run build        # Compile TypeScript and build for production
+bun run lint         # Run ESLint on all TS/TSX files
+bun run preview      # Preview production build locally
 ```
 
 ## Architecture & Key Concepts
