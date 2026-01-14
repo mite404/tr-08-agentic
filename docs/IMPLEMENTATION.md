@@ -361,6 +361,22 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ---
 
+### PR #14: Global Swing Swing + Drive
+
+1.  **Audio Engine (`audioEngine.ts`):**
+    - Initialize `Tone.Distortion` in the Master Chain.
+    - **Position:** `Channel -> Distortion -> Compressor -> Limiter`.
+    - **Settings:** `oversample: '4x'` (High Quality).
+    - **Control:** Create `setMasterDrive(amount: 0-100)`.
+    - **Mapping:** Map input `0-100` -> Distortion Amount `0.0 - 0.5` (50% max).
+
+2.  **UI (`App.tsx`):**
+    - Add a **"Drive" Knob** next to Swing.
+    - Use the same `knob_swing.png` asset (or `knob_tone.png`).
+    - Label: "DRIVE" or "COLOR".
+
+---
+
 ## Bug Fixes & Critical Patches
 
 ### Volume Persistence Fix (PR #12)

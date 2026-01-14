@@ -6,6 +6,7 @@ import { Pad } from "./components/Pad";
 import { PlayStopBtn } from "./components/PlayStopBtn";
 import { TempoDisplay } from "./components/TempoDisplay";
 import { TrackControls } from "./components/TrackControls";
+import { Knob } from "./components/Knob"; // PR #14: Global Swing Knob
 import { createSequencer } from "./sequencer";
 
 import mpcMark from "./assets/images/MPC_mark.png";
@@ -16,6 +17,8 @@ import {
   loadAudioSamples,
   playTrack,
   resumeAudioContext,
+  setMasterDrive,
+  setMasterSwing,
 } from "./lib/audioEngine";
 import { calculateEffectiveVolume } from "./lib/beatUtils";
 import type { BeatManifest, TrackID } from "./types/beat";
@@ -271,6 +274,8 @@ function App() {
   const [trackSolos, setTrackSolos] = useState<boolean[]>(
     Array(10).fill(false),
   );
+  const [swing, setSwing] = useState<number>(0); // PR #14: Global swing (0-100%)
+  const [drive, setDrive] = useState<number>(0); // PR #14: Master drive/distortion (0-100%)
 
   const createSequencerRef = useRef<ReturnType<typeof createSequencer>>(null);
   const gridRef = useRef(grid);
@@ -887,6 +892,27 @@ function App() {
     }
   }
 
+  // PR #14: Global swing control
+  function handleSwingChange(newSwingPercent: number) {
+    setSwing(newSwingPercent);
+    setMasterSwing(newSwingPercent);
+
+    // Update manifest for persistence
+    if (manifestRef.current) {
+      manifestRef.current.global.swing = newSwingPercent / 100;
+    }
+
+    console.log(`[App] Swing updated to ${newSwingPercent}%`);
+  }
+
+  // PR #14: Master drive control
+  function handleDriveChange(newDrivePercent: number) {
+    setDrive(newDrivePercent);
+    setMasterDrive(newDrivePercent);
+
+    console.log(`[App] Drive updated to ${newDrivePercent}%`);
+  }
+
   return (
     <>
       {/* PR #4: Portrait blocker for mobile devices */}
@@ -939,7 +965,42 @@ function App() {
               )}
             </div>
           </div>
-          <Analyzer />
+          {/* PR #14: Master Section (Swing + Drive) + Analyzer */}
+          <div className="flex flex-row items-start gap-8">
+            {/* Master Controls (Swing + Drive) */}
+            <div className="flex flex-row items-end gap-4">
+              {/* Swing Knob */}
+              <div className="flex flex-col items-center gap-2">
+                <label className="text-xs font-semibold text-white">
+                  SHUFFLE
+                </label>
+                <Knob
+                  variant="swing"
+                  min={0}
+                  max={100}
+                  value={swing}
+                  onChange={handleSwingChange}
+                />
+              </div>
+
+              {/* Drive Knob */}
+              <div className="flex flex-col items-center gap-2">
+                <label className="text-xs font-semibold text-white">
+                  DRIVE
+                </label>
+                <Knob
+                  variant="swing"
+                  min={0}
+                  max={100}
+                  value={drive}
+                  onChange={handleDriveChange}
+                />
+              </div>
+            </div>
+
+            {/* Analyzer (to the right) */}
+            <Analyzer />
+          </div>
 
           {/* container for TRACK CONTROLS & GRID divs */}
           <div className="flex w-full flex-row">
@@ -1035,7 +1096,8 @@ function App() {
             </div>
 
             {/* set tempo controls container */}
-            <div className="grid grid-cols-1">
+            <div className="flex flex-col items-center gap-4">
+              {/* Tempo */}
               <TempoDisplay
                 bpmValue={bpm}
                 onIncrementClick={handleIncrementBpm}

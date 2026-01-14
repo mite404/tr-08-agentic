@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import volumeKnob from "../assets/images/VOLUME_KNOB.png";
 import pitchKnob from "../assets/images/TONE_KNOB.png";
+import swingKnob from "../assets/images/GLOBAL_SWING.png";
 
 type KnobProps = {
   value: number; // Current value (was 'inputDb')
-  min: number; // Minimum value (e.g., -45 for volume, -12 for pitch)
-  max: number; // Maximum value (e.g., 5 for volume, 12 for pitch)
+  min: number; // Minimum value (e.g., -45 for volume, -12 for pitch, 0-100 for swing)
+  max: number; // Maximum value (e.g., 5 for volume, 12 for pitch, 100 for swing)
   onChange: (newValue: number) => void; // Callback with new value
-  variant?: "level" | "tone"; // Knob type: "level" (volume/orange) or "tone" (pitch/cream)
+  variant?: "level" | "tone" | "swing"; // Knob type: "level" (volume), "tone" (pitch), or "swing" (shuffle)
   disabled?: boolean; // Visual feedback for failed tracks
 };
 
@@ -27,7 +28,15 @@ export function Knob({
   const [isDragging, setIsDragging] = useState(false);
 
   // Select knob image based on variant
-  const knobImage = variant === "tone" ? pitchKnob : volumeKnob;
+  let knobImage = volumeKnob;
+  let knobSize = "h-[28px] w-[28px]";
+
+  if (variant === "tone") {
+    knobImage = pitchKnob;
+  } else if (variant === "swing") {
+    knobImage = swingKnob;
+    knobSize = "h-[60px] w-[60px]"; // Larger for global swing control
+  }
 
   // 1. Calculate visual angle based on percentage
   // Formula: Percent * RangeAngle + StartAngle
@@ -85,10 +94,16 @@ export function Knob({
     >
       <img
         src={knobImage}
-        alt={variant === "tone" ? "Pitch Knob" : "Volume Knob"}
-        width={28}
-        height={28}
-        className="drag-none h-[28px] w-[28px] cursor-pointer select-none"
+        alt={
+          variant === "tone"
+            ? "Pitch Knob"
+            : variant === "swing"
+              ? "Swing Knob"
+              : "Volume Knob"
+        }
+        width={variant === "swing" ? 60 : 28}
+        height={variant === "swing" ? 60 : 28}
+        className={`drag-none cursor-pointer select-none ${knobSize}`}
         style={{ transform: `rotate(${renderKnob}deg)` }}
         onMouseDown={handleMouseDown}
         onDragStart={(e) => e.preventDefault()}
