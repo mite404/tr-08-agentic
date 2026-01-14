@@ -57,7 +57,7 @@ export function TrackControls({
         min={-12}
         max={12}
         onChange={onPitchChange}
-        color="bg-amber-500"
+        variant="tone"
         disabled={disabled}
       />
 
@@ -67,7 +67,7 @@ export function TrackControls({
         min={-45}
         max={5}
         onChange={onVolumeChange}
-        color="bg-cyan-500"
+        variant="level"
         disabled={disabled}
       />
 

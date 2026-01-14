@@ -314,7 +314,7 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ---
 
-### Phase 8: v1.2 Features (Mute/Solo, Beat Library Panel, Knob Asset Raster Impl.)
+### Phase 8: v1.2 Features (Mute/Solo, Beat Library Panel, Knob Asset Raster Impl.) — [x] MOSTLY COMPLETE (PR #11 & #12)
 
 #### PR #11: Mute & Solo Architecture — ✅ COMPLETE
 
@@ -350,6 +350,24 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 **Goal:** Replace CSS-drawn knobs with PNG asset using CSS rotation.
 
 - [ ] Pending implementation
+
+---
+
+## Bug Fixes & Critical Patches
+
+### Volume Persistence Fix (PR #12)
+
+**Issue:** `toGridArray()` was calling `calculateEffectiveVolume()` to populate the `trackVolumes` return value. This caused muted tracks to be loaded with volume = -Infinity, corrupting the knob UI state and preventing users from un-muting their tracks after reload.
+
+**Root Cause:** Confusion between "Raw Volume" (stored value) and "Effective Volume" (calculated at playback). The function was returning calculated playback volume instead of the stored knob position.
+
+**Fix:** Changed `toGridArray()` to return raw `trackData.volumeDb` directly, without any mute/solo/master calculations. The effective volume is now calculated only during playback in the sequencer, not during load/save cycles.
+
+**Prevention:** Added SPEC.md Section 4.2 documentation distinguishing raw vs effective volume to prevent future regressions.
+
+**Files Modified:**
+
+- `src/lib/beatUtils.ts`: Line ~761 in `toGridArray()` — changed to return `trackData.volumeDb` instead of `calculateEffectiveVolume()`
 
 ---
 
