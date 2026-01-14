@@ -312,6 +312,28 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ---
 
+### Phase 8: v1.2 Features (Mute/Solo, Beat Library Panel, Knob Asset Raster Impl.)
+
+#### PR #11: Mute & Solo Architecture
+
+**Goal:** Enable per-track signal processing control.
+
+- **Why first?** The audio engine logic (`calculateEffectiveVolume`) already supports this. We just need to expose the UI buttons and wire them to the state. It completes the "Instrument" functionality.
+
+#### PR #12: The Beat Library (Side Panel)
+
+**Goal:** Allow users to browse their history.
+
+- **Why second?** This involves new database queries and a new major UI component (Sidebar). It enables the "Platform" functionality.
+
+#### PR #13: Photorealistic Knob (The "Spike")
+
+**Goal:** Replace the CSS-drawn knobs with your PNG assets using the CSS Rotation method.
+
+- **Why last?** This is purely visual. By doing it last, we ensure the new Mute/Solo buttons don't interfere with the new layout, and we can apply the new look to both Pitch and Volume knobs at once.
+
+---
+
 ## Cross-Cutting Concerns
 
 ### State Management

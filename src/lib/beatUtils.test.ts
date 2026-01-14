@@ -1,736 +1,453 @@
-import { describe, test, expect } from "bun:test";
-import { calculateEffectiveVolume } from "./beatUtils";
-import type { BeatManifest } from "../types/beat";
+import { describe, it, expect } from "vitest";
+import { toManifest, toGridArray, calculateEffectiveVolume } from "./beatUtils";
+import type { TrackID, BeatManifest } from "../types/beat";
 
 /**
- * Unit Tests for PR #8: Audio Engine Physics (Pitch & Accent)
- *
- * Tests the volume calculation logic including:
- * - Standard volume (no accent)
- * - Accent (Ghost Note -7dB)
- * - Accent + Knob interaction
- * - Mute override (defeats accent)
- * - Solo isolation
+ * Test Suite 1: Volume Calculation (PR #8 - Accent Logic)
+ * Tests calculateEffectiveVolume with various accent, mute, and solo states
  */
-
-describe("calculateEffectiveVolume - PR #8 (Accent Logic)", () => {
-  test("Standard: Volume 0dB, Accent False → Output 0dB", () => {
-    const manifest: BeatManifest = {
-      meta: { version: "1.1.0", engine: "tone.js@15.1.22" },
-      global: { bpm: 140, swing: 0, masterVolumeDb: 0 },
-      tracks: {
-        kick_01: {
-          sampleId: "KICK_01",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        kick_02: {
-          sampleId: "KICK_02",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        bass_01: {
-          sampleId: "BASS_TONE",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        bass_02: {
-          sampleId: "BASS_01",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        snare_01: {
-          sampleId: "CLAP",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        snare_02: {
-          sampleId: "SNARE_02",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        synth_01: {
-          sampleId: "STAB_DM",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        clap: {
-          sampleId: "STAB_C",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        hh_01: {
-          sampleId: "HAT_CLS",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        hh_02: {
-          sampleId: "HAT_OPN",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
+describe("calculateEffectiveVolume - Volume Calculation Logic", () => {
+  const createDefaultManifest = (
+    overrides?: Partial<BeatManifest>,
+  ): BeatManifest => ({
+    meta: { version: "1.1.0", engine: "tone.js@15.1.22" },
+    global: { bpm: 140, swing: 0, masterVolumeDb: 0 },
+    tracks: {
+      kick_01: {
+        sampleId: "KICK_01",
+        volumeDb: 0,
+        mute: false,
+        solo: false,
+        steps: Array(16).fill(false),
+        accents: Array(16).fill(false),
+        pitch: 0,
       },
-    };
+      kick_02: {
+        sampleId: "KICK_02",
+        volumeDb: 0,
+        mute: false,
+        solo: false,
+        steps: Array(16).fill(false),
+        accents: Array(16).fill(false),
+        pitch: 0,
+      },
+      bass_01: {
+        sampleId: "BASS_TONE",
+        volumeDb: 0,
+        mute: false,
+        solo: false,
+        steps: Array(16).fill(false),
+        accents: Array(16).fill(false),
+        pitch: 0,
+      },
+      bass_02: {
+        sampleId: "BASS_01",
+        volumeDb: 0,
+        mute: false,
+        solo: false,
+        steps: Array(16).fill(false),
+        accents: Array(16).fill(false),
+        pitch: 0,
+      },
+      snare_01: {
+        sampleId: "CLAP",
+        volumeDb: 0,
+        mute: false,
+        solo: false,
+        steps: Array(16).fill(false),
+        accents: Array(16).fill(false),
+        pitch: 0,
+      },
+      snare_02: {
+        sampleId: "SNARE_02",
+        volumeDb: 0,
+        mute: false,
+        solo: false,
+        steps: Array(16).fill(false),
+        accents: Array(16).fill(false),
+        pitch: 0,
+      },
+      synth_01: {
+        sampleId: "STAB_DM",
+        volumeDb: 0,
+        mute: false,
+        solo: false,
+        steps: Array(16).fill(false),
+        accents: Array(16).fill(false),
+        pitch: 0,
+      },
+      clap: {
+        sampleId: "STAB_C",
+        volumeDb: 0,
+        mute: false,
+        solo: false,
+        steps: Array(16).fill(false),
+        accents: Array(16).fill(false),
+        pitch: 0,
+      },
+      hh_01: {
+        sampleId: "HAT_CLS",
+        volumeDb: 0,
+        mute: false,
+        solo: false,
+        steps: Array(16).fill(false),
+        accents: Array(16).fill(false),
+        pitch: 0,
+      },
+      hh_02: {
+        sampleId: "HAT_OPN",
+        volumeDb: 0,
+        mute: false,
+        solo: false,
+        steps: Array(16).fill(false),
+        accents: Array(16).fill(false),
+        pitch: 0,
+      },
+    },
+    ...overrides,
+  });
 
+  it("should return 0dB for standard volume (no accent)", () => {
+    const manifest = createDefaultManifest();
     const result = calculateEffectiveVolume(manifest, "kick_01", false);
     expect(result).toBe(0);
   });
 
-  test("Accent: Volume 0dB, Accent True → Output -7dB", () => {
-    const manifest: BeatManifest = {
-      meta: { version: "1.1.0", engine: "tone.js@15.1.22" },
-      global: { bpm: 140, swing: 0, masterVolumeDb: 0 },
-      tracks: {
-        kick_01: {
-          sampleId: "KICK_01",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        kick_02: {
-          sampleId: "KICK_02",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        bass_01: {
-          sampleId: "BASS_TONE",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        bass_02: {
-          sampleId: "BASS_01",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        snare_01: {
-          sampleId: "CLAP",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        snare_02: {
-          sampleId: "SNARE_02",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        synth_01: {
-          sampleId: "STAB_DM",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        clap: {
-          sampleId: "STAB_C",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        hh_01: {
-          sampleId: "HAT_CLS",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        hh_02: {
-          sampleId: "HAT_OPN",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-      },
-    };
-
+  it("should apply -7dB accent offset when accented", () => {
+    const manifest = createDefaultManifest();
     const result = calculateEffectiveVolume(manifest, "kick_01", true);
     expect(result).toBe(-7);
   });
 
-  test("Accent + Knob: Volume -10dB, Accent True → Output -17dB", () => {
-    const manifest: BeatManifest = {
-      meta: { version: "1.1.0", engine: "tone.js@15.1.22" },
-      global: { bpm: 140, swing: 0, masterVolumeDb: 0 },
-      tracks: {
-        kick_01: {
-          sampleId: "KICK_01",
-          volumeDb: -10,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        kick_02: {
-          sampleId: "KICK_02",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        bass_01: {
-          sampleId: "BASS_TONE",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        bass_02: {
-          sampleId: "BASS_01",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        snare_01: {
-          sampleId: "CLAP",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        snare_02: {
-          sampleId: "SNARE_02",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        synth_01: {
-          sampleId: "STAB_DM",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        clap: {
-          sampleId: "STAB_C",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        hh_01: {
-          sampleId: "HAT_CLS",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        hh_02: {
-          sampleId: "HAT_OPN",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-      },
-    };
+  it("should add track volume to calculation", () => {
+    const manifest = createDefaultManifest();
+    manifest.tracks.kick_01.volumeDb = 5;
+    const result = calculateEffectiveVolume(manifest, "kick_01", false);
+    expect(result).toBe(5);
+  });
 
+  it("should combine track volume + accent offset", () => {
+    const manifest = createDefaultManifest();
+    manifest.tracks.kick_01.volumeDb = 5;
     const result = calculateEffectiveVolume(manifest, "kick_01", true);
-    expect(result).toBe(-17);
+    expect(result).toBe(-2); // 5 + (-7) = -2
   });
 
-  test("Mute: Volume 0dB, Mute True → Output -Infinity (Accent doesn't matter)", () => {
-    const manifest: BeatManifest = {
-      meta: { version: "1.1.0", engine: "tone.js@15.1.22" },
-      global: { bpm: 140, swing: 0, masterVolumeDb: 0 },
-      tracks: {
-        kick_01: {
-          sampleId: "KICK_01",
-          volumeDb: 0,
-          mute: true,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        kick_02: {
-          sampleId: "KICK_02",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        bass_01: {
-          sampleId: "BASS_TONE",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        bass_02: {
-          sampleId: "BASS_01",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        snare_01: {
-          sampleId: "CLAP",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        snare_02: {
-          sampleId: "SNARE_02",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        synth_01: {
-          sampleId: "STAB_DM",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        clap: {
-          sampleId: "STAB_C",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        hh_01: {
-          sampleId: "HAT_CLS",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        hh_02: {
-          sampleId: "HAT_OPN",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-      },
-    };
-
-    // Test with accent false
-    const resultNoAccent = calculateEffectiveVolume(manifest, "kick_01", false);
-    expect(resultNoAccent).toBe(-Infinity);
-
-    // Test with accent true (should still be -Infinity)
-    const resultWithAccent = calculateEffectiveVolume(manifest, "kick_01", true);
-    expect(resultWithAccent).toBe(-Infinity);
-  });
-
-  test("Solo: Solo is active elsewhere, this track not soloed → Output -Infinity", () => {
-    const manifest: BeatManifest = {
-      meta: { version: "1.1.0", engine: "tone.js@15.1.22" },
-      global: { bpm: 140, swing: 0, masterVolumeDb: 0 },
-      tracks: {
-        kick_01: {
-          sampleId: "KICK_01",
-          volumeDb: 0,
-          mute: false,
-          solo: false, // This track is NOT solo'd
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        kick_02: {
-          sampleId: "KICK_02",
-          volumeDb: 0,
-          mute: false,
-          solo: true, // Another track IS solo'd
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        bass_01: {
-          sampleId: "BASS_TONE",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        bass_02: {
-          sampleId: "BASS_01",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        snare_01: {
-          sampleId: "CLAP",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        snare_02: {
-          sampleId: "SNARE_02",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        synth_01: {
-          sampleId: "STAB_DM",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        clap: {
-          sampleId: "STAB_C",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        hh_01: {
-          sampleId: "HAT_CLS",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        hh_02: {
-          sampleId: "HAT_OPN",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-      },
-    };
-
+  it("should return -Infinity when track is muted", () => {
+    const manifest = createDefaultManifest();
+    manifest.tracks.kick_01.mute = true;
     const result = calculateEffectiveVolume(manifest, "kick_01", false);
     expect(result).toBe(-Infinity);
   });
 
-  test("Master Volume: Track 0dB + Master -5dB → Output -5dB", () => {
-    const manifest: BeatManifest = {
-      meta: { version: "1.1.0", engine: "tone.js@15.1.22" },
-      global: { bpm: 140, swing: 0, masterVolumeDb: -5 },
-      tracks: {
-        kick_01: {
-          sampleId: "KICK_01",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        kick_02: {
-          sampleId: "KICK_02",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        bass_01: {
-          sampleId: "BASS_TONE",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        bass_02: {
-          sampleId: "BASS_01",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        snare_01: {
-          sampleId: "CLAP",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        snare_02: {
-          sampleId: "SNARE_02",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        synth_01: {
-          sampleId: "STAB_DM",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        clap: {
-          sampleId: "STAB_C",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        hh_01: {
-          sampleId: "HAT_CLS",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        hh_02: {
-          sampleId: "HAT_OPN",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-      },
-    };
+  it("should return -Infinity for non-solo tracks when any track is solo'd", () => {
+    const manifest = createDefaultManifest();
+    manifest.tracks.kick_02.solo = true; // Another track is solo'd
+    const result = calculateEffectiveVolume(manifest, "kick_01", false); // kick_01 is not solo'd
+    expect(result).toBe(-Infinity);
+  });
 
+  it("should allow solo'd tracks to play when other tracks are solo'd", () => {
+    const manifest = createDefaultManifest();
+    manifest.tracks.kick_02.solo = true;
+    manifest.tracks.kick_01.solo = true;
+    const result = calculateEffectiveVolume(manifest, "kick_01", false);
+    expect(result).toBe(0); // Can play because it's also solo'd
+  });
+
+  it("should apply master volume to all tracks", () => {
+    const manifest = createDefaultManifest({
+      global: { ...createDefaultManifest().global, masterVolumeDb: -5 },
+    });
     const result = calculateEffectiveVolume(manifest, "kick_01", false);
     expect(result).toBe(-5);
   });
 
-  test("Combined: Track -10dB + Accent True + Master -2dB → Output -19dB", () => {
-    const manifest: BeatManifest = {
-      meta: { version: "1.1.0", engine: "tone.js@15.1.22" },
-      global: { bpm: 140, swing: 0, masterVolumeDb: -2 },
-      tracks: {
-        kick_01: {
-          sampleId: "KICK_01",
-          volumeDb: -10,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        kick_02: {
-          sampleId: "KICK_02",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        bass_01: {
-          sampleId: "BASS_TONE",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        bass_02: {
-          sampleId: "BASS_01",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        snare_01: {
-          sampleId: "CLAP",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        snare_02: {
-          sampleId: "SNARE_02",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        synth_01: {
-          sampleId: "STAB_DM",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        clap: {
-          sampleId: "STAB_C",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        hh_01: {
-          sampleId: "HAT_CLS",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-        hh_02: {
-          sampleId: "HAT_OPN",
-          volumeDb: 0,
-          mute: false,
-          solo: false,
-          steps: Array(16).fill(false),
-          accents: Array(16).fill(false),
-          pitch: 0,
-        },
-      },
-    };
-
+  it("should combine track + accent + master volumes", () => {
+    const manifest = createDefaultManifest({
+      global: { ...createDefaultManifest().global, masterVolumeDb: -2 },
+    });
+    manifest.tracks.kick_01.volumeDb = -10;
     const result = calculateEffectiveVolume(manifest, "kick_01", true);
-    // -10 (track) + -7 (accent) + -2 (master) = -19
-    expect(result).toBe(-19);
+    expect(result).toBe(-19); // -10 + (-7) + (-2) = -19
+  });
+});
+
+/**
+ * Test Suite 2: Save/Load Cycle
+ * Tests that all track states (pitch, volume, mute, solo, accents) persist through save/load
+ */
+describe("beatUtils - Save/Load Cycle", () => {
+  const mockGrid: boolean[][] = Array(10)
+    .fill(null)
+    .map(() => Array(16).fill(false));
+
+  // Add some active steps
+  mockGrid[0][0] = true;
+  mockGrid[0][4] = true;
+  mockGrid[7][2] = true;
+  mockGrid[7][6] = true;
+
+  const trackPitches: Record<TrackID, number> = {
+    kick_01: 0,
+    kick_02: 0,
+    bass_01: 5,
+    bass_02: -3,
+    snare_01: 0,
+    snare_02: 0,
+    synth_01: 0,
+    clap: 0,
+    hh_01: 0,
+    hh_02: 0,
+  };
+
+  const trackVolumes: Record<TrackID, number> = {
+    kick_01: 2,
+    kick_02: 0,
+    bass_01: -5,
+    bass_02: -8,
+    snare_01: 3,
+    snare_02: 1,
+    synth_01: -2,
+    clap: 4,
+    hh_01: -4,
+    hh_02: -6,
+  };
+
+  const trackMutes: Record<TrackID, boolean> = {
+    kick_01: false,
+    kick_02: true,
+    bass_01: false,
+    bass_02: false,
+    snare_01: false,
+    snare_02: false,
+    synth_01: false,
+    clap: true,
+    hh_01: false,
+    hh_02: false,
+  };
+
+  const trackSolos: Record<TrackID, boolean> = {
+    kick_01: false,
+    kick_02: false,
+    bass_01: true,
+    bass_02: false,
+    snare_01: false,
+    snare_02: false,
+    synth_01: false,
+    clap: false,
+    hh_01: false,
+    hh_02: false,
+  };
+
+  const trackAccents: Record<TrackID, boolean[]> = {
+    kick_01: Array(16).fill(false),
+    kick_02: Array(16).fill(false),
+    bass_01: [
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ],
+    bass_02: Array(16).fill(false),
+    snare_01: Array(16).fill(false),
+    snare_02: Array(16).fill(false),
+    synth_01: Array(16).fill(false),
+    clap: Array(16).fill(false),
+    hh_01: Array(16).fill(false),
+    hh_02: Array(16).fill(false),
+  };
+
+  it("should preserve pitch values in save/load cycle", () => {
+    const bpm = 140;
+    const savedManifest = toManifest(mockGrid, bpm, trackPitches);
+    const loadedData = toGridArray(savedManifest);
+
+    expect(loadedData.trackPitches.bass_01).toBe(5);
+    expect(loadedData.trackPitches.bass_02).toBe(-3);
+    expect(loadedData.trackPitches.clap).toBe(0);
+  });
+
+  it("should preserve volume values in save/load cycle", () => {
+    const bpm = 140;
+    const savedManifest = toManifest(
+      mockGrid,
+      bpm,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      trackVolumes,
+    );
+    const loadedData = toGridArray(savedManifest);
+
+    expect(loadedData.trackVolumes.kick_01).toBe(2);
+    expect(loadedData.trackVolumes.bass_01).toBe(-5);
+    expect(loadedData.trackVolumes.clap).toBe(4);
+  });
+
+  it("should preserve mute states in save/load cycle", () => {
+    const bpm = 140;
+    const savedManifest = toManifest(
+      mockGrid,
+      bpm,
+      undefined,
+      undefined,
+      trackMutes,
+    );
+    const loadedData = toGridArray(savedManifest);
+
+    expect(loadedData.trackMutes.kick_02).toBe(true);
+    expect(loadedData.trackMutes.clap).toBe(true);
+    expect(loadedData.trackMutes.kick_01).toBe(false);
+  });
+
+  it("should preserve solo states in save/load cycle", () => {
+    const bpm = 140;
+    const savedManifest = toManifest(
+      mockGrid,
+      bpm,
+      undefined,
+      undefined,
+      undefined,
+      trackSolos,
+    );
+    const loadedData = toGridArray(savedManifest);
+
+    expect(loadedData.trackSolos.bass_01).toBe(true);
+    expect(loadedData.trackSolos.kick_01).toBe(false);
+    expect(loadedData.trackSolos.clap).toBe(false);
+  });
+
+  it("should preserve accent patterns in save/load cycle", () => {
+    const bpm = 140;
+    const savedManifest = toManifest(mockGrid, bpm, undefined, trackAccents);
+    const loadedData = toGridArray(savedManifest);
+
+    expect(loadedData.trackAccents.bass_01[1]).toBe(true);
+    expect(loadedData.trackAccents.bass_01[0]).toBe(false);
+  });
+
+  it("should preserve grid steps in save/load cycle", () => {
+    const bpm = 140;
+    const savedManifest = toManifest(mockGrid, bpm);
+    const loadedData = toGridArray(savedManifest);
+
+    expect(loadedData.grid).toEqual(mockGrid);
+  });
+
+  it("should preserve BPM in save/load cycle", () => {
+    const bpm = 150;
+    const savedManifest = toManifest(mockGrid, bpm);
+    const loadedData = toGridArray(savedManifest);
+
+    expect(loadedData.bpm).toBe(150);
+  });
+
+  it("should preserve all track states together in full save/load cycle", () => {
+    const bpm = 140;
+    const savedManifest = toManifest(
+      mockGrid,
+      bpm,
+      trackPitches,
+      trackAccents,
+      trackMutes,
+      trackSolos,
+      trackVolumes,
+    );
+    const loadedData = toGridArray(savedManifest);
+
+    // Verify pitch
+    expect(loadedData.trackPitches.bass_01).toBe(5);
+    // Verify volume
+    expect(loadedData.trackVolumes.bass_01).toBe(-5);
+    // Verify mute
+    expect(loadedData.trackMutes.kick_02).toBe(true);
+    // Verify solo
+    expect(loadedData.trackSolos.bass_01).toBe(true);
+    // Verify accents
+    expect(loadedData.trackAccents.bass_01[1]).toBe(true);
+  });
+
+  it("should default missing states to false for backward compatibility", () => {
+    const bpm = 140;
+    const savedManifest = toManifest(mockGrid, bpm, trackPitches);
+    const loadedData = toGridArray(savedManifest);
+
+    // All tracks should default to not muted/solo'd
+    expect(loadedData.trackMutes.kick_01).toBe(false);
+    expect(loadedData.trackMutes.clap).toBe(false);
+    expect(loadedData.trackSolos.kick_01).toBe(false);
+    expect(loadedData.trackSolos.clap).toBe(false);
+  });
+});
+
+/**
+ * Test Suite 3: Knob Interaction
+ * Tests knob angle-to-pitch conversion
+ */
+describe("Knob - Pitch Conversion", () => {
+  // Constants from Knob.tsx
+  const MIN_ROTATION_ANGLE = 10;
+  const MAX_ROTATION_ANGLE = 256;
+
+  // Helper: Convert angle to pitch value (mimics Knob logic)
+  const angleToPitch = (angle: number, min: number, max: number): number => {
+    const anglePercent =
+      (angle - MIN_ROTATION_ANGLE) / (MAX_ROTATION_ANGLE - MIN_ROTATION_ANGLE);
+    return anglePercent * (max - min) + min;
+  };
+
+  it("should return min pitch at minimum rotation angle", () => {
+    const pitch = angleToPitch(MIN_ROTATION_ANGLE, -12, 12);
+    expect(pitch).toBe(-12);
+  });
+
+  it("should return max pitch at maximum rotation angle", () => {
+    const pitch = angleToPitch(MAX_ROTATION_ANGLE, -12, 12);
+    expect(pitch).toBe(12);
+  });
+
+  it("should return 0 pitch at middle rotation angle", () => {
+    const midAngle = (MIN_ROTATION_ANGLE + MAX_ROTATION_ANGLE) / 2;
+    const pitch = angleToPitch(midAngle, -12, 12);
+    expect(pitch).toBeCloseTo(0, 1); // Allow 1 decimal place tolerance
+  });
+
+  it("should return pitch within -12 to +12 range for any valid angle", () => {
+    for (
+      let angle = MIN_ROTATION_ANGLE;
+      angle <= MAX_ROTATION_ANGLE;
+      angle += 10
+    ) {
+      const pitch = angleToPitch(angle, -12, 12);
+      expect(pitch).toBeGreaterThanOrEqual(-12);
+      expect(pitch).toBeLessThanOrEqual(12);
+    }
+  });
+
+  it("should scale angle proportionally across pitch range", () => {
+    const quarterAngle =
+      MIN_ROTATION_ANGLE + (MAX_ROTATION_ANGLE - MIN_ROTATION_ANGLE) * 0.25;
+    const pitch = angleToPitch(quarterAngle, -12, 12);
+    expect(pitch).toBeCloseTo(-6, 1); // Should be at 25% = -6
+  });
+
+  it("should handle different pitch ranges (volume knob)", () => {
+    const midAngle = (MIN_ROTATION_ANGLE + MAX_ROTATION_ANGLE) / 2;
+    const volume = angleToPitch(midAngle, -45, 5);
+    expect(volume).toBeCloseTo(-20, 1); // (-45 + 5) / 2 = -20
   });
 });

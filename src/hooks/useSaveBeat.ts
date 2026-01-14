@@ -27,6 +27,10 @@ export interface SaveBeatParams {
   bpm: number;
   beatName: string;
   trackVolumes?: Record<TrackID, number>; // Optional, not stored in manifest
+  trackPitches?: Record<TrackID, number>; // Optional, for pitch knob states
+  trackAccents?: Record<TrackID, boolean[]>; // Optional, for accent patterns
+  trackMutes?: Record<TrackID, boolean>; // Optional, for mute states
+  trackSolos?: Record<TrackID, boolean>; // Optional, for solo states
 }
 
 export interface UseSaveBeatReturn {
@@ -44,7 +48,16 @@ export function useSaveBeat(session: Session | null): UseSaveBeatReturn {
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const saveBeat = useCallback(
-    async ({ grid, bpm, beatName }: SaveBeatParams): Promise<void> => {
+    async ({
+      grid,
+      bpm,
+      beatName,
+      trackPitches,
+      trackAccents,
+      trackMutes,
+      trackSolos,
+      trackVolumes,
+    }: SaveBeatParams): Promise<void> => {
       // Validation: User must be authenticated
       if (!session?.user) {
         setError("You must be logged in to save beats");
@@ -66,8 +79,16 @@ export function useSaveBeat(session: Session | null): UseSaveBeatReturn {
       setError(null);
 
       try {
-        // Step 1: Convert grid to BeatManifest
-        const manifest = toManifest(grid, bpm);
+        // Step 1: Convert grid to BeatManifest (with optional pitch, accent, mute, solo, and volume states)
+        const manifest = toManifest(
+          grid,
+          bpm,
+          trackPitches,
+          trackAccents,
+          trackMutes,
+          trackSolos,
+          trackVolumes,
+        );
 
         // Step 2: Validate manifest structure
         const validationResult = BeatManifestSchema.safeParse(manifest);

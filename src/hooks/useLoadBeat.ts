@@ -28,6 +28,8 @@ export interface LoadedBeatData {
   trackVolumes: Record<TrackID, number>;
   trackPitches: Record<TrackID, number>; // v1.1
   trackAccents: Record<TrackID, boolean[]>; // v1.1
+  trackMutes: Record<TrackID, boolean>; // v1.2
+  trackSolos: Record<TrackID, boolean>; // v1.2
   beatId: string;
   createdAt: string;
   updatedAt: string;

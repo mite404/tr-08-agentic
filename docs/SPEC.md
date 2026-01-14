@@ -1626,6 +1626,22 @@ describe("SkeletonGrid", () => {
 
 ---
 
+## Phase 8: v1.2 Feature Implementation (Mute/Solo, Beat Library Panel, Knob Asset Raster Impl.)
+
+#### PR #11: Mute & Solo Architecture
+
+...
+
+#### PR #12: Beat Library Panel
+
+...
+
+#### PR #13: Knob Asset Raster Implementation
+
+...
+
+---
+
 ## Summary Table
 
 | PR  | Title        | Files       | Hours | Tests       | Blocker Dependencies | Status      |
