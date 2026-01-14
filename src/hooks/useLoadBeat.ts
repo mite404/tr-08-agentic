@@ -35,10 +35,17 @@ export interface LoadedBeatData {
   updatedAt: string;
 }
 
+export interface BeatSummary {
+  id: string;
+  beat_name: string;
+  updated_at: string;
+}
+
 export interface UseLoadBeatReturn {
   loadLatestBeat: () => Promise<LoadedBeatData | null>;
   loadBeatById: (beatId: string) => Promise<LoadedBeatData | null>;
   loadUserBeats: (userId: string) => Promise<LoadedBeatData[]>;
+  loadBeatList: (userId: string) => Promise<BeatSummary[]>; // PR #12: List summary for sidebar
   isLoading: boolean;
   error: string | null;
 }
@@ -219,10 +226,47 @@ export function useLoadBeat(): UseLoadBeatReturn {
     [error, processBeatRecord],
   );
 
+  /**
+   * PR #12: Loads a lightweight list of beats for the sidebar.
+   * Only fetches id, beat_name, and updated_at (no full manifest data).
+   */
+  const loadBeatList = useCallback(
+    async (userId: string): Promise<BeatSummary[]> => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const { data, error: dbError } = await supabase
+          .from("beats")
+          .select("id, beat_name, updated_at")
+          .eq("user_id", userId)
+          .order("updated_at", { ascending: false });
+
+        if (dbError) {
+          console.error("[Load] Database error:", dbError);
+          setError(`Failed to load beat list: ${dbError.message}`);
+          throw new Error("DATABASE_ERROR");
+        }
+
+        return data || [];
+      } catch (err) {
+        console.error("[Load] Load beat list failed:", err);
+        if (!error) {
+          setError(err instanceof Error ? err.message : "Unknown error");
+        }
+        return [];
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [error],
+  );
+
   return {
     loadLatestBeat,
     loadBeatById,
     loadUserBeats,
+    loadBeatList,
     isLoading,
     error,
   };

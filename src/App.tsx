@@ -1,37 +1,38 @@
 import { useEffect, useRef, useState, type JSX } from "react";
-import "./App.css";
-import { Pad } from "./components/Pad";
-import { TempoDisplay } from "./components/TempoDisplay";
-import { PlayStopBtn } from "./components/PlayStopBtn";
-import { createSequencer } from "./sequencer";
-import { Analyzer } from "./components/Analyzer";
-import { TrackControls } from "./components/TrackControls";
 import * as Tone from "tone";
+import "./App.css";
+import { Analyzer } from "./components/Analyzer";
+import { Pad } from "./components/Pad";
+import { PlayStopBtn } from "./components/PlayStopBtn";
+import { TempoDisplay } from "./components/TempoDisplay";
+import { TrackControls } from "./components/TrackControls";
+import { createSequencer } from "./sequencer";
 
 import mpcMark from "./assets/images/MPC_mark.png";
 
 // PR #2: Import new audio engine and track registry
+import { TRACK_REGISTRY } from "./config/trackConfig";
 import {
   loadAudioSamples,
-  resumeAudioContext,
   playTrack,
+  resumeAudioContext,
 } from "./lib/audioEngine";
-import { TRACK_REGISTRY } from "./config/trackConfig";
-import { getDefaultBeatManifest } from "./types/beat";
-import type { TrackID, BeatManifest } from "./types/beat";
 import { calculateEffectiveVolume } from "./lib/beatUtils";
+import type { BeatManifest, TrackID } from "./types/beat";
+import { getDefaultBeatManifest } from "./types/beat";
 
 // PR #3: Import authentication and persistence hooks
 import { useAuth } from "./hooks/useAuth";
+import { useLoadBeat, type BeatSummary } from "./hooks/useLoadBeat";
 import { useSaveBeat } from "./hooks/useSaveBeat";
-import { useLoadBeat } from "./hooks/useLoadBeat";
 
 // PR #4: Import UI components for loading states and auth
-import { SkeletonGrid } from "./components/SkeletonGrid";
-import { PortraitBlocker } from "./components/PortraitBlocker";
-import { SaveButton } from "./components/SaveButton";
+import { BeatLibrary } from "./components/BeatLibrary"; // PR #12: Beat Library Panel
 import { LoadButton } from "./components/LoadButton";
 import { LoginModalButton } from "./components/LoginModalButton";
+import { PortraitBlocker } from "./components/PortraitBlocker";
+import { SaveButton } from "./components/SaveButton";
+import { SkeletonGrid } from "./components/SkeletonGrid";
 
 // PR #5: Import error boundary for crash protection
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -290,12 +291,17 @@ function App() {
   const { saveBeat, isSaving, error: saveError } = useSaveBeat(session);
   const {
     loadLatestBeat,
+    loadBeatById, // PR #12: Load beat by ID for library
+    loadBeatList, // PR #12: Load beat list for library
     isLoading: loadingBeat,
     error: loadError,
   } = useLoadBeat();
 
   // PR #4: Track initial data loading state
   const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
+
+  // PR #12: Beat library state
+  const [beats, setBeats] = useState<BeatSummary[]>([]);
 
   // PR #2: New audio engine state
   const playersMapRef = useRef<Map<TrackID, Tone.Player>>(new Map());
@@ -353,6 +359,13 @@ function App() {
           console.log(`[App] Auto-loaded beat: "${loadedBeat.beatName}"`);
         } else {
           console.log("[App] No beats found, using default grid");
+        }
+
+        // PR #12: Pre-fetch beat list for library
+        if (session?.user) {
+          const beatList = await loadBeatList(session.user.id);
+          setBeats(beatList);
+          console.log(`[App] Pre-fetched ${beatList.length} beats for library`);
         }
       } catch (err) {
         console.error("[App] Auto-load failed:", err);
@@ -685,6 +698,13 @@ function App() {
         trackSolos: trackSolosRecord,
         trackVolumes: trackVolumesRecord,
       });
+
+      // PR #12: Refresh beat list after successful save
+      if (session?.user) {
+        const beatList = await loadBeatList(session.user.id);
+        setBeats(beatList);
+      }
+
       alert(`Beat "${beatName}" saved successfully!`);
     } catch (err) {
       console.error("[App] Save failed:", err);
@@ -740,6 +760,56 @@ function App() {
       }
     } catch (err) {
       console.error("[App] Load failed:", err);
+      alert(`Failed to load beat: ${loadError || "Unknown error"}`);
+    }
+  }
+
+  // PR #12: Load beat by ID (for Beat Library sidebar)
+  async function handleLoadBeatById(beatId: string) {
+    try {
+      const loadedBeat = await loadBeatById(beatId);
+      if (loadedBeat) {
+        setGrid(loadedBeat.grid);
+        setBpm(loadedBeat.bpm);
+        setBeatName(loadedBeat.beatName);
+
+        // Load pitch values
+        const pitchArray = trackIdsByRowRef.current.map(
+          (trackId) => loadedBeat.trackPitches[trackId] ?? 0,
+        );
+        setTrackPitches(pitchArray);
+
+        // Load mute and solo states
+        const muteArray = trackIdsByRowRef.current.map(
+          (trackId) => loadedBeat.trackMutes[trackId] ?? false,
+        );
+        setTrackMutes(muteArray);
+
+        const soloArray = trackIdsByRowRef.current.map(
+          (trackId) => loadedBeat.trackSolos[trackId] ?? false,
+        );
+        setTrackSolos(soloArray);
+
+        // Load volume values
+        const volumeArray = trackIdsByRowRef.current.map(
+          (trackId) => loadedBeat.trackVolumes[trackId] ?? 0,
+        );
+        setTrackVolumes(volumeArray);
+
+        // Update manifest with loaded states
+        trackIdsByRowRef.current.forEach((trackId, index) => {
+          if (manifestRef.current.tracks[trackId]) {
+            manifestRef.current.tracks[trackId].pitch = pitchArray[index];
+            manifestRef.current.tracks[trackId].mute = muteArray[index];
+            manifestRef.current.tracks[trackId].solo = soloArray[index];
+            manifestRef.current.tracks[trackId].volumeDb = volumeArray[index];
+          }
+        });
+
+        console.log(`[App] Loaded beat from library: "${loadedBeat.beatName}"`);
+      }
+    } catch (err) {
+      console.error("[App] Load from library failed:", err);
       alert(`Failed to load beat: ${loadError || "Unknown error"}`);
     }
   }
@@ -907,6 +977,11 @@ function App() {
                   <LoadButton
                     onClick={handleLoadBeat}
                     isLoading={loadingBeat}
+                  />
+                  <BeatLibrary
+                    session={session}
+                    beats={beats}
+                    onLoadBeat={handleLoadBeatById}
                   />
                   <LoginModalButton
                     session={session}
