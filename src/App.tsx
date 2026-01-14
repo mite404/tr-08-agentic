@@ -6,6 +6,7 @@ import { Pad } from "./components/Pad";
 import { PlayStopBtn } from "./components/PlayStopBtn";
 import { TempoDisplay } from "./components/TempoDisplay";
 import { TrackControls } from "./components/TrackControls";
+import { Knob } from "./components/Knob"; // PR #14: Global Swing Knob
 import { createSequencer } from "./sequencer";
 
 import mpcMark from "./assets/images/MPC_mark.png";
@@ -271,6 +272,7 @@ function App() {
   const [trackSolos, setTrackSolos] = useState<boolean[]>(
     Array(10).fill(false),
   );
+  const [swing, setSwing] = useState<number>(0); // PR #14: Global swing (0-1)
 
   const createSequencerRef = useRef<ReturnType<typeof createSequencer>>(null);
   const gridRef = useRef(grid);
@@ -887,6 +889,24 @@ function App() {
     }
   }
 
+  // PR #14: Global swing control
+  function handleSwingChange(newSwingPercent: number) {
+    const swingValue = newSwingPercent / 100; // Convert 0-100 to 0-1
+    setSwing(swingValue);
+
+    // Update Tone.js Transport swing
+    const transport = Tone.getTransport();
+    transport.swing = swingValue;
+    transport.swingSubdivision = "16n"; // Must be set for swing to work
+
+    // Update manifest for persistence
+    if (manifestRef.current) {
+      manifestRef.current.global.swing = swingValue;
+    }
+
+    console.log(`[App] Swing updated to ${newSwingPercent}%`);
+  }
+
   return (
     <>
       {/* PR #4: Portrait blocker for mobile devices */}
@@ -939,7 +959,23 @@ function App() {
               )}
             </div>
           </div>
-          <Analyzer />
+          {/* PR #14: Global Swing Control + Analyzer */}
+          <div className="flex flex-row items-start gap-8">
+            {/* Swing Knob (far left) */}
+            <div className="flex flex-col items-center gap-2">
+              <label className="text-xs font-semibold text-white">SWING</label>
+              <Knob
+                variant="swing"
+                min={0}
+                max={100}
+                value={swing * 100}
+                onChange={handleSwingChange}
+              />
+            </div>
+
+            {/* Analyzer (to the right) */}
+            <Analyzer />
+          </div>
 
           {/* container for TRACK CONTROLS & GRID divs */}
           <div className="flex w-full flex-row">
@@ -1035,7 +1071,8 @@ function App() {
             </div>
 
             {/* set tempo controls container */}
-            <div className="grid grid-cols-1">
+            <div className="flex flex-col items-center gap-4">
+              {/* Tempo */}
               <TempoDisplay
                 bpmValue={bpm}
                 onIncrementClick={handleIncrementBpm}
