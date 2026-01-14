@@ -28,7 +28,6 @@ import { useSaveBeat } from "./hooks/useSaveBeat";
 
 // PR #4: Import UI components for loading states and auth
 import { BeatLibrary } from "./components/BeatLibrary"; // PR #12: Beat Library Panel
-import { LoadButton } from "./components/LoadButton";
 import { LoginModalButton } from "./components/LoginModalButton";
 import { PortraitBlocker } from "./components/PortraitBlocker";
 import { SaveButton } from "./components/SaveButton";
@@ -982,10 +981,6 @@ function App() {
                 // Authenticated: Show Save, Load, and Sign Out
                 <>
                   <SaveButton onClick={handleSaveBeat} isSaving={isSaving} />
-                  <LoadButton
-                    onClick={handleLoadBeat}
-                    isLoading={loadingBeat}
-                  />
                   <BeatLibrary beats={beats} onLoadBeat={handleLoadBeatById} />
                   <LoginModalButton
                     session={session}
