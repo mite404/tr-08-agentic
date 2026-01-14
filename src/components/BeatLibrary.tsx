@@ -56,6 +56,7 @@ export function BeatLibrary({ session, beats, onLoadBeat }: BeatLibraryProps) {
                 <button
                   key={beat.id}
                   onClick={() => void handleBeatClick(beat.id)}
+                  aria-label={`Load beat: ${beat.beat_name}`}
                   className="w-full rounded-md p-3 text-left transition-colors hover:bg-[hsl(var(--accent))]"
                 >
                   <div className="flex items-center justify-between">

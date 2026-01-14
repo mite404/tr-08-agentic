@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
+import volumeKnob from "../assets/images/VOLUME_KNOB.png";
+import pitchKnob from "../assets/images/TONE_KNOB.png";
 
 type KnobProps = {
   value: number; // Current value (was 'inputDb')
   min: number; // Minimum value (e.g., -45 for volume, -12 for pitch)
   max: number; // Maximum value (e.g., 5 for volume, 12 for pitch)
   onChange: (newValue: number) => void; // Callback with new value
-  color?: string; // Optional color class for the knob (e.g., "bg-amber-500")
+  variant?: "level" | "tone"; // Knob type: "level" (volume/orange) or "tone" (pitch/cream)
   disabled?: boolean; // Visual feedback for failed tracks
 };
 
@@ -19,10 +21,13 @@ export function Knob({
   min,
   max,
   onChange,
-  color = "bg-cyan-500",
+  variant = "level",
   disabled = false,
 }: KnobProps) {
   const [isDragging, setIsDragging] = useState(false);
+
+  // Select knob image based on variant
+  const knobImage = variant === "tone" ? pitchKnob : volumeKnob;
 
   // 1. Calculate visual angle based on percentage
   // Formula: Percent * RangeAngle + StartAngle
@@ -78,16 +83,16 @@ export function Knob({
       className={disabled ? "pointer-events-none opacity-40 grayscale" : ""}
       title={disabled ? "This track failed to load" : undefined}
     >
-      <div className="flex h-[25px] w-[25px] items-center justify-center rounded-full bg-gray-900">
-        <div
-          className={`flex h-5 w-5 cursor-pointer justify-center rounded-full ${color}`}
-          style={{ transform: `rotate(${renderKnob}deg)` }}
-          onMouseDown={handleMouseDown}
-        >
-          {/* black line on knob */}
-          <div className="h-2 w-1 bg-black"></div>
-        </div>
-      </div>
+      <img
+        src={knobImage}
+        alt={variant === "tone" ? "Pitch Knob" : "Volume Knob"}
+        width={28}
+        height={28}
+        className="drag-none h-[28px] w-[28px] cursor-pointer select-none"
+        style={{ transform: `rotate(${renderKnob}deg)` }}
+        onMouseDown={handleMouseDown}
+        onDragStart={(e) => e.preventDefault()}
+      />
     </div>
   );
 }

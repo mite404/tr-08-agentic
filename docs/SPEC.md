@@ -84,7 +84,8 @@ src/
 │
 ├── lib/                            # MOVED FROM utils/
 │   ├── audioEngine.ts              # ✅ COMPLETED: Audio context, sample loading, playback
-│   └── beatUtils.ts                # ✅ COMPLETED: Serializers & transformers
+│   ├── beatUtils.ts                # ✅ COMPLETED: Serializers & transformers
+│   └── utils.ts                    # ✅ COMPLETED (PR #12): cn() class merger for Shadcn
 │
 ├── types/
 │   ├── beat.ts                     # ✅ COMPLETED: BeatManifest, TrackID, Zod Schemas
@@ -114,7 +115,12 @@ src/
 │   ├── LoadButton.tsx              # ✅ COMPLETED (PR #4): Load with loading state
 │   ├── SkeletonGrid.tsx            # ✅ COMPLETED (PR #4): Loading placeholder (10x16)
 │   ├── PortraitBlocker.tsx         # ✅ COMPLETED (PR #4): Mobile portrait overlay
-│   └── ErrorBoundary.tsx           # ✅ COMPLETED (PR #5): Crash protection & error UI
+│   ├── ErrorBoundary.tsx           # ✅ COMPLETED (PR #5): Crash protection & error UI
+│   ├── BeatLibrary.tsx             # ✅ COMPLETED (PR #12): Beat library side panel with Shadcn UI
+│   └── ui/                         # ✅ COMPLETED (PR #12): Shadcn UI component library
+│       ├── sheet.tsx               # Dialog/Sheet component (Radix UI wrapper)
+│       └── button.tsx              # CVA-based button component
+│
 │
 └── assets/
     ├── samples/                    # 10x WAV files (unchanged)
@@ -650,6 +656,13 @@ export function getSampleUrl(sampleId: string): string {
 ```
 
 ### 4.2 Signal Logic (Audio Volume Calculation)
+
+**CRITICAL:** Distinguish between **Raw Volume** (stored in manifest) and **Effective Volume** (calculated at playback).
+
+- **Raw Volume (`volumeDb`):** The knob position stored in `BeatManifest.tracks[trackId].volumeDb`. Always -∞ to +6 dB.
+- **Effective Volume:** Calculated at playback time via `calculateEffectiveVolume()`. Accounts for mute/solo/master volume and returns -∞ if muted.
+- **Why This Matters:** When loading beats, `toGridArray()` must return **raw volume** (not effective), else muted tracks will display as -Infinity and corrupt the UI state.
+- **Prevention:** Always use `trackData.volumeDb` directly; never call `calculateEffectiveVolume()` during load/save.
 
 #### File: `src/lib/beatUtils.ts` (Audio Calculation)
 
@@ -1626,7 +1639,7 @@ describe("SkeletonGrid", () => {
 
 ---
 
-## Phase 8: v1.2 Feature Implementation (Mute/Solo, Beat Library Panel, Knob Asset Raster Impl.)
+## Phase 8: v1.2 Feature Implementation (Mute/Solo, Beat Library Panel, Knob Asset Raster Impl.) — ✅ MOSTLY COMPLETE (PR #11 & #12)
 
 #### PR #11: Mute & Solo Architecture — ✅ COMPLETE
 
