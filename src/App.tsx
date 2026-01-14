@@ -306,7 +306,7 @@ function App() {
       .map((c) => c.trackId),
   );
 
-  // PR #4: Auto-load the latest beat on mount (The Graffiti Wall)
+  // PR #4: Auto-load the latest beat on mount if logged in
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -322,6 +322,33 @@ function App() {
             (trackId) => loadedBeat.trackPitches[trackId] ?? 0,
           );
           setTrackPitches(pitchArray);
+
+          // PR #11: Load mute and solo states into UI state
+          const muteArray = trackIdsByRowRef.current.map(
+            (trackId) => loadedBeat.trackMutes[trackId] ?? false,
+          );
+          setTrackMutes(muteArray);
+
+          const soloArray = trackIdsByRowRef.current.map(
+            (trackId) => loadedBeat.trackSolos[trackId] ?? false,
+          );
+          setTrackSolos(soloArray);
+
+          // PR #11: Load volume values into UI state
+          const volumeArray = trackIdsByRowRef.current.map(
+            (trackId) => loadedBeat.trackVolumes[trackId] ?? 0,
+          );
+          setTrackVolumes(volumeArray);
+
+          // PR #11: Update manifest with loaded states so sequencer has fresh data
+          trackIdsByRowRef.current.forEach((trackId, index) => {
+            if (manifestRef.current.tracks[trackId]) {
+              manifestRef.current.tracks[trackId].pitch = pitchArray[index];
+              manifestRef.current.tracks[trackId].mute = muteArray[index];
+              manifestRef.current.tracks[trackId].solo = soloArray[index];
+              manifestRef.current.tracks[trackId].volumeDb = volumeArray[index];
+            }
+          });
 
           console.log(`[App] Auto-loaded beat: "${loadedBeat.beatName}"`);
         } else {
