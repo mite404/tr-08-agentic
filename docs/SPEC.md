@@ -108,7 +108,8 @@ src/
 │   ├── Button.tsx                  # Existing: generic button
 │   ├── PlayStopBtn.tsx             # Existing: play/stop toggle
 │   ├── TempoDisplay.tsx            # Existing: BPM +/-
-│   ├── Knob.tsx                    # ✅ COMPLETED: Volume knob component
+│   ├── Knob.tsx                    # ✅ COMPLETED (PR #13): Photorealistic knobs with variant prop (level/tone)
+│   ├── TrackControls.tsx           # ✅ COMPLETED (PR #11): Channel strip with mute/solo/pitch/volume controls
 │   ├── LoginModal.tsx              # ✅ COMPLETED (PR #4): Auth gateway (deprecated)
 │   ├── LoginModalButton.tsx        # ✅ COMPLETED (PR #4): Modal with sign-in/out
 │   ├── SaveButton.tsx              # ✅ COMPLETED (PR #4): Save with loading state
@@ -1139,6 +1140,54 @@ interface TrackData {
 
 **Backward Compatibility:** The `normalizeBeatData()` function auto-migrates v1.0 beats by injecting default values: `pitch: 0`, `accents: Array(16).fill(false)`.
 
+#### Mute/Solo Control (v1.2 Features)
+
+**File:** `src/components/TrackControls.tsx` (UI) and `src/lib/beatUtils.ts:calculateEffectiveVolume()` (Logic)
+
+Per-track mute and solo buttons provide signal control. Mute silences a track unconditionally; Solo isolates tracks (only solo'd tracks play when any track is soloed).
+
+**Signal Hierarchy (Precedence):**
+
+```
+1. Mute (highest priority)    → Volume = -∞ (SILENT)
+2. Solo (if any active)       → Non-solo tracks = -∞
+3. Normal Volume              → Use knob value + Master volume
+```
+
+**UI Implementation (TrackControls):**
+
+- **Mute Button:** 25px height, 30px width, red when active (#B43131), dark gray when inactive (#504F4F)
+- **Solo Button:** 25px height, 30px width, amber when active (#B49531), dark gray when inactive (#504F4F)
+- Both buttons rendered via `onMuteToggle()` and `onSoloToggle()` handlers in `App.tsx`
+
+**Data Persistence:** Mute/Solo states stored in `BeatManifest.tracks[trackId].mute` and `.solo` (boolean), persisted during save/load cycles.
+
+**Playback Integration:** The sequencer calls `calculateEffectiveVolume(manifest, trackId, isAccented)` every 16th note step. The function returns -Infinity if the track is muted or should be silenced by solo logic.
+
+### 4.6 Photorealistic Knobs (v1.2 Feature)
+
+**File:** `src/components/Knob.tsx`
+
+Knobs are rendered as rotated PNG assets (VOLUME_KNOB.png and TONE_KNOB.png) instead of CSS-drawn circles. The variant prop determines which asset to display.
+
+**Implementation:**
+
+```typescript
+type KnobProps = {
+  variant?: "level" | "tone"; // "level" uses orange VOLUME_KNOB.png, "tone" uses cream TONE_KNOB.png
+  // ... other props
+};
+```
+
+**Rendering:**
+
+- Select asset: `const knobImage = variant === "tone" ? pitchKnob : volumeKnob`
+- Render: `<img src={knobImage} style={{ transform: rotate(${renderKnob}deg) }} />`
+- Size: 28px × 28px (fits snugly in 25px track controls)
+- Rotation: Calculated via existing angle logic (MIN_ROTATION_ANGLE=10, MAX_ROTATION_ANGLE=256)
+
+**Drag Interaction:** Unchanged from v1.1. Dragging up/down updates value; angle recomputes in real-time.
+
 ---
 
 ## 5. Data & Security Annex
@@ -1639,7 +1688,7 @@ describe("SkeletonGrid", () => {
 
 ---
 
-## Phase 8: v1.2 Feature Implementation (Mute/Solo, Beat Library Panel, Knob Asset Raster Impl.) — ✅ MOSTLY COMPLETE (PR #11 & #12)
+## Phase 8: v1.2 Feature Implementation (Mute/Solo, Beat Library Panel, Knob Asset Raster Impl.) — ✅ COMPLETE (PR #11, #12, #13)
 
 #### PR #11: Mute & Solo Architecture — ✅ COMPLETE
 
@@ -1664,9 +1713,18 @@ Shadcn UI side panel for browsing and loading saved beats. Pre-fetches beat list
 - **Bug Fix:** `toGridArray()` now returns raw `volumeDb` (not `calculateEffectiveVolume()` which returns -Infinity for muted tracks)
 - Add `vitest` dev dependency and test script to package.json
 
-#### PR #13: Knob Asset Raster Implementation
+#### PR #13: Knob Asset Raster Implementation — ✅ COMPLETE
 
-Replace CSS-drawn knobs with PNG asset using CSS rotation. Pending.
+Replace CSS-drawn knobs with photorealistic PNG assets (VOLUME_KNOB.png and TONE_KNOB.png).
+
+**Key Changes:**
+
+- Import PNG assets (VOLUME_KNOB.png for level, TONE_KNOB.png for pitch)
+- Refactor Knob props: replace `color` string prop with `variant` union type ("level" | "tone")
+- Render knobs as rotated `<img>` tags instead of CSS circles
+- Update TrackControls to pass `variant` prop based on knob type
+- Preserve all existing drag interaction and rotation calculations
+- Size: 28px × 28px, integrates seamlessly with 25px track control height
 
 ---
 

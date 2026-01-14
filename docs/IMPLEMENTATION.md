@@ -1,6 +1,6 @@
 # TR-08 v1.0 Implementation Checklist
 
-**Status:** ✅ **v1.2 IN PROGRESS (Mute/Solo + Beat Library)** | **Last Updated:** 2026-01-13
+**Status:** ✅ **v1.2 RELEASED (Mute/Solo + Beat Library + Photorealistic Knobs)** | **Last Updated:** 2026-01-14
 
 ---
 
@@ -19,6 +19,7 @@
 - Ghost note accents (-7 dB per step) with 3-state pad UI (PR #9)
 - Per-track mute/solo buttons with audio engine integration (PR #11)
 - Beat library side panel with beat list browsing and instant loading (PR #12)
+- Photorealistic knobs with PNG assets and variant-based rendering (PR #13)
 
 ---
 
@@ -314,7 +315,7 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ---
 
-### Phase 8: v1.2 Features (Mute/Solo, Beat Library Panel, Knob Asset Raster Impl.) — [x] MOSTLY COMPLETE (PR #11 & #12)
+### Phase 8: v1.2 Features (Mute/Solo, Beat Library Panel, Knob Asset Raster Impl.) — [x] COMPLETE (PR #11, #12, #13)
 
 #### PR #11: Mute & Solo Architecture — ✅ COMPLETE
 
@@ -345,11 +346,18 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 - [x] Integrate BeatLibrary component into App.tsx header (authenticated section)
 - [x] **Bug Fix:** Fix `toGridArray()` to return raw `volumeDb` instead of `calculateEffectiveVolume()` (was returning -Infinity for muted tracks)
 
-#### PR #13: Photorealistic Knob (The "Spike")
+#### PR #13: Photorealistic Knob (The "Spike") — ✅ COMPLETE
 
-**Goal:** Replace CSS-drawn knobs with PNG asset using CSS rotation.
+**Goal:** Replace CSS-drawn knobs with photorealistic PNG assets.
 
-- [ ] Pending implementation
+- [x] Import VOLUME_KNOB.png (orange) and TONE_KNOB.png (cream) assets
+- [x] Refactor Knob component: replace `color: string` prop with `variant?: "level" | "tone"`
+- [x] Render knobs as rotated `<img>` tags instead of CSS circles
+- [x] Select asset based on variant: `variant === "tone" ? pitchKnob : volumeKnob`
+- [x] Apply rotation via CSS: `style={{ transform: rotate(${renderKnob}deg) }}`
+- [x] Update TrackControls to pass `variant` prop (pitch knobs: "tone", volume knobs: "level")
+- [x] Preserve all existing drag interaction and rotation calculations
+- [x] Size: 28px × 28px, fits seamlessly in 25px track controls
 
 ---
 
