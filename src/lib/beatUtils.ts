@@ -166,8 +166,8 @@ export function toGridArray(manifest: BeatManifest): {
     // Populate grid with steps
     grid[config.rowIndex] = trackData?.steps || Array(16).fill(false);
 
-    // Calculate effective volume for this track
-    trackVolumes[trackId] = calculateEffectiveVolume(manifest, trackId);
+    // Extract raw volumeDb value (not effective volume - that's for playback only)
+    trackVolumes[trackId] = trackData?.volumeDb ?? 0;
 
     // v1.1: Extract pitch value (default to 0 for backward compatibility)
     trackPitches[trackId] = trackData?.pitch ?? 0;

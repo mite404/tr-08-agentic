@@ -392,6 +392,23 @@ describe("beatUtils - Save/Load Cycle", () => {
     expect(loadedData.trackSolos.kick_01).toBe(false);
     expect(loadedData.trackSolos.clap).toBe(false);
   });
+
+  it("should preserve volume state even when track is muted", () => {
+    const bpm = 140;
+    const savedManifest = toManifest(
+      mockGrid,
+      bpm,
+      undefined,
+      undefined,
+      trackMutes, // THIS includes muted tracks
+      undefined,
+      trackVolumes, // THIS includes volumes for those muted tracks
+    );
+    const loadedData = toGridArray(savedManifest);
+
+    // Should still get the volume knob value, not -Infinity
+    expect(loadedData.trackVolumes.kick_02).toBe(0); // Was muted but volume should still be readable
+  });
 });
 
 /**
