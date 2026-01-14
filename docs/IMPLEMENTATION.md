@@ -1,12 +1,12 @@
 # TR-08 v1.0 Implementation Checklist
 
-**Status:** ✅ **v1.1 RELEASED (Pitch & Accent)** | **Last Updated:** 2026-01-13
+**Status:** ✅ **v1.2 IN PROGRESS (Mute/Solo + Beat Library)** | **Last Updated:** 2026-01-13
 
 ---
 
 ## Release Summary
 
-**All 9 PRs completed. Production-ready drum machine with v1.1 features:**
+**11 PRs completed. Production-ready drum machine with v1.1/v1.2 features:**
 
 - Persistent beat storage (Supabase)
 - Real-time sequencer with Tone.js master effects chain (Compressor + Limiter)
@@ -17,6 +17,8 @@
 - Bulletproof audio loading with individual track timeouts (PR #6)
 - Per-track pitch control (-12 to +12 semitones) (PR #8)
 - Ghost note accents (-7 dB per step) with 3-state pad UI (PR #9)
+- Per-track mute/solo buttons with audio engine integration (PR #11)
+- Beat library side panel with beat list browsing and instant loading (PR #12)
 
 ---
 
@@ -314,23 +316,40 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ### Phase 8: v1.2 Features (Mute/Solo, Beat Library Panel, Knob Asset Raster Impl.)
 
-#### PR #11: Mute & Solo Architecture
+#### PR #11: Mute & Solo Architecture — ✅ COMPLETE
 
 **Goal:** Enable per-track signal processing control.
 
-- **Why first?** The audio engine logic (`calculateEffectiveVolume`) already supports this. We just need to expose the UI buttons and wire them to the state. It completes the "Instrument" functionality.
+- [x] Add mute/solo button handlers in `App.tsx` (handleMuteToggle, handleSoloToggle)
+- [x] Store mute/solo states in `trackMutes` and `trackSolos` React state arrays
+- [x] Pass states to TrackControls component as props
+- [x] Create mute/solo buttons styled to match design (25px height, Figma colors)
+- [x] Persist mute/solo states in `BeatManifest.tracks[trackId]` during save
+- [x] Load mute/solo states from manifest during beat load
+- [x] Update sequencer to respect mute/solo during playback (calculateEffectiveVolume)
+- [x] Fix manifestRef sync to include mute/solo states on load
 
-#### PR #12: The Beat Library (Side Panel)
+#### PR #12: Beat Library (Side Panel) — ✅ COMPLETE
 
-**Goal:** Allow users to browse their history.
+**Goal:** Allow users to browse and load their saved beats.
 
-- **Why second?** This involves new database queries and a new major UI component (Sidebar). It enables the "Platform" functionality.
+- [x] Install Shadcn UI dependencies: clsx, tailwind-merge, class-variance-authority, lucide-react, @radix-ui packages, date-fns
+- [x] Create `src/lib/utils.ts` with `cn()` helper for class merging
+- [x] Add `.beat-library-theme` scoped CSS variables to `src/index.css` (Vega/Orange color palette)
+- [x] Create `src/components/ui/sheet.tsx` (Radix Dialog wrapper with scoped theming)
+- [x] Create `src/components/ui/button.tsx` (CVA-based button component)
+- [x] Add `loadBeatList()` function to `useLoadBeat` hook (fetch beat summaries)
+- [x] Create `src/components/BeatLibrary.tsx` (sidebar panel with beat list)
+- [x] Pre-fetch beat list in `loadInitialData()` on app mount
+- [x] Refresh beat list after successful save
+- [x] Integrate BeatLibrary component into App.tsx header (authenticated section)
+- [x] **Bug Fix:** Fix `toGridArray()` to return raw `volumeDb` instead of `calculateEffectiveVolume()` (was returning -Infinity for muted tracks)
 
 #### PR #13: Photorealistic Knob (The "Spike")
 
-**Goal:** Replace the CSS-drawn knobs with your PNG assets using the CSS Rotation method.
+**Goal:** Replace CSS-drawn knobs with PNG asset using CSS rotation.
 
-- **Why last?** This is purely visual. By doing it last, we ensure the new Mute/Solo buttons don't interfere with the new layout, and we can apply the new look to both Pitch and Volume knobs at once.
+- [ ] Pending implementation
 
 ---
 

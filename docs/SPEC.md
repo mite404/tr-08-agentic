@@ -1,6 +1,6 @@
 # TR-08 v1.0: System Specification
 
-**Status:** ✅ v1.1 Released (Pitch & Accent) + Master Effects | **Version:** 1.1 | **Last Updated:** 2026-01-13 (PR #8-9: Pitch Control & Accent UI)
+**Status:** ✅ v1.2 IN PROGRESS (Mute/Solo + Beat Library) | **Version:** 1.2 | **Last Updated:** 2026-01-13 (PR #11-12: Mute/Solo UI & Beat Library)
 
 ---
 
@@ -1628,35 +1628,52 @@ describe("SkeletonGrid", () => {
 
 ## Phase 8: v1.2 Feature Implementation (Mute/Solo, Beat Library Panel, Knob Asset Raster Impl.)
 
-#### PR #11: Mute & Solo Architecture
+#### PR #11: Mute & Solo Architecture — ✅ COMPLETE
 
-...
+Per-track mute/solo buttons with full audio engine integration. Mute silences a track (returns -Infinity to playback logic). Solo isolates tracks: if ANY track has solo enabled, only solo'd tracks play.
 
-#### PR #12: Beat Library Panel
+**Key Changes:**
 
-...
+- Add `handleMuteToggle()` and `handleSoloToggle()` to App.tsx
+- Store states in `trackMutes[]` and `trackSolos[]` arrays
+- Buttons styled 25px height matching Figma colors (#B43131 mute, #B49531 solo)
+- Persist states in `BeatManifest.tracks[trackId].mute/solo` during save/load
+
+#### PR #12: Beat Library Panel — ✅ COMPLETE
+
+Shadcn UI side panel for browsing and loading saved beats. Pre-fetches beat list on app mount for instant access when opening the panel.
+
+**Key Changes:**
+
+- New Shadcn UI components: `ui/sheet.tsx`, `ui/button.tsx` with Vega/Orange scoped theme
+- `loadBeatList()` hook returns beat summaries (id, name, updated_at)
+- Pre-fetch in `loadInitialData()`, refresh after save
+- **Bug Fix:** `toGridArray()` now returns raw `volumeDb` (not `calculateEffectiveVolume()` which returns -Infinity for muted tracks)
+- Add `vitest` dev dependency and test script to package.json
 
 #### PR #13: Knob Asset Raster Implementation
 
-...
+Replace CSS-drawn knobs with PNG asset using CSS rotation. Pending.
 
 ---
 
 ## Summary Table
 
-| PR  | Title        | Files       | Hours | Tests       | Blocker Dependencies | Status      |
-| --- | ------------ | ----------- | ----- | ----------- | -------------------- | ----------- |
-| #1  | Foundation   | 4 new       | 2-3   | Unit        | None                 | ✅ COMPLETE |
-| #2  | Audio Engine | 3 touch     | 3-4   | Unit        | PR #1                | ✅ COMPLETE |
-| #3  | Pipes        | 7 new/touch | 4-5   | Integration | PR #1                | ✅ COMPLETE |
-| #4  | Integration  | 6 new/touch | 3-4   | Component   | PR #3                | ✅ COMPLETE |
-| #5  | Hardening    | 4 touch     | 3-4   | Manual      | PR #4                | ✅ COMPLETE |
-| #6  | Audio Load   | 1 refactor  | 2-3   | Manual      | PR #2                | ✅ COMPLETE |
-| #7  | Data Schema  | 2 touch     | 2-3   | Unit        | PR #1                | ✅ COMPLETE |
-| #8  | Audio Engine | 2 touch     | 2-3   | Unit        | PR #2, #7            | ✅ COMPLETE |
-| #9  | UI Pitch     | 3 touch     | 2-3   | Component   | PR #8                | ✅ COMPLETE |
+| PR  | Title           | Files       | Hours | Tests  | Blocker Dependencies | Status      |
+| --- | --------------- | ----------- | ----- | ------ | -------------------- | ----------- |
+| #1  | Foundation      | 4 new       | 2-3   | Unit   | None                 | ✅ COMPLETE |
+| #2  | Audio Engine    | 3 touch     | 3-4   | Unit   | PR #1                | ✅ COMPLETE |
+| #3  | Pipes           | 7 new/touch | 4-5   | Integ  | PR #1                | ✅ COMPLETE |
+| #4  | Integration     | 6 new/touch | 3-4   | Comp   | PR #3                | ✅ COMPLETE |
+| #5  | Hardening       | 4 touch     | 3-4   | Manual | PR #4                | ✅ COMPLETE |
+| #6  | Audio Load      | 1 refactor  | 2-3   | Manual | PR #2                | ✅ COMPLETE |
+| #7  | Data Schema     | 2 touch     | 2-3   | Unit   | PR #1                | ✅ COMPLETE |
+| #8  | Audio Physics   | 2 touch     | 2-3   | Unit   | PR #2, #7            | ✅ COMPLETE |
+| #9  | UI Pitch/Accent | 3 touch     | 2-3   | Comp   | PR #8                | ✅ COMPLETE |
+| #11 | Mute/Solo UI    | 1 touch     | 1-2   | Manual | PR #9                | ✅ COMPLETE |
+| #12 | Beat Library    | 6 new/touch | 2-3   | Manual | PR #3                | ✅ COMPLETE |
 
-**Total Effort:** ~16-20 hours (actual) | **Status:** ALL PRS COMPLETE - v1.0 RELEASED
+**Total Effort:** ~20-25 hours (actual) | **Status:** 11 PRs COMPLETE - v1.2 IN PROGRESS
 
 ---
 
