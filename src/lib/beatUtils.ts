@@ -73,11 +73,15 @@ export function calculateEffectiveVolume(
  * This is used when migrating from the old App.tsx state format.
  *
  * v1.1: Added pitch and accents parameter support
+ * v1.2: Added mute, solo, and volume state parameters
  *
  * @param grid - 10×16 boolean array (grid[rowIndex][stepIndex])
  * @param bpm - Tempo in beats per minute
  * @param trackPitches - Optional pitch values per track (defaults to 0)
  * @param trackAccents - Optional accent patterns per track (defaults to all false)
+ * @param trackMutes - Optional mute states per track (defaults to all false)
+ * @param trackSolos - Optional solo states per track (defaults to all false)
+ * @param trackVolumes - Optional volume values per track in dB (defaults to 0)
  * @returns BeatManifest with tracks populated from grid
  *
  * Note: beatName is stored separately in BeatRecord, not in BeatManifest
@@ -87,6 +91,9 @@ export function toManifest(
   bpm: number,
   trackPitches?: Record<TrackID, number>,
   trackAccents?: Record<TrackID, boolean[]>,
+  trackMutes?: Record<TrackID, boolean>,
+  trackSolos?: Record<TrackID, boolean>,
+  trackVolumes?: Record<TrackID, number>,
 ): BeatManifest {
   // Use TRACK_REGISTRY as source of truth for track order
   const TRACK_REGISTRY_SORTED = [...TRACK_REGISTRY].sort(
@@ -101,9 +108,9 @@ export function toManifest(
 
     tracks[trackId] = {
       sampleId: config.sampleId, // Default sample from registry
-      volumeDb: 0, // Default volume
-      mute: false,
-      solo: false,
+      volumeDb: trackVolumes?.[trackId] ?? 0, // v1.2: Use provided volume or default to 0
+      mute: trackMutes?.[trackId] ?? false, // v1.2: Use provided mute state
+      solo: trackSolos?.[trackId] ?? false, // v1.2: Use provided solo state
       steps: grid[rowIndex] || Array(16).fill(false), // Use grid data or empty
       accents: trackAccents?.[trackId] ?? Array(16).fill(false), // v1.1: Default accents to all false
       pitch: trackPitches?.[trackId] ?? 0, // v1.1: Default pitch to 0
@@ -122,9 +129,10 @@ export function toManifest(
  * This is used when loading beats from the database into the UI.
  *
  * v1.1: Added trackPitches and trackAccents to return value for pitch knob and accent states
+ * v1.2: Added trackMutes and trackSolos to return value for mute/solo states
  *
  * @param manifest - The beat manifest to convert
- * @returns Object containing grid (10×16), bpm, volumes, pitches, and accents
+ * @returns Object containing grid (10×16), bpm, volumes, pitches, accents, mutes, and solos
  */
 export function toGridArray(manifest: BeatManifest): {
   grid: boolean[][];
@@ -133,6 +141,8 @@ export function toGridArray(manifest: BeatManifest): {
   trackVolumes: Record<TrackID, number>; // Calculated effective volumes
   trackPitches: Record<TrackID, number>; // v1.1: Pitch shift values per track
   trackAccents: Record<TrackID, boolean[]>; // v1.1: Accent patterns per track
+  trackMutes: Record<TrackID, boolean>; // v1.2: Mute states per track
+  trackSolos: Record<TrackID, boolean>; // v1.2: Solo states per track
 } {
   // Use TRACK_REGISTRY to ensure correct row ordering
   const TRACK_REGISTRY_SORTED = [...TRACK_REGISTRY].sort(
@@ -146,6 +156,8 @@ export function toGridArray(manifest: BeatManifest): {
     TrackID,
     boolean[]
   >; // v1.1
+  const trackMutes: Record<TrackID, boolean> = {} as Record<TrackID, boolean>; // v1.2
+  const trackSolos: Record<TrackID, boolean> = {} as Record<TrackID, boolean>; // v1.2
 
   TRACK_REGISTRY_SORTED.forEach((config) => {
     const trackId = config.trackId;
@@ -162,6 +174,12 @@ export function toGridArray(manifest: BeatManifest): {
 
     // v1.1: Extract accent pattern (default to all false for backward compatibility)
     trackAccents[trackId] = trackData?.accents ?? Array(16).fill(false);
+
+    // v1.2: Extract mute state (default to false for backward compatibility)
+    trackMutes[trackId] = trackData?.mute ?? false;
+
+    // v1.2: Extract solo state (default to false for backward compatibility)
+    trackSolos[trackId] = trackData?.solo ?? false;
   });
 
   return {
@@ -171,6 +189,8 @@ export function toGridArray(manifest: BeatManifest): {
     trackVolumes,
     trackPitches, // v1.1
     trackAccents, // v1.1
+    trackMutes, // v1.2
+    trackSolos, // v1.2
   };
 }
 
