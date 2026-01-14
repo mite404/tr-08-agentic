@@ -1965,3 +1965,5 @@ Player₁  Player₂  Player₃ ... Player₁₀
 ---
 
 **End of SPEC.md** | **Last Updated:** 2026-01-12 (Appendix A: Library Integration Patterns Added)
+
+<!-- Deployment Trigger -->

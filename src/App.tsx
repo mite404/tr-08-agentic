@@ -986,11 +986,7 @@ function App() {
                     onClick={handleLoadBeat}
                     isLoading={loadingBeat}
                   />
-                  <BeatLibrary
-                    session={session}
-                    beats={beats}
-                    onLoadBeat={handleLoadBeatById}
-                  />
+                  <BeatLibrary beats={beats} onLoadBeat={handleLoadBeatById} />
                   <LoginModalButton
                     session={session}
                     signInWithGoogle={signInWithGoogle}

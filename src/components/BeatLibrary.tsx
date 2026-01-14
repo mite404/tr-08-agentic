@@ -17,15 +17,13 @@ import {
 } from "./ui/sheet";
 import { Button } from "./ui/button";
 import type { BeatSummary } from "../hooks/useLoadBeat";
-import type { Session } from "@supabase/supabase-js";
 
 interface BeatLibraryProps {
-  session: Session;
   beats: BeatSummary[];
   onLoadBeat: (beatId: string) => Promise<void>;
 }
 
-export function BeatLibrary({ session, beats, onLoadBeat }: BeatLibraryProps) {
+export function BeatLibrary({ beats, onLoadBeat }: BeatLibraryProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleBeatClick = async (beatId: string) => {
