@@ -360,13 +360,6 @@ function App() {
         } else {
           console.log("[App] No beats found, using default grid");
         }
-
-        // PR #12: Pre-fetch beat list for library
-        if (session?.user) {
-          const beatList = await loadBeatList(session.user.id);
-          setBeats(beatList);
-          console.log(`[App] Pre-fetched ${beatList.length} beats for library`);
-        }
       } catch (err) {
         console.error("[App] Auto-load failed:", err);
       } finally {
@@ -382,6 +375,21 @@ function App() {
   useEffect(() => {
     gridRef.current = grid;
   }, [grid]);
+
+  // PR #12: Fetch beat list when session becomes available
+  // This is separate from loadInitialData because auth check completes after mount
+  useEffect(() => {
+    if (session?.user) {
+      const fetchBeats = async () => {
+        const beatList = await loadBeatList(session.user.id);
+        setBeats(beatList);
+        console.log(
+          `[App] Fetched ${beatList.length} beats for user ${session.user.id}`,
+        );
+      };
+      void fetchBeats();
+    }
+  }, [session?.user?.id, loadBeatList]);
 
   // PR #5: Browser lifecycle management - handle visibility changes
   useEffect(() => {
