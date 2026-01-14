@@ -4,8 +4,8 @@ import { Pad } from "./components/Pad";
 import { TempoDisplay } from "./components/TempoDisplay";
 import { PlayStopBtn } from "./components/PlayStopBtn";
 import { createSequencer } from "./sequencer";
-import { Knob } from "./components/Knob";
 import { Analyzer } from "./components/Analyzer";
+import { TrackControls } from "./components/TrackControls";
 import * as Tone from "tone";
 
 import mpcMark from "./assets/images/MPC_mark.png";
@@ -264,6 +264,13 @@ function App() {
   const [trackPitches, setTrackPitches] = useState<number[]>(Array(10).fill(0));
   // PR #6: Track failed audio samples for visual feedback
   const [failedTrackIds, setFailedTrackIds] = useState<TrackID[]>([]);
+  // PR #11: Track mute and solo states per track
+  const [trackMutes, setTrackMutes] = useState<boolean[]>(
+    Array(10).fill(false),
+  );
+  const [trackSolos, setTrackSolos] = useState<boolean[]>(
+    Array(10).fill(false),
+  );
 
   const createSequencerRef = useRef<ReturnType<typeof createSequencer>>(null);
   const gridRef = useRef(grid);
@@ -728,6 +735,48 @@ function App() {
     }
   }
 
+  // PR #11: Handle mute toggle for a track
+  function handleMuteToggle(trackId: TrackID) {
+    const trackIndex = trackIdsByRowRef.current.indexOf(trackId);
+    if (trackIndex === -1) return;
+
+    setTrackMutes((prev) => {
+      const updated = [...prev];
+      updated[trackIndex] = !updated[trackIndex];
+      return updated;
+    });
+
+    // Update manifest with new mute state
+    if (manifestRef.current.tracks[trackId]) {
+      manifestRef.current.tracks[trackId].mute =
+        !manifestRef.current.tracks[trackId].mute;
+      console.log(
+        `[Manifest] Updated ${trackId} mute to ${manifestRef.current.tracks[trackId].mute}`,
+      );
+    }
+  }
+
+  // PR #11: Handle solo toggle for a track
+  function handleSoloToggle(trackId: TrackID) {
+    const trackIndex = trackIdsByRowRef.current.indexOf(trackId);
+    if (trackIndex === -1) return;
+
+    setTrackSolos((prev) => {
+      const updated = [...prev];
+      updated[trackIndex] = !updated[trackIndex];
+      return updated;
+    });
+
+    // Update manifest with new solo state
+    if (manifestRef.current.tracks[trackId]) {
+      manifestRef.current.tracks[trackId].solo =
+        !manifestRef.current.tracks[trackId].solo;
+      console.log(
+        `[Manifest] Updated ${trackId} solo to ${manifestRef.current.tracks[trackId].solo}`,
+      );
+    }
+  }
+
   return (
     <>
       {/* PR #4: Portrait blocker for mobile devices */}
@@ -785,55 +834,40 @@ function App() {
           </div>
           <Analyzer />
 
-          {/* container for KNOBS & GRID divs */}
+          {/* container for TRACK CONTROLS & GRID divs */}
           <div className="flex w-full flex-row">
-            {/* PR #9: Two-column KNOB container (Pitch + Volume) */}
-            <div className="flex flex-none gap-1 pt-3.5 pr-1.5">
-              {/* Column 1: Pitch Knobs */}
-              <div className="flex flex-col">
-                {tracks.map((_track, trackIndex) => {
-                  const trackId = trackIdsByRowRef.current[trackIndex];
-                  const isDisabled = failedTrackIds.includes(trackId);
+            {/* PR #11: Track Controls column (channel strip per track) */}
+            <div className="flex flex-none flex-col gap-1 p-3 pr-1.5">
+              {tracks.map((_track, trackIndex) => {
+                const trackId = trackIdsByRowRef.current[trackIndex];
+                const trackConfig = TRACK_REGISTRY.find(
+                  (c) => c.trackId === trackId,
+                );
+                const isDisabled = failedTrackIds.includes(trackId);
 
-                  return (
-                    <Knob
-                      // eslint-disable-next-line react-x/no-array-index-key
-                      key={`pitch-${trackIndex}`}
-                      value={trackPitches[trackIndex]}
-                      min={-12}
-                      max={12}
-                      onChange={(newValue) =>
-                        handlePitchChange(trackIndex, newValue)
-                      }
-                      color="bg-amber-500"
-                      disabled={isDisabled}
-                    />
-                  );
-                })}
-              </div>
+                if (!trackConfig) return null;
 
-              {/* Column 2: Volume Knobs */}
-              <div className="flex flex-col">
-                {tracks.map((_track, trackIndex) => {
-                  const trackId = trackIdsByRowRef.current[trackIndex];
-                  const isDisabled = failedTrackIds.includes(trackId);
-
-                  return (
-                    <Knob
-                      // eslint-disable-next-line react-x/no-array-index-key
-                      key={`volume-${trackIndex}`}
-                      value={trackVolumes[trackIndex]}
-                      min={-45}
-                      max={5}
-                      onChange={(newValue) =>
-                        handleDbChange(trackIndex, newValue)
-                      }
-                      color="bg-cyan-500"
-                      disabled={isDisabled}
-                    />
-                  );
-                })}
-              </div>
+                return (
+                  <TrackControls
+                    key={`controls-${trackIndex}`}
+                    trackId={trackId}
+                    label={trackConfig.label}
+                    isMuted={trackMutes[trackIndex]}
+                    isSoloed={trackSolos[trackIndex]}
+                    onMuteToggle={handleMuteToggle}
+                    onSoloToggle={handleSoloToggle}
+                    pitchValue={trackPitches[trackIndex]}
+                    volumeValue={trackVolumes[trackIndex]}
+                    onPitchChange={(newValue) =>
+                      handlePitchChange(trackIndex, newValue)
+                    }
+                    onVolumeChange={(newValue) =>
+                      handleDbChange(trackIndex, newValue)
+                    }
+                    disabled={isDisabled}
+                  />
+                );
+              })}
             </div>
             {/* beat grid container */}
             <div className="flex-1 rounded-md border-10 border-gray-900">

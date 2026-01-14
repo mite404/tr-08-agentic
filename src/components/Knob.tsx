@@ -75,7 +75,7 @@ export function Knob({
 
   return (
     <div
-      className={`pb-1 ${disabled ? "pointer-events-none opacity-40 grayscale" : ""}`}
+      className={disabled ? "pointer-events-none opacity-40 grayscale" : ""}
       title={disabled ? "This track failed to load" : undefined}
     >
       <div className="flex h-[25px] w-[25px] items-center justify-center rounded-full bg-gray-900">
