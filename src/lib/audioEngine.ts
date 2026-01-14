@@ -3,6 +3,9 @@ import type { BeatManifest, TrackID } from "../types/beat";
 import { getSampleUrl, TRACK_REGISTRY } from "../config/trackConfig";
 
 let masterChannel: Tone.Channel | null = null;
+let driveGain: Tone.Gain | null = null;
+let softClipper: Tone.WaveShaper | null = null;
+let outputComp: Tone.Gain | null = null;
 let masterCompressor: Tone.Compressor | null = null;
 let masterLimiter: Tone.Limiter | null = null;
 
@@ -10,8 +13,10 @@ let masterLimiter: Tone.Limiter | null = null;
 const BYPASS_MASTER_EFFECTS = false;
 
 /**
- * Initializes the master effects chain: Channel -> Compressor -> Limiter -> Destination
+ * Initializes the master effects chain: Channel -> DriveGain -> SoftClipper -> Compressor -> Limiter -> Destination
  * This is called automatically by getMasterChannel() to ensure effects are always in place.
+ * PR #14: Added soft-clip saturation for warm, analog-style master drive control
+ * Chain order: Drive signal into soft clipper, then compress for dynamics control, finally limit for safety
  */
 function initializeMasterEffects(): void {
   if (masterChannel) {
@@ -28,6 +33,18 @@ function initializeMasterEffects(): void {
     return;
   }
 
+  // PR #14: Create soft clipper using WaveShaper with sigmoid curve
+  // Sigmoid (tanh) provides smooth, analog-like soft clipping without harsh digital artifacts
+  softClipper = new Tone.WaveShaper((x) => Math.tanh(x), 4096);
+
+  // Input gain stage: controls how much signal drives into the soft clipper
+  // Higher gain = more saturation; lower gain = clean signal
+  driveGain = new Tone.Gain(1); // Start at unity (1.0)
+
+  // Output compensation: reduces volume as drive increases to maintain consistent level
+  // This prevents the output from getting louder as we add saturation
+  outputComp = new Tone.Gain(1); // Start at unity (1.0)
+
   // Create compressor with specified settings
   masterCompressor = new Tone.Compressor({
     threshold: -12, // dB
@@ -39,11 +56,16 @@ function initializeMasterEffects(): void {
   // Create limiter for master bus limiting
   masterLimiter = new Tone.Limiter(-4); // -4dB ceiling
 
-  // Wire the chain: Channel -> Compressor -> Limiter -> Destination
-  masterChannel.chain(masterCompressor, masterLimiter, Tone.getDestination());
+  // Wire the chain: Channel -> DriveGain -> SoftClipper -> OutputComp -> Compressor -> Limiter -> Destination
+  driveGain.connect(softClipper);
+  softClipper.connect(outputComp);
+  outputComp.connect(masterCompressor);
+  masterCompressor.connect(masterLimiter);
+  masterLimiter.toDestination();
+  masterChannel.connect(driveGain);
 
   console.log(
-    "[Master Effects] Chain initialized: Channel -> Compressor -> Limiter -> Destination",
+    "[Master Effects] Chain initialized: Channel -> DriveGain -> SoftClipper -> OutputComp -> Compressor -> Limiter -> Destination",
   );
 }
 
@@ -303,4 +325,57 @@ export function playTrack(
   } catch (err) {
     console.error("[Playback Error]", err);
   }
+}
+
+/**
+ * PR #14: Set master drive (soft-clip saturation input gain)
+ * Maps 0-100% knob input to 1.0-4.0 gain on drive input
+ * 0% knob = 1.0 gain (unity, no drive)
+ * 100% knob = 4.0 gain (+12 dB into soft clipper)
+ * Auto-compensates output level to maintain consistent volume across drive range
+ *
+ * @param percent - Drive amount 0-100
+ */
+export function setMasterDrive(percent: number): void {
+  if (!driveGain || !outputComp) {
+    console.warn("[setMasterDrive] Drive or output comp not initialized");
+    return;
+  }
+
+  const clampedPercent = Math.max(0, Math.min(100, percent));
+  const driveGainValue = 1 + (clampedPercent / 100) * 3; // Map to 1.0-4.0 range
+
+  // Set input gain that drives the soft clipper
+  driveGain.gain.value = driveGainValue;
+
+  // Auto-gain compensation: reduce output as drive increases to maintain level
+  // Simple inverse: outputComp = 1 / driveGainValue
+  // This keeps the output roughly consistent volume across the drive range
+  const compensationValue = 1 / driveGainValue;
+  outputComp.gain.value = compensationValue;
+
+  const driveDb = Tone.gainToDb(driveGainValue);
+  const compDb = Tone.gainToDb(compensationValue);
+
+  console.log(
+    `[Master Drive] Set to ${percent}% (drive: ${driveDb.toFixed(1)} dB, output comp: ${compDb.toFixed(1)} dB)`,
+  );
+}
+
+/**
+ * PR #14: Set master swing (shuffle amount)
+ * Maps 0-100% input to 0.0-1.0 Tone.Transport.swing
+ * Requires swingSubdivision to be "16n" for proper timing
+ *
+ * @param percent - Swing amount 0-100
+ */
+export function setMasterSwing(percent: number): void {
+  const clampedPercent = Math.max(0, Math.min(100, percent));
+  const swingValue = clampedPercent / 100; // Map to 0.0-1.0 range
+
+  const transport = Tone.getTransport();
+  transport.swing = swingValue;
+  transport.swingSubdivision = "16n"; // Must be set for swing to work
+
+  console.log(`[Master Swing] Set to ${percent}% (swing: ${swingValue})`);
 }
