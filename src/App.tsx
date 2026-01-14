@@ -292,8 +292,6 @@ function App() {
     loadLatestBeat,
     loadBeatById, // PR #12: Load beat by ID for library
     loadBeatList, // PR #12: Load beat list for library
-    isLoading: loadingBeat,
-    error: loadError,
   } = useLoadBeat();
 
   // PR #4: Track initial data loading state
@@ -719,58 +717,6 @@ function App() {
     }
   }
 
-  // PR #3: Load beat handler
-  async function handleLoadBeat() {
-    try {
-      const loadedBeat = await loadLatestBeat();
-      if (loadedBeat) {
-        setGrid(loadedBeat.grid);
-        setBpm(loadedBeat.bpm);
-        setBeatName(loadedBeat.beatName);
-
-        // PR #9: Load pitch values into UI state
-        const pitchArray = trackIdsByRowRef.current.map(
-          (trackId) => loadedBeat.trackPitches[trackId] ?? 0,
-        );
-        setTrackPitches(pitchArray);
-
-        // PR #11: Load mute and solo states into UI state
-        const muteArray = trackIdsByRowRef.current.map(
-          (trackId) => loadedBeat.trackMutes[trackId] ?? false,
-        );
-        setTrackMutes(muteArray);
-
-        const soloArray = trackIdsByRowRef.current.map(
-          (trackId) => loadedBeat.trackSolos[trackId] ?? false,
-        );
-        setTrackSolos(soloArray);
-
-        // PR #11: Load volume values into UI state
-        const volumeArray = trackIdsByRowRef.current.map(
-          (trackId) => loadedBeat.trackVolumes[trackId] ?? 0,
-        );
-        setTrackVolumes(volumeArray);
-
-        // PR #11: Update manifest with loaded states so sequencer has fresh data
-        trackIdsByRowRef.current.forEach((trackId, index) => {
-          if (manifestRef.current.tracks[trackId]) {
-            manifestRef.current.tracks[trackId].pitch = pitchArray[index];
-            manifestRef.current.tracks[trackId].mute = muteArray[index];
-            manifestRef.current.tracks[trackId].solo = soloArray[index];
-            manifestRef.current.tracks[trackId].volumeDb = volumeArray[index];
-          }
-        });
-
-        alert(`Loaded beat: "${loadedBeat.beatName}"`);
-      } else {
-        alert("No beats found");
-      }
-    } catch (err) {
-      console.error("[App] Load failed:", err);
-      alert(`Failed to load beat: ${loadError || "Unknown error"}`);
-    }
-  }
-
   // PR #12: Load beat by ID (for Beat Library sidebar)
   async function handleLoadBeatById(beatId: string) {
     try {
@@ -817,7 +763,7 @@ function App() {
       }
     } catch (err) {
       console.error("[App] Load from library failed:", err);
-      alert(`Failed to load beat: ${loadError || "Unknown error"}`);
+      alert(`Failed to load beat: Unknown error`);
     }
   }
 
