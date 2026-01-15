@@ -913,6 +913,32 @@ function App() {
     console.log(`[App] Drive updated to ${newDrivePercent}%`);
   }
 
+  // PR #15: Clear track (steps and accents)
+  function handleClearTrack(trackId: TrackID) {
+    // Clear steps for this track
+    setGrid((prev) => {
+      const updated = prev.map((row, rowIndex) => {
+        if (trackIdsByRowRef.current[rowIndex] === trackId) {
+          return row.map(() => false); // Clear all steps
+        }
+        return row;
+      });
+      return updated;
+    });
+
+    // Clear steps and accents in manifest
+    if (manifestRef.current.tracks[trackId]) {
+      manifestRef.current.tracks[trackId].steps = manifestRef.current.tracks[
+        trackId
+      ].steps.map(() => false);
+      if (manifestRef.current.tracks[trackId].accents) {
+        manifestRef.current.tracks[trackId].accents =
+          manifestRef.current.tracks[trackId].accents.map(() => false);
+      }
+      console.log(`[Manifest] Cleared track ${trackId} (steps and accents)`);
+    }
+  }
+
   return (
     <>
       {/* PR #4: Portrait blocker for mobile devices */}
@@ -1024,6 +1050,7 @@ function App() {
                     isSoloed={trackSolos[trackIndex]}
                     onMuteToggle={handleMuteToggle}
                     onSoloToggle={handleSoloToggle}
+                    onClear={handleClearTrack}
                     pitchValue={trackPitches[trackIndex]}
                     volumeValue={trackVolumes[trackIndex]}
                     onPitchChange={(newValue) =>
