@@ -8,6 +8,7 @@ type TrackControlsProps = {
   isSoloed: boolean;
   onMuteToggle: (trackId: TrackID) => void;
   onSoloToggle: (trackId: TrackID) => void;
+  onClear: (trackId: TrackID) => void;
   pitchValue: number;
   volumeValue: number;
   onPitchChange: (newValue: number) => void;
@@ -24,6 +25,7 @@ type TrackControlsProps = {
  * - Volume knob (cyan)
  * - Mute button (M): Red when active (#B43131)
  * - Solo button (S): Amber when active (#B49531)
+ * - Clear button (C): Red on hover (#8B0000) - PR #15
  * - Inactive buttons: Dark Gray (#504F4F)
  */
 export function TrackControls({
@@ -33,6 +35,7 @@ export function TrackControls({
   isSoloed,
   onMuteToggle,
   onSoloToggle,
+  onClear,
   pitchValue,
   volumeValue,
   onPitchChange,
@@ -82,7 +85,7 @@ export function TrackControls({
         M
       </button>
 
-      {/* Solo Button (closest to grid) */}
+      {/* Solo Button */}
       <button
         className="h-[25px] w-[30px] rounded-md text-xs font-bold text-white transition-colors"
         style={{ backgroundColor: isSoloed ? SOLO_ACTIVE : INACTIVE }}
@@ -91,6 +94,28 @@ export function TrackControls({
         data-node-id="28:3"
       >
         S
+      </button>
+
+      {/* Clear Button (PR #15) - closest to grid */}
+      <button
+        className="h-[25px] w-[30px] rounded-md text-xs font-bold transition-colors"
+        style={{
+          backgroundColor: INACTIVE,
+          color: "#A3A3A3",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = "#8B0000";
+          e.currentTarget.style.color = "white";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = INACTIVE;
+          e.currentTarget.style.color = "#A3A3A3";
+        }}
+        onClick={() => onClear(trackId)}
+        title="Clear track (steps and accents)"
+        data-node-id="28:5"
+      >
+        CLR
       </button>
     </div>
   );
