@@ -1,6 +1,6 @@
 # TR-08 v1.0: System Specification
 
-**Status:** ✅ v1.2 IN PROGRESS (Mute/Solo + Beat Library) | **Version:** 1.2 | **Last Updated:** 2026-01-13 (PR #11-12: Mute/Solo UI & Beat Library)
+**Status:** ✅ v1.2 IN PROGRESS (Global Swing + Drive Saturation) | **Version:** 1.2 | **Last Updated:** 2026-01-14 (PR #14: Soft-Clip Saturation & Master Drive Control)
 
 ---
 
@@ -800,58 +800,67 @@ export function toGridArray(manifest: BeatManifest): {
 
 #### File: `src/lib/audioEngine.ts`
 
-**Master Effects Chain Initialization** (PR #2):
+**Master Effects Chain Initialization** (PR #2, Enhanced in PR #14):
 
-```typescript
+````typescript
 let masterChannel: Tone.Channel | null = null;
+let driveGain: Tone.Gain | null = null;
+let softClipper: Tone.WaveShaper | null = null;
+let outputComp: Tone.Gain | null = null;
 let masterCompressor: Tone.Compressor | null = null;
 let masterLimiter: Tone.Limiter | null = null;
 
 const BYPASS_MASTER_EFFECTS = false; // DEBUG flag
 
 /**
- * Initializes the master effects chain: Channel -> Compressor -> Limiter -> Destination
- * Called automatically by getMasterChannel() to ensure effects are always in place.
+ * Initializes the master effects chain: Channel -> DriveGain -> SoftClipper -> OutputComp -> Compressor -> Limiter -> Destination
+ * PR #14: Added soft-clip saturation for warm, analog-style master drive control
+ * Chain order: Drive signal into soft clipper, then compress for dynamics control, finally limit for safety
  */
 function initializeMasterEffects(): void {
-  if (masterChannel) {
-    return; // Already initialized
-  }
+  // Soft clipper: WaveShaper with sigmoid curve (tanh) for smooth saturation
+  softClipper = new Tone.WaveShaper((x) => Math.tanh(x), 4096);
 
-  masterChannel = new Tone.Channel();
+  // Input gain: controls how much signal drives into the soft clipper (unity default)
+  driveGain = new Tone.Gain(1);
 
-  if (BYPASS_MASTER_EFFECTS) {
-    masterChannel.toDestination();
-    console.log("[Master Effects] BYPASSED - Direct to destination");
-    return;
-  }
+  // Output compensation: maintains consistent volume across drive range
+  outputComp = new Tone.Gain(1);
 
   // Compressor: 8:1 ratio, -12dB threshold, 5ms attack, 70ms release
   masterCompressor = new Tone.Compressor({
-    threshold: -12, // dB
-    ratio: 8, // 8:1 compression ratio
-    attack: 0.005, // 5ms attack
-    release: 0.07, // 70ms release
+    threshold: -12,
+    ratio: 8,
+    attack: 0.005,
+    release: 0.07,
   });
 
-  // Limiter: -4dB ceiling (acts as brick-wall at approximately -2dB with headroom)
+  // Limiter: -4dB ceiling safety net
   masterLimiter = new Tone.Limiter(-4);
 
-  // Wire the chain: Channel -> Compressor -> Limiter -> Destination
-  masterChannel.chain(masterCompressor, masterLimiter, Tone.getDestination());
-
-  console.log(
-    "[Master Effects] Chain initialized: Channel -> Compressor -> Limiter -> Destination",
-  );
+  // Wire: Channel -> DriveGain -> SoftClipper -> OutputComp -> Compressor -> Limiter -> Destination
+  driveGain.connect(softClipper);
+  softClipper.connect(outputComp);
+  outputComp.connect(masterCompressor);
+  masterCompressor.connect(masterLimiter);
+  masterLimiter.toDestination();
+  masterChannel.connect(driveGain);
 }
 
-export function getMasterChannel(): Tone.Channel {
-  if (!masterChannel) {
-    initializeMasterEffects();
-  }
-  return masterChannel as Tone.Channel;
+**PR #14: Master Drive Control:**
+
+```typescript
+/**
+ * Maps 0-100% knob to 1.0-4.0 gain (+0 to +12dB into soft clipper)
+ * Auto-compensates output to maintain consistent volume
+ */
+export function setMasterDrive(percent: number): void {
+  const clampedPercent = Math.max(0, Math.min(100, percent));
+  const driveGainValue = 1 + (clampedPercent / 100) * 3; // 1.0-4.0 range
+  driveGain.gain.value = driveGainValue;
+  outputComp.gain.value = 1 / driveGainValue; // Inverse compensation
 }
-```
+````
 
 **Audio Context Resume & Sample Loading** (PR #2, Enhanced in PR #6):
 

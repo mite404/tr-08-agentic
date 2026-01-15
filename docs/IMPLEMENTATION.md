@@ -6,10 +6,12 @@
 
 ## Release Summary
 
-**11 PRs completed. Production-ready drum machine with v1.1/v1.2 features:**
+**14 PRs completed. Production-ready drum machine with v1.2 features + Master Drive/Swing:**
 
 - Persistent beat storage (Supabase)
-- Real-time sequencer with Tone.js master effects chain (Compressor + Limiter)
+- Real-time sequencer with Tone.js master effects chain (DriveGain → SoftClipper → Compressor → Limiter)
+- Global Swing control (0-100% Transport.swing with 16n subdivision)
+- Master Drive control (soft-clip saturation, 1.0-4.0 gain + auto-gain compensation)
 - Auth integration (Google, GitHub OAuth)
 - Error boundaries and crash protection
 - Mobile-optimized UX
@@ -361,19 +363,24 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ---
 
-### PR #14: Global Swing Swing + Drive
+### PR #14: Global Swing + Drive (Soft-Clip Saturation) — ✅ COMPLETE
 
-1.  **Audio Engine (`audioEngine.ts`):**
-    - Initialize `Tone.Distortion` in the Master Chain.
-    - **Position:** `Channel -> Distortion -> Compressor -> Limiter`.
-    - **Settings:** `oversample: '4x'` (High Quality).
-    - **Control:** Create `setMasterDrive(amount: 0-100)`.
-    - **Mapping:** Map input `0-100` -> Distortion Amount `0.0 - 0.5` (50% max).
+**Status:** Implemented with soft-clip saturation (Sigmoid/Tanh) instead of hard distortion.
 
-2.  **UI (`App.tsx`):**
-    - Add a **"Drive" Knob** next to Swing.
-    - Use the same `knob_swing.png` asset (or `knob_tone.png`).
-    - Label: "DRIVE" or "COLOR".
+1.  **Audio Engine (`audioEngine.ts`):** ✅ COMPLETE
+    - Implemented `Tone.WaveShaper` with sigmoid curve (`Math.tanh`) for warm saturation
+    - **Master Chain:** `Channel → DriveGain → SoftClipper → OutputComp → Compressor → Limiter → Destination`
+    - **DriveGain:** Maps knob 0-100% → gain 1.0-4.0 (+0 to +12dB boost into clipper)
+    - **SoftClipper:** Smooth analog-style clipping (no harsh digital artifacts)
+    - **OutputComp:** Auto-gain compensation (inverse of drive gain) maintains consistent volume
+    - **Control:** `setMasterDrive(percent: 0-100)` sets driveGain and outputComp simultaneously
+
+2.  **UI (`App.tsx`):** ✅ COMPLETE
+    - Added **"DRIVE" Knob** (labeled "SHUFFLE" and "DRIVE" in master section)
+    - Uses `GLOBAL_SWING.png` asset (same knob as swing control)
+    - Both knobs positioned left of Analyzer spectrum
+    - Drive knob triggers `handleDriveChange()` on drag
+    - Knob state persists in `drive` (0-100%) state variable
 
 ---
 
@@ -579,6 +586,6 @@ Examples:
 
 ---
 
-**Release Date:** December 1, 2025 (v1.0) | Updated: January 12, 2026 (PR #6)  
-**Version:** 1.0 + PR #6 Enhancements  
+**Release Date:** December 1, 2025 (v1.2) | Updated: January 14, 2026 (PR #14)  
+**Version:** 1.2
 **Status:** Production Ready ✅
