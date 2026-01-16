@@ -14,10 +14,10 @@ A sample-accurate, real-time 808-style sequencer engineered for low-latency brow
 
 ## Tech Stack
 
-- **Frontend**: React 19, TypeScript 5.9, Tailwind CSS v4, Vite
-- **Audio Engine**: Tone.js (Web Audio API), custom angle-to-dB conversion
-- **State & Persistence**: Supabase (PostgreSQL), Zod, Drizzle ORM
-- **DevOps**: GitHub Actions CI/CD, Vercel Deployment
+- **Frontend & UI:** React 19, TypeScript 5.9, Tailwind CSS v4, Vite.
+- **Audio & Systems:** Web Audio API (Tone.js), Logarithmic Signal Mapping, Master Bus Dynamics Processing.
+- **Backend & Persistence:** Supabase (PostgreSQL), Drizzle ORM, Zod-backed Schema Evolution.
+- **Security & DevOps:** PostgreSQL Row-Level Security (RLS), GitHub Actions CI/CD, Vercel.
 
 ## System Architecture
 
@@ -45,13 +45,15 @@ graph LR
 
 Real-time constraints are managed by decoupling audio scheduling from UI rendering. The sequencer schedules events in a look-ahead buffer, allowing the Web Audio API to handle precise timing of sample triggers independent of React's render cycles.
 
-### Volume Control System
+### Modular Rotational Control System
 
-The rotational knob uses **angle-to-dB conversion**:
+Refactored the knob component into a **parameter-agnostic rotational interface**:
 
-- Input range: 10–256 degrees
-- Output range: -25 dB to +5 dB
-- Linear interpolation: `((angle - min) / (max - min)) * (dbMax - dbMin) + dbMin`
+- **Input**: Rotation angle (10–256 degrees)
+- **Output**: Normalized value (arbitrary range, determined by parent)
+- **Mapping**: Linear interpolation agnostic to parameter type
+
+This decoupling enables the same component to control volume (−25 to +5 dB), pitch, swing, overdrive, or any continuous parameter. The knob handles only angle-to-value conversion; the parent component defines the output semantics.
 
 ### Beat Sequencing
 
@@ -71,8 +73,8 @@ The rotational knob uses **angle-to-dB conversion**:
 
 ## Key Modules
 
-- **src/lib/audioEngine.ts**: Hardware clock integration and effects chain
-- **src/lib/beatUtils.ts**: Schema normalization and persistence
-- **src/components/Knob.tsx**: High-precision rotational math
-- **src/sequencer.ts**: Tone.js Transport engine with look-ahead scheduling
-- **src/components/Pad.tsx**: Grid step buttons with playhead tracking
+- **src/lib/audioEngine.ts**: Orchestrates the Web Audio graph, including dynamic signal routing, master effects chain initialization, and fault-tolerant asset loading.
+- **src/lib/beatUtils.ts**: Manages data integrity and schema evolution; implements bidirectional transformation between UI state and Zod-validated persistence models.
+- **src/components/Knob.tsx**: A parameter-agnostic rotational input handler with configurable value-mapping.
+- **src/sequencer.ts**: The core timing engine; abstracts Tone.js Transport to provide decoupled audio scheduling from the React render cycle.
+- **src/components/Pad.tsx**: A performance-optimized step-sequencer interface featuring conditional rendering logic for real-time playhead tracking and ghost-note states.
