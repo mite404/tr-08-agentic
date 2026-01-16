@@ -47,25 +47,27 @@ function initializeMasterEffects(): void {
 
   // Create compressor with specified settings
   masterCompressor = new Tone.Compressor({
-    threshold: -12, // dB
+    threshold: -6, // dB
     ratio: 8, // 8:1 compression ratio
-    attack: 0.005, // 5ms attack
+    attack: 0.008, // 8ms attack
     release: 0.07, // 70ms release
   });
 
   // Create limiter for master bus limiting
   masterLimiter = new Tone.Limiter(-4); // -4dB ceiling
 
-  // Wire the chain: Channel -> DriveGain -> SoftClipper -> OutputComp -> Compressor -> Limiter -> Destination
+  // Wire the chain: Channel -> Compressor -> Limiter -> DriveGain -> SoftClipper -> OutputComp -> Destination
+  // PR #18 (Iteration 3): Move compressor BEFORE drive to glue tracks together first,
+  // then add distortion on top. This prevents compressor from reacting to distortion artifacts.
+  masterCompressor.connect(masterLimiter);
   driveGain.connect(softClipper);
   softClipper.connect(outputComp);
-  outputComp.connect(masterCompressor);
-  masterCompressor.connect(masterLimiter);
-  masterLimiter.toDestination();
-  masterChannel.connect(driveGain);
+  outputComp.toDestination();
+  masterLimiter.connect(driveGain);
+  masterChannel.connect(masterCompressor);
 
   console.log(
-    "[Master Effects] Chain initialized: Channel -> DriveGain -> SoftClipper -> OutputComp -> Compressor -> Limiter -> Destination",
+    "[Master Effects] Chain initialized: Channel -> Compressor -> Limiter -> DriveGain -> SoftClipper -> OutputComp -> Destination",
   );
 }
 
@@ -328,11 +330,11 @@ export function playTrack(
 }
 
 /**
- * PR #14: Set master drive (soft-clip saturation input gain)
- * Maps 0-100% knob input to 1.0-4.0 gain on drive input
+ * PR #18 (Iteration 2): Set master drive (soft-clip saturation input gain)
+ * Maps 0-100% knob input to 1.0-5.0 gain on drive input
  * 0% knob = 1.0 gain (unity, no drive)
- * 100% knob = 4.0 gain (+12 dB into soft clipper)
- * Auto-compensates output level to maintain consistent volume across drive range
+ * 100% knob = 5.0 gain (~14 dB into soft clipper, sweet spot)
+ * Relaxed output compensation allows saturation warmth to pass through
  *
  * @param percent - Drive amount 0-100
  */
@@ -343,15 +345,15 @@ export function setMasterDrive(percent: number): void {
   }
 
   const clampedPercent = Math.max(0, Math.min(100, percent));
-  const driveGainValue = 1 + (clampedPercent / 100) * 3; // Map to 1.0-4.0 range
+  const driveGainValue = 1 + (clampedPercent / 100) * 4; // Map to 1.0-5.0 range (PR #18 Iteration 2: reduced from 8.0)
 
   // Set input gain that drives the soft clipper
   driveGain.gain.value = driveGainValue;
 
-  // Auto-gain compensation: reduce output as drive increases to maintain level
-  // Simple inverse: outputComp = 1 / driveGainValue
-  // This keeps the output roughly consistent volume across the drive range
-  const compensationValue = 1 / driveGainValue;
+  // PR #18: Relaxed auto-gain compensation
+  // Instead of full inverse (1 / driveGainValue), allow some warmth through
+  // Formula: 1 / (driveGainValue * 0.7) lets ~70% of the saturation pass through
+  const compensationValue = 1 / (driveGainValue * 0.7);
   outputComp.gain.value = compensationValue;
 
   const driveDb = Tone.gainToDb(driveGainValue);
