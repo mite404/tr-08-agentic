@@ -384,7 +384,35 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ---
 
+### PR #16: Track Label Correction
+
+**Goal:** Fix the mislabeled instruments in the UI without breaking the underlying data.
+
+- **Why first?** It's a simple config change that clarifies the UI.
+- **Change:** `src/config/trackConfig.ts`.
+  - Change `label` for `snare_01` -> "CLAP".
+  - Change `label` for `clap` -> "SYNTH 02".
+  - (Keep the TrackIDs `snare_01` / `clap` the same so we don't break the database).
+
+### PR #17: UI Style Polish (Button & Labels)
+
+**Goal:** Fix the invisible button and add the column headers.
+
+- **Change 1:** `src/components/BeatLibrary.tsx`. Fix the `variant` or `className` of the Trigger button so it has contrast (e.g., `variant="outline"` or explicit colors).
+- **Change 2:** `src/App.tsx`. Add "TONE" and "LEVEL" text headers above the knob columns.
+
+### PR #18: Drive Tuning
+
+**Goal:** Make the Drive effect audible.
+
+- **Diagnosis:** The "Auto-Gain" logic is likely too aggressive (lowering volume _before_ the saturation is audible).
+- **Change:** `src/lib/audioEngine.ts`.
+  - Tweak the ratio. If we boost Input by +6dB, maybe only cut Output by -3dB.
+  - Or increase the max Drive Gain (from 4.0 to 6.0). We need to push the WaveShaper harder to hear the crunch.
+
 ## Bug Fixes & Critical Patches
+
+---
 
 ### Volume Persistence Fix (PR #12)
 
@@ -524,7 +552,7 @@ The project ships without automated tests. All requirements have been **manually
 - **No undo/redo:** No action history
 - **Single drum kit:** Only 10 tracks, no custom samples
 
-### Future Features (Post-v1.0)
+### Future Features (Post-v1.2)
 
 - [ ] Multi-user collaboration with WebSocket sync
 - [ ] Shareable beat URLs with public/private visibility
@@ -533,7 +561,7 @@ The project ships without automated tests. All requirements have been **manually
 - [ ] Custom sample upload
 - [ ] Preset templates
 - [ ] Social feed ("Graffiti Wall" view)
-- [ ] Dark mode theme
+- [ ] Dark/Light mode theme
 - [ ] MIDI controller support
 
 ---

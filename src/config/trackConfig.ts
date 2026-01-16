@@ -87,7 +87,7 @@ export const TRACK_REGISTRY: TrackConfig[] = [
   {
     trackId: "snare_01",
     rowIndex: 4,
-    label: "SNARE 01",
+    label: "CLAP",
     sampleId: "CLAP",
     color: "bg-yellow-800",
   },
@@ -108,7 +108,7 @@ export const TRACK_REGISTRY: TrackConfig[] = [
   {
     trackId: "clap",
     rowIndex: 7,
-    label: "CLAP",
+    label: "SYNTH 02",
     sampleId: "STAB_C",
     color: "bg-yellow-900",
   },
