@@ -134,8 +134,8 @@ export const BeatManifestSchema = z.object({
   }),
   global: z.object({
     bpm: z.number().int().min(40).max(300),
-    swing: z.number().min(0).max(100).default(0), // PR #19: 0-100 range
-    drive: z.number().min(0).max(100).default(0), // PR #19: 0-100 range
+    swing: z.number().min(0).max(100).optional().default(0), // PR #19: 0-100 range
+    drive: z.number().min(0).max(100).optional().default(0), // PR #19: 0-100 range
     masterVolumeDb: z.number().min(-60).max(6),
   }),
   tracks: z.record(TrackIDSchema, TrackDataSchema),

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { toManifest, toGridArray, calculateEffectiveVolume } from "./beatUtils";
+import { normalizeBeatData } from "../types/beat";
 import type { TrackID, BeatManifest } from "../types/beat";
 
 /**
@@ -466,5 +467,273 @@ describe("Knob - Pitch Conversion", () => {
     const midAngle = (MIN_ROTATION_ANGLE + MAX_ROTATION_ANGLE) / 2;
     const volume = angleToPitch(midAngle, -45, 5);
     expect(volume).toBeCloseTo(-20, 1); // (-45 + 5) / 2 = -20
+  });
+});
+
+/**
+ * Test Suite 4: Migration Defaults (PR #19 - Backward Compatibility)
+ * Tests that old beat data (v1.0 and v1.1) loads with safe defaults when
+ * swing, drive, pitch, and accents fields are missing.
+ *
+ * This ensures users' older beats don't break when they upgrade to v1.2.
+ */
+describe("normalizeBeatData - Migration Defaults (PR #19)", () => {
+  // Helper to create minimal complete track data
+  const createDefaultTrack = (sampleId: string): TrackData => ({
+    sampleId,
+    volumeDb: 0,
+    mute: false,
+    solo: false,
+    steps: Array(16).fill(false),
+    accents: Array(16).fill(false),
+    pitch: 0,
+  });
+
+  // Helper to create all 10 required tracks
+  const createAllTracks = () => ({
+    kick_01: createDefaultTrack("KICK_01"),
+    kick_02: createDefaultTrack("KICK_02"),
+    bass_01: createDefaultTrack("BASS_TONE"),
+    bass_02: createDefaultTrack("BASS_01"),
+    snare_01: createDefaultTrack("CLAP"),
+    snare_02: createDefaultTrack("SNARE_02"),
+    synth_01: createDefaultTrack("STAB_DM"),
+    clap: createDefaultTrack("STAB_C"),
+    hh_01: createDefaultTrack("HAT_CLS"),
+    hh_02: createDefaultTrack("HAT_OPN"),
+  });
+
+  it("should inject drive: 0 when missing from v1.1 beat", () => {
+    const oldBeatData = {
+      meta: { version: "1.1.0", engine: "tone.js@15.1.22" },
+      global: { bpm: 140, masterVolumeDb: 0 }, // Missing swing and drive
+      tracks: createAllTracks(),
+    };
+
+    const result = normalizeBeatData(oldBeatData);
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      expect(result.data.global.drive).toBe(0);
+    }
+  });
+
+  it("should inject swing: 0 when missing from v1.1 beat", () => {
+    const oldBeatData = {
+      meta: { version: "1.1.0", engine: "tone.js@15.1.22" },
+      global: { bpm: 140, masterVolumeDb: 0 }, // Missing swing and drive
+      tracks: createAllTracks(),
+    };
+
+    const result = normalizeBeatData(oldBeatData);
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      expect(result.data.global.swing).toBe(0);
+    }
+  });
+
+  it("should inject both drive and swing when missing", () => {
+    const oldBeatData = {
+      meta: { version: "1.1.0", engine: "tone.js@15.1.22" },
+      global: { bpm: 140, masterVolumeDb: 0 },
+      tracks: createAllTracks(),
+    };
+
+    const result = normalizeBeatData(oldBeatData);
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      expect(result.data.global.drive).toBe(0);
+      expect(result.data.global.swing).toBe(0);
+    }
+  });
+
+  it("should inject pitch: 0 when missing from v1.0 track data", () => {
+    const tracks = createAllTracks();
+    // Remove pitch from all tracks to simulate v1.0 data
+    Object.values(tracks).forEach((track: any) => {
+      delete track.pitch;
+    });
+
+    const oldBeatData = {
+      meta: { version: "1.0.0", engine: "tone.js@15.1.22" },
+      global: { bpm: 140, swing: 0, drive: 0, masterVolumeDb: 0 },
+      tracks,
+    };
+
+    const result = normalizeBeatData(oldBeatData);
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      expect(result.data.tracks.kick_01.pitch).toBe(0);
+    }
+  });
+
+  it("should inject accents array when missing from v1.0 track data", () => {
+    const tracks = createAllTracks();
+    // Remove accents from all tracks to simulate v1.0 data
+    Object.values(tracks).forEach((track: any) => {
+      delete track.accents;
+    });
+
+    const oldBeatData = {
+      meta: { version: "1.0.0", engine: "tone.js@15.1.22" },
+      global: { bpm: 140, swing: 0, drive: 0, masterVolumeDb: 0 },
+      tracks,
+    };
+
+    const result = normalizeBeatData(oldBeatData);
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      expect(result.data.tracks.kick_01.accents).toEqual(Array(16).fill(false));
+    }
+  });
+
+  it("should inject all missing fields (v1.0 to v1.2 migration)", () => {
+    const tracks = createAllTracks();
+    // Remove pitch and accents to simulate v1.0 data
+    Object.values(tracks).forEach((track: any) => {
+      delete track.pitch;
+      delete track.accents;
+    });
+
+    const oldBeatData = {
+      meta: { version: "1.0.0", engine: "tone.js@15.1.22" },
+      global: { bpm: 140, masterVolumeDb: 0 }, // Missing swing, drive
+      tracks,
+    };
+
+    const result = normalizeBeatData(oldBeatData);
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      // Global fields
+      expect(result.data.global.swing).toBe(0);
+      expect(result.data.global.drive).toBe(0);
+      // Track fields
+      expect(result.data.tracks.kick_01.pitch).toBe(0);
+      expect(result.data.tracks.kick_01.accents).toEqual(Array(16).fill(false));
+    }
+  });
+
+  it("should preserve existing drive and swing values when present", () => {
+    const existingBeatData = {
+      meta: { version: "1.2.0", engine: "tone.js@15.1.22" },
+      global: { bpm: 140, swing: 35, drive: 60, masterVolumeDb: 0 },
+      tracks: createAllTracks(),
+    };
+
+    const result = normalizeBeatData(existingBeatData);
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      expect(result.data.global.swing).toBe(35);
+      expect(result.data.global.drive).toBe(60);
+    }
+  });
+
+  it("should handle complete v1.0 beat without any new fields", () => {
+    const v10BeatData = {
+      meta: { version: "1.0.0", engine: "tone.js@15.1.22" },
+      global: { bpm: 120, masterVolumeDb: 0 },
+      tracks: {
+        kick_01: {
+          sampleId: "KICK_01",
+          volumeDb: 0,
+          mute: false,
+          solo: false,
+          steps: [
+            true,
+            false,
+            true,
+            false,
+            true,
+            false,
+            true,
+            false,
+            true,
+            false,
+            true,
+            false,
+            true,
+            false,
+            true,
+            false,
+          ],
+        },
+        kick_02: {
+          sampleId: "KICK_02",
+          volumeDb: 0,
+          mute: false,
+          solo: false,
+          steps: Array(16).fill(false),
+        },
+        bass_01: {
+          sampleId: "BASS_TONE",
+          volumeDb: 0,
+          mute: false,
+          solo: false,
+          steps: Array(16).fill(false),
+        },
+        bass_02: {
+          sampleId: "BASS_01",
+          volumeDb: 0,
+          mute: false,
+          solo: false,
+          steps: Array(16).fill(false),
+        },
+        snare_01: {
+          sampleId: "CLAP",
+          volumeDb: 0,
+          mute: false,
+          solo: false,
+          steps: Array(16).fill(false),
+        },
+        snare_02: {
+          sampleId: "SNARE_02",
+          volumeDb: 0,
+          mute: false,
+          solo: false,
+          steps: Array(16).fill(false),
+        },
+        synth_01: {
+          sampleId: "STAB_DM",
+          volumeDb: 0,
+          mute: false,
+          solo: false,
+          steps: Array(16).fill(false),
+        },
+        clap: {
+          sampleId: "STAB_C",
+          volumeDb: 0,
+          mute: false,
+          solo: false,
+          steps: Array(16).fill(false),
+        },
+        hh_01: {
+          sampleId: "HAT_CLS",
+          volumeDb: 0,
+          mute: false,
+          solo: false,
+          steps: Array(16).fill(false),
+        },
+        hh_02: {
+          sampleId: "HAT_OPN",
+          volumeDb: 0,
+          mute: false,
+          solo: false,
+          steps: Array(16).fill(false),
+        },
+      },
+    };
+
+    const result = normalizeBeatData(v10BeatData);
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      // All tracks should have injected defaults
+      expect(result.data.global.swing).toBe(0);
+      expect(result.data.global.drive).toBe(0);
+      Object.keys(result.data.tracks).forEach((trackId) => {
+        expect(result.data.tracks[trackId as never].pitch).toBe(0);
+        expect(result.data.tracks[trackId as never].accents).toEqual(
+          Array(16).fill(false),
+        );
+      });
+    }
   });
 });
