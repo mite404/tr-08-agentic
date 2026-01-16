@@ -1027,7 +1027,21 @@ function App() {
             {/* Analyzer (to the right) */}
             <Analyzer />
           </div>
-
+          <div>
+            {/* Column headers for knobs */}
+            <div className="flex h-[25px] items-center gap-1">
+              <div className="w-14"></div> {/* Spacer for label */}
+              <div className="flex h-6 w-12 items-center justify-center text-xs font-bold text-white">
+                TONE
+              </div>
+              <div className="flex h-6 w-12 items-center justify-center text-xs font-bold text-white">
+                LEVEL
+              </div>
+              <div className="w-[30px]"></div> {/* Spacer for M */}
+              <div className="w-[30px]"></div> {/* Spacer for S */}
+              <div className="w-[30px]"></div> {/* Spacer for C */}
+            </div>
+          </div>
           {/* container for TRACK CONTROLS & GRID divs */}
           <div className="flex w-full flex-row">
             {/* PR #11: Track Controls column (channel strip per track) */}
