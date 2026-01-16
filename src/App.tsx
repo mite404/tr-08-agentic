@@ -331,6 +331,12 @@ function App() {
             createSequencerRef.current.updateBpm(loadedBeat.bpm);
           }
 
+          // PR #19: Sync global settings (Swing and Drive) to React state and audio engine
+          setSwing(loadedBeat.swing ?? 0);
+          setDrive(loadedBeat.drive ?? 0);
+          setMasterSwing(loadedBeat.swing ?? 0);
+          setMasterDrive(loadedBeat.drive ?? 0);
+
           // PR #9: Load pitch values into UI state
           const pitchArray = trackIdsByRowRef.current.map(
             (trackId) => loadedBeat.trackPitches[trackId] ?? 0,
@@ -715,6 +721,8 @@ function App() {
         trackMutes: trackMutesRecord,
         trackSolos: trackSolosRecord,
         trackVolumes: trackVolumesRecord,
+        swing, // PR #19: Save current swing/shuffle value
+        drive, // PR #19: Save current drive/saturation value
       });
 
       // PR #12: Refresh beat list after successful save
@@ -744,6 +752,12 @@ function App() {
         if (createSequencerRef.current) {
           createSequencerRef.current.updateBpm(loadedBeat.bpm);
         }
+
+        // PR #19: Sync global settings (Swing and Drive) to React state and audio engine
+        setSwing(loadedBeat.swing ?? 0);
+        setDrive(loadedBeat.drive ?? 0);
+        setMasterSwing(loadedBeat.swing ?? 0);
+        setMasterDrive(loadedBeat.drive ?? 0);
 
         // Load pitch values
         const pitchArray = trackIdsByRowRef.current.map(

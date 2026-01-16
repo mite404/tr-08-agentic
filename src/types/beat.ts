@@ -49,6 +49,8 @@ export interface TrackData {
 /**
  * Complete beat manifest containing all sequencer state.
  * This is the canonical format for storing beats in the database.
+ *
+ * PR #19: Added swing and drive to global settings for persistence
  */
 export interface BeatManifest {
   meta: {
@@ -57,7 +59,8 @@ export interface BeatManifest {
   };
   global: {
     bpm: number; // Tempo in beats per minute (40-300)
-    swing: number; // Swing amount (0.0-1.0, 0 = no swing)
+    swing: number; // Swing/Shuffle amount (0-100, 0 = no swing) [PR #19]
+    drive: number; // Master drive/saturation amount (0-100, 0 = no drive) [PR #19]
     masterVolumeDb: number; // Master volume in decibels (-60 to +6)
   };
   tracks: Record<TrackID, TrackData>; // Per-track configuration
@@ -122,6 +125,7 @@ export const TrackDataSchema = z.object({
 
 /**
  * Zod schema for BeatManifest with nested validation.
+ * PR #19: Added drive field to global settings
  */
 export const BeatManifestSchema = z.object({
   meta: z.object({
@@ -130,7 +134,8 @@ export const BeatManifestSchema = z.object({
   }),
   global: z.object({
     bpm: z.number().int().min(40).max(300),
-    swing: z.number().min(0).max(1),
+    swing: z.number().min(0).max(100).default(0), // PR #19: 0-100 range
+    drive: z.number().min(0).max(100).default(0), // PR #19: 0-100 range
     masterVolumeDb: z.number().min(-60).max(6),
   }),
   tracks: z.record(TrackIDSchema, TrackDataSchema),
@@ -141,7 +146,7 @@ export const BeatManifestSchema = z.object({
  * Returns a Result-style object with either valid data or an error.
  *
  * v1.1 Migration: Automatically adds missing pitch fields (defaults to 0) for v1.0 beats.
- * Also adds ac_01 track if missing (for backward compatibility).
+ * v1.2 Migration: Automatically adds missing swing/drive fields (defaults to 0) for v1.1 beats.
  *
  * @param data - Untrusted data to validate
  * @returns { valid: true, data: BeatManifest } | { valid: false, error: string }
@@ -149,11 +154,11 @@ export const BeatManifestSchema = z.object({
 export function normalizeBeatData(
   data: unknown,
 ): { valid: true; data: BeatManifest } | { valid: false; error: string } {
-  // v1.1: Pre-process data to inject missing fields for backward compatibility
+  // Pre-process data to inject missing fields for backward compatibility
   if (data && typeof data === "object" && "tracks" in data) {
     const manifest = data as any;
 
-    // Inject pitch: 0 and accents: Array(16).fill(false) into any track that doesn't have them
+    // v1.1: Inject pitch: 0 and accents: Array(16).fill(false) into any track that doesn't have them
     for (const trackId in manifest.tracks) {
       if (manifest.tracks[trackId]) {
         // Add pitch if missing
@@ -164,6 +169,16 @@ export function normalizeBeatData(
         if (typeof manifest.tracks[trackId].accents === "undefined") {
           manifest.tracks[trackId].accents = Array(16).fill(false);
         }
+      }
+    }
+
+    // PR #19: Inject swing and drive into global if missing (backward compatibility with v1.1 beats)
+    if (manifest.global) {
+      if (typeof manifest.global.swing === "undefined") {
+        manifest.global.swing = 0;
+      }
+      if (typeof manifest.global.drive === "undefined") {
+        manifest.global.drive = 0;
       }
     }
   }
@@ -278,8 +293,8 @@ export function getDefaultBeatManifest(): BeatManifest {
   };
 
   return {
-    meta: { version: "1.1.0", engine: "tone.js@15.1.22" }, // v1.1
-    global: { bpm: 140, swing: 0, masterVolumeDb: 0 },
+    meta: { version: "1.2.0", engine: "tone.js@15.1.22" }, // PR #19: Updated to v1.2
+    global: { bpm: 140, swing: 0, drive: 0, masterVolumeDb: 0 }, // PR #19: Added drive
     tracks: defaultTracks,
   };
 }

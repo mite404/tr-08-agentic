@@ -74,6 +74,7 @@ export function calculateEffectiveVolume(
  *
  * v1.1: Added pitch and accents parameter support
  * v1.2: Added mute, solo, and volume state parameters
+ * PR #19: Added swing and drive parameter support
  *
  * @param grid - 10×16 boolean array (grid[rowIndex][stepIndex])
  * @param bpm - Tempo in beats per minute
@@ -82,6 +83,8 @@ export function calculateEffectiveVolume(
  * @param trackMutes - Optional mute states per track (defaults to all false)
  * @param trackSolos - Optional solo states per track (defaults to all false)
  * @param trackVolumes - Optional volume values per track in dB (defaults to 0)
+ * @param swing - Optional swing/shuffle amount 0-100 (defaults to 0)
+ * @param drive - Optional drive/saturation amount 0-100 (defaults to 0)
  * @returns BeatManifest with tracks populated from grid
  *
  * Note: beatName is stored separately in BeatRecord, not in BeatManifest
@@ -94,6 +97,8 @@ export function toManifest(
   trackMutes?: Record<TrackID, boolean>,
   trackSolos?: Record<TrackID, boolean>,
   trackVolumes?: Record<TrackID, number>,
+  swing?: number,
+  drive?: number,
 ): BeatManifest {
   // Use TRACK_REGISTRY as source of truth for track order
   const TRACK_REGISTRY_SORTED = [...TRACK_REGISTRY].sort(
@@ -118,8 +123,8 @@ export function toManifest(
   });
 
   return {
-    meta: { version: "1.1.0", engine: "tone.js@15.1.22" }, // v1.1
-    global: { bpm, swing: 0, masterVolumeDb: 0 },
+    meta: { version: "1.2.0", engine: "tone.js@15.1.22" }, // PR #19: Updated to v1.2
+    global: { bpm, swing: swing ?? 0, drive: drive ?? 0, masterVolumeDb: 0 }, // PR #19: Added swing and drive
     tracks,
   };
 }
@@ -130,13 +135,16 @@ export function toManifest(
  *
  * v1.1: Added trackPitches and trackAccents to return value for pitch knob and accent states
  * v1.2: Added trackMutes and trackSolos to return value for mute/solo states
+ * PR #19: Added swing and drive to return value for master control knobs
  *
  * @param manifest - The beat manifest to convert
- * @returns Object containing grid (10×16), bpm, volumes, pitches, accents, mutes, and solos
+ * @returns Object containing grid (10×16), bpm, swing, drive, volumes, pitches, accents, mutes, and solos
  */
 export function toGridArray(manifest: BeatManifest): {
   grid: boolean[][];
   bpm: number;
+  swing: number; // PR #19: Swing/shuffle value
+  drive: number; // PR #19: Drive/saturation value
   beatName: string; // Note: beatName comes from DB record, not manifest
   trackVolumes: Record<TrackID, number>; // Calculated effective volumes
   trackPitches: Record<TrackID, number>; // v1.1: Pitch shift values per track
@@ -185,6 +193,8 @@ export function toGridArray(manifest: BeatManifest): {
   return {
     grid,
     bpm: manifest.global.bpm,
+    swing: manifest.global.swing ?? 0, // PR #19: Swing value (default 0 for backward compatibility)
+    drive: manifest.global.drive ?? 0, // PR #19: Drive value (default 0 for backward compatibility)
     beatName: "TR-08", // Default name (actual name comes from BeatRecord)
     trackVolumes,
     trackPitches, // v1.1

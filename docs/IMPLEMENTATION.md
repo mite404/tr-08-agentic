@@ -410,6 +410,21 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
   - Tweak the ratio. If we boost Input by +6dB, maybe only cut Output by -3dB.
   - Or increase the max Drive Gain (from 4.0 to 6.0). We need to push the WaveShaper harder to hear the crunch.
 
+PR #19: Global Settings Persistence)
+
+1.  **Schema Update (`src/types/beat.ts`):**
+    - Add `swing: number` (0-100) to `BeatManifest.global`.
+    - Add `drive: number` (0-100) to `BeatManifest.global`.
+    - Update Zod schema.
+    - Update `normalizeBeatData` to inject defaults (0) for old beats.
+
+2.  **App Logic (`src/App.tsx`):**
+    - Update `handleLoadBeat` to read these values and set state (`setSwing`, `setDrive`).
+    - **Crucial:** Call the audio engine setters (`setMasterDrive`, `setMasterSwing`) immediately on load.
+
+3.  **Utils (`src/lib/beatUtils.ts`):**
+    - Update `toManifest` to grab the current Swing/Drive values from arguments/state.
+
 ## Bug Fixes & Critical Patches
 
 ---
@@ -427,6 +442,31 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 **Files Modified:**
 
 - `src/lib/beatUtils.ts`: Line ~761 in `toGridArray()` — changed to return `trackData.volumeDb` instead of `calculateEffectiveVolume()`
+
+### Fix BPM Desync State (Unplanned PR)
+
+**BPM Desync Bug Fixed.**
+
+**Root Cause:**
+Both `loadInitialData` (mount) and `handleLoadBeatById` (library load) were calling `setBpm()` for React state only. The Tone.js Transport was never updated, so the audio engine kept running at whatever BPM it had before.
+
+**Fix Applied:**
+Added explicit Tone.Transport sync after each beat load:
+
+```typescript
+Tone.Transport.bpm.value = loadedBeat.bpm;
+if (createSequencerRef.current) {
+  createSequencerRef.current.updateBpm(loadedBeat.bpm);
+}
+```
+
+**What Now Happens:**
+
+1. User loads beat with BPM 120 from library
+2. `setBpm(120)` updates UI display
+3. `Tone.Transport.bpm.value = 120` forces audio engine to match immediately
+4. `updateBpm(120)` ensures sequencer callback sees the new tempo
+5. No more desync between display and playback
 
 ---
 
