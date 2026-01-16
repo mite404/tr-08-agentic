@@ -24,6 +24,8 @@ import type { TrackID } from "../types/beat";
 export interface LoadedBeatData {
   grid: boolean[][];
   bpm: number;
+  swing: number; // PR #19: Shuffle/swing value
+  drive: number; // PR #19: Drive/saturation value
   beatName: string;
   trackVolumes: Record<TrackID, number>;
   trackPitches: Record<TrackID, number>; // v1.1

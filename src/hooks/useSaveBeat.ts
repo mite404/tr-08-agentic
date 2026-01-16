@@ -31,6 +31,8 @@ export interface SaveBeatParams {
   trackAccents?: Record<TrackID, boolean[]>; // Optional, for accent patterns
   trackMutes?: Record<TrackID, boolean>; // Optional, for mute states
   trackSolos?: Record<TrackID, boolean>; // Optional, for solo states
+  swing?: number; // PR #19: Swing/shuffle value (0-100)
+  drive?: number; // PR #19: Drive/saturation value (0-100)
 }
 
 export interface UseSaveBeatReturn {
@@ -57,6 +59,8 @@ export function useSaveBeat(session: Session | null): UseSaveBeatReturn {
       trackMutes,
       trackSolos,
       trackVolumes,
+      swing,
+      drive,
     }: SaveBeatParams): Promise<void> => {
       // Validation: User must be authenticated
       if (!session?.user) {
@@ -79,7 +83,7 @@ export function useSaveBeat(session: Session | null): UseSaveBeatReturn {
       setError(null);
 
       try {
-        // Step 1: Convert grid to BeatManifest (with optional pitch, accent, mute, solo, and volume states)
+        // Step 1: Convert grid to BeatManifest (with optional pitch, accent, mute, solo, volume, swing, and drive)
         const manifest = toManifest(
           grid,
           bpm,
@@ -88,6 +92,8 @@ export function useSaveBeat(session: Session | null): UseSaveBeatReturn {
           trackMutes,
           trackSolos,
           trackVolumes,
+          swing,
+          drive,
         );
 
         // Step 2: Validate manifest structure
