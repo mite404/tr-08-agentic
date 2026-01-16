@@ -325,6 +325,12 @@ function App() {
           setBpm(loadedBeat.bpm);
           setBeatName(loadedBeat.beatName);
 
+          // BUG FIX: Sync Tone.Transport BPM immediately (not just React state)
+          Tone.Transport.bpm.value = loadedBeat.bpm;
+          if (createSequencerRef.current) {
+            createSequencerRef.current.updateBpm(loadedBeat.bpm);
+          }
+
           // PR #9: Load pitch values into UI state
           const pitchArray = trackIdsByRowRef.current.map(
             (trackId) => loadedBeat.trackPitches[trackId] ?? 0,
@@ -358,7 +364,9 @@ function App() {
             }
           });
 
-          console.log(`[App] Auto-loaded beat: "${loadedBeat.beatName}"`);
+          console.log(
+            `[App] Auto-loaded beat: "${loadedBeat.beatName}" at ${loadedBeat.bpm} BPM`,
+          );
         } else {
           console.log("[App] No beats found, using default grid");
         }
@@ -731,6 +739,12 @@ function App() {
         setBpm(loadedBeat.bpm);
         setBeatName(loadedBeat.beatName);
 
+        // BUG FIX: Sync Tone.Transport BPM immediately (not just React state)
+        Tone.Transport.bpm.value = loadedBeat.bpm;
+        if (createSequencerRef.current) {
+          createSequencerRef.current.updateBpm(loadedBeat.bpm);
+        }
+
         // Load pitch values
         const pitchArray = trackIdsByRowRef.current.map(
           (trackId) => loadedBeat.trackPitches[trackId] ?? 0,
@@ -764,7 +778,9 @@ function App() {
           }
         });
 
-        console.log(`[App] Loaded beat from library: "${loadedBeat.beatName}"`);
+        console.log(
+          `[App] Loaded beat from library: "${loadedBeat.beatName}" at ${loadedBeat.bpm} BPM`,
+        );
       }
     } catch (err) {
       console.error("[App] Load from library failed:", err);
