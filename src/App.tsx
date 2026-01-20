@@ -255,28 +255,36 @@ function App() {
   const [bpm, setBpm] = useState(140);
   const [grid, setGrid] = useState(initialGrid);
   const [currentStep, setCurrentStep] = useState(0);
+  const [swing, setSwing] = useState<number>(0); // PR #14: Global swing (0-100%)
+  const [drive, setDrive] = useState<number>(0); // PR #14: Master drive/distortion (0-100%)
   const [loadedCount, setLoadedCount] = useState(0);
   const [allPlayersReady, setAllPlayersReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [beatName, setBeatName] = useState("TR-08");
   const [isEditTitleActive, setIsEditTitleActive] = useState(false);
-  const [trackVolumes, setTrackVolumes] = useState<number[]>(
+  const [trackVolumes, setTrackVolumes] = useState<Array<number>>(
     Array(10).fill(-5),
   );
   // PR #9: Track pitch values for pitch knobs
-  const [trackPitches, setTrackPitches] = useState<number[]>(Array(10).fill(0));
+  const [trackPitches, setTrackPitches] = useState<Array<number>>(
+    Array(10).fill(0),
+  );
+  const [trackAccents, setTrackAccents] = useState<Array<Array<boolean>>>(
+    Array(10)
+      .fill(null)
+      .map(() => Array(16).fill(false)),
+  );
   // PR #6: Track failed audio samples for visual feedback
-  const [failedTrackIds, setFailedTrackIds] = useState<TrackID[]>([]);
+  const [failedTrackIds, setFailedTrackIds] = useState<Array<TrackID>>([]);
   // PR #11: Track mute and solo states per track
-  const [trackMutes, setTrackMutes] = useState<boolean[]>(
+  const [trackMutes, setTrackMutes] = useState<Array<boolean>>(
     Array(10).fill(false),
   );
-  const [trackSolos, setTrackSolos] = useState<boolean[]>(
+  const [trackSolos, setTrackSolos] = useState<Array<boolean>>(
     Array(10).fill(false),
   );
-  const [swing, setSwing] = useState<number>(0); // PR #14: Global swing (0-100%)
-  const [drive, setDrive] = useState<number>(0); // PR #14: Master drive/distortion (0-100%)
 
+  // Master clock (audio)
   const createSequencerRef = useRef<ReturnType<typeof createSequencer>>(null);
   const gridRef = useRef(grid);
   const playersInitializedRef = useRef(false);
@@ -332,9 +340,9 @@ function App() {
           }
 
           // PR #19: Sync global settings (Swing and Drive) to React state and audio engine
-          setSwing(loadedBeat.swing ?? 0);
+          setSwing(loadedBeat.swing ?? 0); // Updates knob UI
           setDrive(loadedBeat.drive ?? 0);
-          setMasterSwing(loadedBeat.swing ?? 0);
+          setMasterSwing(loadedBeat.swing ?? 0); // Audio Engine control
           setMasterDrive(loadedBeat.drive ?? 0);
 
           // PR #9: Load pitch values into UI state
@@ -607,12 +615,27 @@ function App() {
       newGrid[rowIndex][colIndex] = true;
       trackData.steps[colIndex] = true;
       trackData.accents[colIndex] = false;
+
+      // Update React state for the pad cell's Ghost note
+      setTrackAccents((prev) => {
+        const updated = structuredClone(prev);
+        updated[rowIndex][colIndex] = false;
+        return updated;
+      });
+
       setGrid(newGrid);
       console.log(`[3-State] ${trackId} step ${colIndex}: OFF → ON (Normal)`);
     } else if (isActive && !isAccented) {
       // State 2: ON (Normal) → ON (Ghost)
-      trackData.accents[colIndex] = true;
-      setGrid([...grid]); // Force re-render
+      trackData.steps[colIndex] = true;
+      trackData.accents[colIndex] = true; // Updates BeatManifest.tracks[trackId].accents[colIndex]
+
+      setTrackAccents((prev) => {
+        const updated = structuredClone(prev);
+        updated[rowIndex][colIndex] = true;
+        return updated;
+      });
+
       console.log(
         `[3-State] ${trackId} step ${colIndex}: ON (Normal) → ON (Ghost)`,
       );
@@ -622,6 +645,13 @@ function App() {
       newGrid[rowIndex][colIndex] = false;
       trackData.steps[colIndex] = false;
       trackData.accents[colIndex] = false;
+
+      setTrackAccents((prev) => {
+        const updated = structuredClone(prev);
+        updated[rowIndex][colIndex] = false;
+        return updated;
+      });
+
       setGrid(newGrid);
       console.log(`[3-State] ${trackId} step ${colIndex}: ON (Ghost) → OFF`);
     }
