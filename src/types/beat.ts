@@ -41,8 +41,8 @@ export interface TrackData {
   volumeDb: number; // Track volume in decibels (-60 to +6)
   mute: boolean; // Mute state (overrides solo)
   solo: boolean; // Solo state (silences non-solo tracks)
-  steps: boolean[]; // 16-step sequence (true = trigger, false = silent)
-  accents: boolean[]; // 16-step accent pattern (true = -7dB softer, false = 0dB full) [v1.1]
+  steps: Array<boolean>; // 16-step sequence (true = trigger, false = silent)
+  accents: Array<boolean>; // 16-step accent pattern (true = -7dB softer, false = 0dB full) [v1.1]
   pitch: number; // Pitch shift in semitones (-12 to +12, 0 = no shift) [v1.1]
 }
 
