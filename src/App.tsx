@@ -272,7 +272,7 @@ function App() {
   const [trackAccents, setTrackAccents] = useState<Array<Array<boolean>>>(
     Array(10)
       .fill(null)
-      .map(() => Array(16).fill(false)),
+      .map(() => Array(16).fill(false) as Array<boolean>),
   );
   // PR #6: Track failed audio samples for visual feedback
   const [failedTrackIds, setFailedTrackIds] = useState<Array<TrackID>>([]);
@@ -367,6 +367,12 @@ function App() {
             (trackId) => loadedBeat.trackVolumes[trackId] ?? 0,
           );
           setTrackVolumes(volumeArray);
+
+          // PR
+          const trackAccentsArray = trackIdsByRowRef.current.map(
+            (trackId) => loadedBeat.trackAccents[trackId] ?? false,
+          );
+          setTrackAccents(trackAccentsArray);
 
           // PR #11: Update manifest with loaded states so sequencer has fresh data
           trackIdsByRowRef.current.forEach((trackId, index) => {
@@ -735,12 +741,17 @@ function App() {
         TrackID,
         number
       >;
+      const trackAccentsRecord: Record<TrackID, Array<boolean>> = {} as Record<
+        TrackID,
+        Array<boolean>
+      >;
 
       trackIdsByRowRef.current.forEach((trackId, index) => {
         trackMutesRecord[trackId] = trackMutes[index];
         trackSolosRecord[trackId] = trackSolos[index];
         trackPitchesRecord[trackId] = trackPitches[index];
         trackVolumesRecord[trackId] = trackVolumes[index];
+        trackAccentsRecord[trackId] = trackAccents[index];
       });
 
       await saveBeat({
@@ -751,6 +762,7 @@ function App() {
         trackMutes: trackMutesRecord,
         trackSolos: trackSolosRecord,
         trackVolumes: trackVolumesRecord,
+        trackAccents: trackAccentsRecord,
         swing, // PR #19: Save current swing/shuffle value
         drive, // PR #19: Save current drive/saturation value
       });
