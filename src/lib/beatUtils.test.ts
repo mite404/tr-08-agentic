@@ -410,6 +410,56 @@ describe("beatUtils - Save/Load Cycle", () => {
     // Should still get the volume knob value, not -Infinity
     expect(loadedData.trackVolumes.kick_02).toBe(0); // Was muted but volume should still be readable
   });
+
+  it("should preserve accent state upon load", () => {
+    const bpm = 140;
+    const savedManifest = toManifest(
+      mockGrid,
+      bpm,
+      undefined,
+      trackAccents,
+      undefined,
+      undefined,
+      undefined,
+    );
+    const loadedData = toGridArray(savedManifest);
+
+    // Accents appear in right structure within the manifest
+    expect(loadedData.trackAccents.kick_01).toEqual(trackAccents.kick_01);
+    expect(loadedData.trackAccents.bass_01).toEqual(trackAccents.bass_01);
+
+    // Verify a specific accent pattern is correct
+    expect(loadedData.trackAccents.bass_01[1]).toBe(true);
+    expect(loadedData.trackAccents.bass_01[0]).toBe(false);
+  });
+
+  it("should add default accents to beats missing them", () => {
+    const oldManifest = {
+      meta: {
+        version: "1.0.0",
+        engine: "tone.js@15.1.22",
+      },
+      global: {
+        bpm: 140,
+        swing: 0,
+        drive: 0,
+        masterVolumeDb: 0,
+      },
+      tracks: {
+        sampleId: "KICK_01",
+        volumeDb: 0,
+        mute: false,
+        solo: false,
+        steps: Array(16).fill(false),
+        pitch: 0,
+        accents: undefined,
+      },
+    } as unknown as BeatManifest;
+    const loadedData = toGridArray(oldManifest as BeatManifest);
+
+    // Verify that missing accents default to all false
+    expect(loadedData.trackAccents.kick_01).toEqual(Array(16).fill(false));
+  });
 });
 
 /**
