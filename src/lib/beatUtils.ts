@@ -90,10 +90,10 @@ export function calculateEffectiveVolume(
  * Note: beatName is stored separately in BeatRecord, not in BeatManifest
  */
 export function toManifest(
-  grid: boolean[][],
+  grid: Array<Array<boolean>>,
   bpm: number,
   trackPitches?: Record<TrackID, number>,
-  trackAccents?: Record<TrackID, boolean[]>,
+  trackAccents?: Record<TrackID, Array<boolean>>,
   trackMutes?: Record<TrackID, boolean>,
   trackSolos?: Record<TrackID, boolean>,
   trackVolumes?: Record<TrackID, number>,
@@ -117,7 +117,8 @@ export function toManifest(
       mute: trackMutes?.[trackId] ?? false, // v1.2: Use provided mute state
       solo: trackSolos?.[trackId] ?? false, // v1.2: Use provided solo state
       steps: grid[rowIndex] || Array(16).fill(false), // Use grid data or empty
-      accents: trackAccents?.[trackId] ?? Array(16).fill(false), // v1.1: Default accents to all false
+      accents:
+        trackAccents?.[trackId] ?? (Array(16).fill(false) as Array<boolean>), // v1.1: Default accents to all false
       pitch: trackPitches?.[trackId] ?? 0, // v1.1: Default pitch to 0
     };
   });

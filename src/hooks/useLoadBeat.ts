@@ -22,14 +22,14 @@ import { toGridArray } from "../lib/beatUtils";
 import type { TrackID } from "../types/beat";
 
 export interface LoadedBeatData {
-  grid: boolean[][];
+  grid: Array<Array<boolean>>;
   bpm: number;
   swing: number; // PR #19: Shuffle/swing value
   drive: number; // PR #19: Drive/saturation value
   beatName: string;
   trackVolumes: Record<TrackID, number>;
   trackPitches: Record<TrackID, number>; // v1.1
-  trackAccents: Record<TrackID, boolean[]>; // v1.1
+  trackAccents: Record<TrackID, Array<boolean>>; // v1.1
   trackMutes: Record<TrackID, boolean>; // v1.2
   trackSolos: Record<TrackID, boolean>; // v1.2
   beatId: string;
