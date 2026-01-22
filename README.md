@@ -4,6 +4,7 @@ A sample-accurate, real-time 808-style sequencer engineered for low-latency brow
 
 ## Demo
 
+![TR-08 Demo](./demo.gif)
 [Watch the demo on Vimeo](https://vimeo.com/1157277906)
 
 ## Engineering Highlights
