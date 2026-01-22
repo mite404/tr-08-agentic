@@ -2,6 +2,10 @@
 
 A sample-accurate, real-time 808-style sequencer engineered for low-latency browser performance.
 
+## Demo
+
+[Watch the demo on Vimeo](https://vimeo.com/1157277906)
+
 ## Engineering Highlights
 
 **Sample-Accurate Timing**: Architected a look-ahead scheduling system using the Web Audio API hardware clock (via Tone.js) to eliminate JavaScript event loop jitter.
@@ -74,7 +78,7 @@ This decoupling enables the same component to control volume (−25 to +5 dB), p
 ## Key Modules
 
 - **src/lib/audioEngine.ts**: Orchestrates the Web Audio graph, including dynamic signal routing, master effects chain initialization, and fault-tolerant asset loading.
+- **src/sequencer.ts**: The core timing engine; abstracts Tone.js Transport to provide decoupled audio scheduling from the React render cycle.
 - **src/lib/beatUtils.ts**: Manages data integrity and schema evolution; implements bidirectional transformation between UI state and Zod-validated persistence models.
 - **src/components/Knob.tsx**: A parameter-agnostic rotational input handler with configurable value-mapping.
-- **src/sequencer.ts**: The core timing engine; abstracts Tone.js Transport to provide decoupled audio scheduling from the React render cycle.
 - **src/components/Pad.tsx**: A performance-optimized step-sequencer interface featuring conditional rendering logic for real-time playhead tracking and ghost-note states.
