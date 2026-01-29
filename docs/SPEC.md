@@ -1737,6 +1737,26 @@ Replace CSS-drawn knobs with photorealistic PNG assets (VOLUME_KNOB.png and TONE
 
 ---
 
+#### Did a lot of small incremental UI debugging b/t PR 13-19
+
+- like 'React state wasn't updating accent notes eventhough they were written to/read from DB
+- setBPM() was called for React state only and wasn't being read from DB even though it was being saved
+- fine tuning of Drive knob distortion behavior
+
+---
+
+#### feat: PR #19 - Global Settings Persistence (Shuffle & Drive) ✅ COMPLETE
+
+Persist Shuffle (Swing) and Drive knob values with saved beats.
+
+**Key Changes:**
+
+- Update BeatManifest.global to include swing and drive (0-100 range)
+- Add backward compatibility in normalizeBeatData for v1.1 beats
+- Sync global settings to both React state and audio engine on load
+- Save swing/drive values when persisting beats to database
+- Fixes UI/engine desync when loading beats with custom effect setting
+
 ## Summary Table
 
 | PR  | Title           | Files       | Hours | Tests  | Blocker Dependencies | Status      |
@@ -1758,27 +1778,6 @@ Replace CSS-drawn knobs with photorealistic PNG assets (VOLUME_KNOB.png and TONE
 ---
 
 ## 8. Execution Checklist
-
-### One-Time Pre-Release Setup (Completed ✅)
-
-- [x] Supabase project created + dev environment configured.
-- [x] Environment variables (.env.local) populated with Supabase keys.
-- [x] Dependencies installed: `bun install` (includes Zod, Tone.js, React, etc.).
-- [x] Git repository initialized, main branch established.
-- [x] Initial commit with project scaffolding complete.
-
-**Note:** These steps are completed once at project start. They are NOT repeated for each PR.
-
-### Per PR (During Development)
-
-- [ ] Branch from main (or previous PR branch).
-- [ ] Implement files per PR scope (see PR definitions above).
-- [ ] Run: `bun run lint` (no style errors).
-- [ ] Run: `bun run build` (no TypeScript errors).
-- [ ] Run tests: `bun run test` (all passing, if applicable).
-- [ ] Create PR with clear description linking to SPEC.md sections.
-- [ ] Code review: Verify Definition of Done checklist for the PR.
-- [ ] Merge to main after approval.
 
 ### Post-Release (v1.0/v1.1 Verification — Completed ✅)
 

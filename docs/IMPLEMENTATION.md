@@ -317,7 +317,7 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ---
 
-### Phase 8: v1.2 Features (Mute/Solo, Beat Library Panel, Knob Asset Raster Impl.) — [x] COMPLETE (PR #11, #12, #13)
+### Phase 8: v1.2 Features (Mute/Solo, Beat Library Panel, Knob Asset Raster Impl.) — ✅ COMPLETE (PR #11, #12, #13)
 
 #### PR #11: Mute & Solo Architecture — ✅ COMPLETE
 
@@ -368,19 +368,19 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 **Status:** Implemented with soft-clip saturation (Sigmoid/Tanh) instead of hard distortion.
 
 1.  **Audio Engine (`audioEngine.ts`):** ✅ COMPLETE
-    - Implemented `Tone.WaveShaper` with sigmoid curve (`Math.tanh`) for warm saturation
-    - **Master Chain:** `Channel → DriveGain → SoftClipper → OutputComp → Compressor → Limiter → Destination`
-    - **DriveGain:** Maps knob 0-100% → gain 1.0-4.0 (+0 to +12dB boost into clipper)
-    - **SoftClipper:** Smooth analog-style clipping (no harsh digital artifacts)
-    - **OutputComp:** Auto-gain compensation (inverse of drive gain) maintains consistent volume
-    - **Control:** `setMasterDrive(percent: 0-100)` sets driveGain and outputComp simultaneously
+    - [x] Implemented `Tone.WaveShaper` with sigmoid curve (`Math.tanh`) for warm saturation
+    - [x] **Master Chain:** `Channel → DriveGain → SoftClipper → OutputComp → Compressor → Limiter → Destination`
+    - [x] **DriveGain:** Maps knob 0-100% → gain 1.0-4.0 (+0 to +12dB boost into clipper)
+    - [x] **SoftClipper:** Smooth analog-style clipping (no harsh digital artifacts)
+    - [x] **OutputComp:** Auto-gain compensation (inverse of drive gain) maintains consistent volume
+    - [x] **Control:** `setMasterDrive(percent: 0-100)` sets driveGain and outputComp simultaneously
 
 2.  **UI (`App.tsx`):** ✅ COMPLETE
-    - Added **"DRIVE" Knob** (labeled "SHUFFLE" and "DRIVE" in master section)
-    - Uses `GLOBAL_SWING.png` asset (same knob as swing control)
-    - Both knobs positioned left of Analyzer spectrum
-    - Drive knob triggers `handleDriveChange()` on drag
-    - Knob state persists in `drive` (0-100%) state variable
+    - [x] Added **"DRIVE" Knob** (labeled "SHUFFLE" and "DRIVE" in master section)
+    - [x] Uses `GLOBAL_SWING.png` asset (same knob as swing control)
+    - [x] Both knobs positioned left of Analyzer spectrum
+    - [x] Drive knob triggers `handleDriveChange()` on drag
+    - [x] Knob state persists in `drive` (0-100%) state variable
 
 ---
 
@@ -388,42 +388,77 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 **Goal:** Fix the mislabeled instruments in the UI without breaking the underlying data.
 
-- **Why first?** It's a simple config change that clarifies the UI.
-- **Change:** `src/config/trackConfig.ts`.
-  - Change `label` for `snare_01` -> "CLAP".
-  - Change `label` for `clap` -> "SYNTH 02".
-  - (Keep the TrackIDs `snare_01` / `clap` the same so we don't break the database).
+- [x] **Why first?** It's a simple config change that clarifies the UI.
+- [x] **Change:** `src/config/trackConfig.ts`.
+  - [x] Change `label` for `snare_01` -> "CLAP".
+  - [x] Change `label` for `clap` -> "SYNTH 02".
+  - [x] (Keep the TrackIDs `snare_01` / `clap` the same so we don't break the database).
 
 ### PR #17: UI Style Polish (Button & Labels)
 
 **Goal:** Fix the invisible button and add the column headers.
 
-- **Change 1:** `src/components/BeatLibrary.tsx`. Fix the `variant` or `className` of the Trigger button so it has contrast (e.g., `variant="outline"` or explicit colors).
-- **Change 2:** `src/App.tsx`. Add "TONE" and "LEVEL" text headers above the knob columns.
+- [x] **Change 1:** `src/components/BeatLibrary.tsx`. Fix the `variant` or `className` of the Trigger button so it has contrast (e.g., `variant="outline"` or explicit colors).
+- [x] **Change 2:** `src/App.tsx`. Add "TONE" and "LEVEL" text headers above the knob columns.
 
 ### PR #18: Drive Tuning
 
 **Goal:** Make the Drive effect audible.
 
-- **Diagnosis:** The "Auto-Gain" logic is likely too aggressive (lowering volume _before_ the saturation is audible).
-- **Change:** `src/lib/audioEngine.ts`.
-  - Tweak the ratio. If we boost Input by +6dB, maybe only cut Output by -3dB.
-  - Or increase the max Drive Gain (from 4.0 to 6.0). We need to push the WaveShaper harder to hear the crunch.
+- [x] **Diagnosis:** The "Auto-Gain" logic is likely too aggressive (lowering volume _before_ the saturation is audible).
+- [x] **Change:** `src/lib/audioEngine.ts`.
+  - [x] Tweak the ratio. If we boost Input by +6dB, maybe only cut Output by -3dB.
+  - [x] Or increase the max Drive Gain (from 4.0 to 6.0). We need to push the WaveShaper harder to hear the crunch.
 
-PR #19: Global Settings Persistence)
+### PR #19: Global Settings Persistence
 
 1.  **Schema Update (`src/types/beat.ts`):**
-    - Add `swing: number` (0-100) to `BeatManifest.global`.
-    - Add `drive: number` (0-100) to `BeatManifest.global`.
-    - Update Zod schema.
-    - Update `normalizeBeatData` to inject defaults (0) for old beats.
+    - [x] Add `swing: number` (0-100) to `BeatManifest.global`.
+    - [x] Add `drive: number` (0-100) to `BeatManifest.global`.
+    - [x] Update Zod schema.
+    - [x] Update `normalizeBeatData` to inject defaults (0) for old beats.
 
 2.  **App Logic (`src/App.tsx`):**
-    - Update `handleLoadBeat` to read these values and set state (`setSwing`, `setDrive`).
-    - **Crucial:** Call the audio engine setters (`setMasterDrive`, `setMasterSwing`) immediately on load.
+    - [x] Update `handleLoadBeat` to read these values and set state (`setSwing`, `setDrive`).
+    - [x] **Crucial:** Call the audio engine setters (`setMasterDrive`, `setMasterSwing`) immediately on load.
 
 3.  **Utils (`src/lib/beatUtils.ts`):**
-    - Update `toManifest` to grab the current Swing/Drive values from arguments/state.
+    - [x] Update `toManifest` to grab the current Swing/Drive values from arguments/state.
+
+### PR #21: Grid Integration & Color Logic
+
+Objective: Replace the existing circular pads in the main Sequencer Grid with the
+new Chiclets and apply the 4-step color grouping pattern.
+
+1. Refactor src/components/SequencerGrid.tsx:
+
+- [] Replace the current mapped <button> or <div> with the new <Chiclet /> component.
+- [] Remove old "opacity" logic classes (handle visual state inside the component now).
+
+2. Implement Color Logic:
+
+- [] Inside the .map((\_, stepIndex)) loop, determine the variant prop dynamically:
+
+```TypeScript
+const getChicletColor = (index: number) => {
+  if (index < 4) return 'red';
+  if (index < 8) return 'orange';
+  if (index < 12) return 'yellow';
+  return 'cream';
+};
+```
+
+Pass getChicletColor(stepIndex) to the component.
+
+3. Map State to Props:
+
+- Convert the current data:
+  - state="on" if isActive && !isAccented
+  - state="ghost" if isActive && isAccented
+  - state="off" if !isActive
+
+Deliverable: The main 10x16 grid now renders as a photo-realistic TR-08 panel with
+the correct color banding (Red-Orange-Yellow-Cream) and fully functional 3-state interaction.
 
 ## Bug Fixes & Critical Patches
 
@@ -632,25 +667,6 @@ Examples:
 | Load latency         | < 100ms | ✅ Met                                                   |
 | Audio context resume | < 50ms  | ✅ Met                                                   |
 | Audio load timeout   | 20s     | ✅ Implemented (PR #6: Individual 2s/track + 20s global) |
-
----
-
-## Documentation
-
-- [x] SPEC.md: Complete system specification (1350+ lines)
-- [x] IMPLEMENTATION.md: This checklist
-- [x] Inline code comments: Explain non-obvious logic
-- [x] JSDoc comments: All exported functions
-- [x] README.md: Quick start guide
-- [x] Git commit messages: Clear, descriptive
-
----
-
-## Contact & Support
-
-- **GitHub:** [tr-08-agentic](https://github.com/anthropics/claude-code)
-- **Issues:** Report bugs via GitHub Issues
-- **Feature Requests:** Discuss in Discussions tab
 
 ---
 
