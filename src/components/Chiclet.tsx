@@ -1,15 +1,14 @@
-import redChicletOn from "src/assets/images/RED_ON_180x250.png";
-import redChicletOff from "src/assets/images/RED_OFF_180x250.png";
-import orangeChicletOn from "src/assets/images/ORANGE_ON_180x250.png";
-import orangeChicletOff from "src/assets/images/ORANGE_OFF_180x250.png";
-import yellowChicletOn from "src/assets/images/YELLOW_ON_180x250.png";
-import yellowChicletOff from "src/assets/images/YELLOW_OFF_180x250.png";
-import creamChicletOn from "src/assets/images/CREAM_ON_180x250.png";
-import creamChicletOff from "src/assets/images/CREAM_OFF_180x250.png";
+import redChicletOn from "../assets/images/RED_ON_180x250.png";
+import redChicletOff from "../assets/images/RED_OFF_180x250.png";
+import orangeChicletOn from "../assets/images/ORANGE_ON_180x250.png";
+import orangeChicletOff from "../assets/images/ORANGE_OFF_180x250.png";
+import yellowChicletOn from "../assets/images/YELLOW_ON_180x250.png";
+import yellowChicletOff from "../assets/images/YELLOW_OFF_180x250.png";
+import creamChicletOn from "../assets/images/CREAM_ON_180x250.png";
+import creamChicletOff from "../assets/images/CREAM_OFF_180x250.png";
 
 type ChicletProps = {
   variant: "red" | "orange" | "yellow" | "cream";
-  color?: string;
   isActive: boolean;
   isAccented?: boolean;
   isCurrentStep: boolean;
@@ -20,7 +19,6 @@ type ChicletProps = {
 
 export function Chiclet({
   variant,
-  color,
   isActive,
   isAccented = false,
   isCurrentStep,
@@ -44,7 +42,7 @@ export function Chiclet({
   // map state to opacity
   const chicletOpacity = {
     on: "opacity-100",
-    accent: "opacity-75",
+    accent: "opacity-60",
     off: "opacity-25",
   };
 
@@ -60,8 +58,12 @@ export function Chiclet({
 
   return (
     <button
-      className={`${opacityClass} ${brightnessModifiers}`}
-      style={{ backgroundImage: `url(${chicletImage})` }}
+      className={`aspect-2/1 h-[70px] w-full ${opacityClass} ${brightnessModifiers}`}
+      style={{
+        backgroundImage: `url(${chicletImage})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
       onClick={onClick}
     />
   );

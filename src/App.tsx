@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import * as Tone from "tone";
 import "./App.css";
 import { Analyzer } from "./components/Analyzer";
-import { Pad } from "./components/Pad";
 import { PlayStopBtn } from "./components/PlayStopBtn";
 import { TempoDisplay } from "./components/TempoDisplay";
 import { TrackControls } from "./components/TrackControls";
@@ -38,6 +37,7 @@ import { SkeletonGrid } from "./components/SkeletonGrid";
 
 // PR #5: Import error boundary for crash protection
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { Chiclet } from "./components/Chiclet";
 
 export type TrackObject = {
   name: string;
@@ -235,21 +235,6 @@ const tracks: Array<TrackObject> = TRACK_REGISTRY.map((config) => ({
   sound: "", // LEGACY: no longer used, samples loaded via audioEngine
   color: config.color,
 }));
-
-const colorMap: { [key: string]: string } = {
-  // dark         light
-  "bg-red-900": "bg-red-600",
-  "bg-yellow-800": "bg-yellow-500",
-  "bg-yellow-900": "bg-yellow-600",
-  "bg-orange-950": "bg-orange-600",
-  "bg-orange-800": "bg-orange-500",
-
-  "bg-green-700": "bg-green-400",
-  "bg-green-800": "bg-green-500",
-  "bg-blue-600": "bg-blue-400",
-  "bg-blue-700": "bg-blue-500",
-  "bg-purple-900": "bg-purple-500",
-};
 
 function App() {
   const [bpm, setBpm] = useState(140);
@@ -594,14 +579,6 @@ function App() {
       "     window.tr08.tracks()                    // list all tracks",
     );
   }, []);
-
-  const getActiveColor = (baseColor: string, isActive: boolean): string => {
-    if (!isActive) {
-      return baseColor;
-    } else {
-      return colorMap[baseColor] ?? baseColor;
-    }
-  };
 
   // PR #10: 3-State Pad Interaction (OFF → ON Normal → ON Ghost → OFF)
   function handlePadClick(rowIndex: number, colIndex: number) {
@@ -1011,6 +988,13 @@ function App() {
     }
   }
 
+  function getChicletVariant(stepIndex: number) {
+    if (stepIndex < 4) return "red";
+    if (stepIndex < 8) return "orange";
+    if (stepIndex < 12) return "yellow";
+    return "cream";
+  }
+
   return (
     <>
       {/* PR #4: Portrait blocker for mobile devices */}
@@ -1175,19 +1159,16 @@ function App() {
                           ] ?? false;
 
                         return (
-                          <Pad
+                          <Chiclet
                             // eslint-disable-next-line react-x/no-array-index-key
                             key={`${rowIndex}-${colIndex}`}
-                            color={getActiveColor(
-                              tracks[rowIndex].color,
-                              grid[rowIndex][colIndex],
-                            )}
+                            variant={getChicletVariant(colIndex)}
                             isActive={grid[rowIndex][colIndex]}
+                            isAccented={isAccented}
                             isCurrentStep={colIndex === currentStep}
                             is16thNote={colIndex % 4 !== 0}
                             onClick={() => handlePadClick(rowIndex, colIndex)}
                             disabled={isDisabled}
-                            isAccented={isAccented}
                           />
                         );
                       });
