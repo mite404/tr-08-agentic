@@ -2,14 +2,17 @@
 
 ## Overview
 
-You'll be creating a new `Chiclet` component to replace the current `Pad` component, adding photorealistic visuals with 4-step color banding (Red → Orange → Yellow → Cream).
+You'll be creating a new `Chiclet` component to replace the current `Pad`
+component, adding photorealistic visuals with 4-step color banding
+(Red → Orange → Yellow → Cream).
 
 ---
 
 ## What You're Building
 
 **Current State:** Simple rounded buttons with opacity-based states  
-**Target State:** Photo-realistic chiclet buttons with color-grouped steps (like the TR-08)
+**Target State:** Photo-realistic chiclet buttons with color-grouped steps
+(like the TR-08)
 
 **Visual Pattern:**
 
