@@ -1,12 +1,12 @@
 # TR-08 v1.0 Implementation Checklist
 
-**Status:** ✅ **v1.2 RELEASED (Mute/Solo + Beat Library + Photorealistic Knobs)** | **Last Updated:** 2026-01-14
+**Status:** ✅ **v1.2 RELEASED (Mute/Solo + Beat Library + Photorealistic Knobs + Chiclet Grid)** | **Last Updated:** 2026-01-30
 
 ---
 
 ## Release Summary
 
-**14 PRs completed. Production-ready drum machine with v1.2 features + Master Drive/Swing:**
+**15 PRs completed. Production-ready drum machine with v1.2 features + Master Drive/Swing + Chiclet Grid:**
 
 - Persistent beat storage (Supabase)
 - Real-time sequencer with Tone.js master effects chain (DriveGain → SoftClipper → Compressor → Limiter)
@@ -22,6 +22,7 @@
 - Per-track mute/solo buttons with audio engine integration (PR #11)
 - Beat library side panel with beat list browsing and instant loading (PR #12)
 - Photorealistic knobs with PNG assets and variant-based rendering (PR #13)
+- Photorealistic chiclet grid with 4-step color banding and image-based rendering (PR #21)
 
 ---
 
@@ -425,40 +426,42 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 3.  **Utils (`src/lib/beatUtils.ts`):**
     - [x] Update `toManifest` to grab the current Swing/Drive values from arguments/state.
 
-### PR #21: Grid Integration & Color Logic
+### PR #21: Grid Integration & Color Logic — ✅ COMPLETE
 
-Objective: Replace the existing circular pads in the main Sequencer Grid with the
-new Chiclets and apply the 4-step color grouping pattern.
+**Objective:** Replace the existing circular pads in the main Sequencer Grid with photorealistic Chiclet components and apply 4-step color grouping pattern.
 
-1. Refactor src/components/SequencerGrid.tsx:
+**Status:** Completed
 
-- [] Replace the current mapped <button> or <div> with the new <Chiclet /> component.
-- [] Remove old "opacity" logic classes (handle visual state inside the component now).
+#### Implementation Summary
 
-2. Implement Color Logic:
+1. **Created Chiclet Component** (`src/components/Chiclet.tsx`) — ✅ COMPLETE
+   - [x] Accepts props: `variant`, `isActive`, `isAccented`, `isCurrentStep`, `is16thNote`, `onClick`, `disabled`
+   - [x] Imports 8 prerendered PNG images (on/off for each color band)
+   - [x] Maps `variant` to chiclet images via lookup object
+   - [x] Computes internal state: `off` | `on` | `accent` (deriving from `isActive` + `isAccented`)
+   - [x] Maps state to opacity classes: `opacity-25` (off), `opacity-100` (on), `opacity-60` (accent)
+   - [x] Applies brightness modifiers for playhead glow (`brightness-175`) and 16th notes (`brightness-135`)
+   - [x] Renders as `<button>` with `backgroundImage` style (images at 70px height)
 
-- [] Inside the .map((\_, stepIndex)) loop, determine the variant prop dynamically:
+2. **Integrated into App.tsx Grid Rendering** — ✅ COMPLETE
+   - [x] Import `Chiclet` component
+   - [x] Created `getChicletVariant(stepIndex)` helper (maps step 0-15 to color band)
+   - [x] Replaced `<Pad>` with `<Chiclet>` in grid rendering loop
+   - [x] Removed `color` prop (now driven by `variant` + images)
+   - [x] Pass `isActive`, `isAccented` directly (no state calculation in App.tsx)
 
-```TypeScript
-const getChicletColor = (index: number) => {
-  if (index < 4) return 'red';
-  if (index < 8) return 'orange';
-  if (index < 12) return 'yellow';
-  return 'cream';
-};
-```
+3. **Color Banding Logic** — ✅ COMPLETE
+   - [x] Steps 0-3: Red
+   - [x] Steps 4-7: Orange
+   - [x] Steps 8-11: Yellow
+   - [x] Steps 12-15: Cream
 
-Pass getChicletColor(stepIndex) to the component.
+4. **3-State Visual Feedback** — ✅ COMPLETE
+   - [x] OFF (not active): 25% opacity, dark image
+   - [x] ON (active, normal): 100% opacity, bright image
+   - [x] ACCENT (active, accented): 60% opacity, bright image
 
-3. Map State to Props:
-
-- Convert the current data:
-  - state="on" if isActive && !isAccented
-  - state="ghost" if isActive && isAccented
-  - state="off" if !isActive
-
-Deliverable: The main 10x16 grid now renders as a photo-realistic TR-08 panel with
-the correct color banding (Red-Orange-Yellow-Cream) and fully functional 3-state interaction.
+**Deliverable:** The 10×16 grid now renders as a photo-realistic TR-08 panel with correct color banding and fully functional 3-state interaction. Playhead and 16th notes receive brightness boost for visual hierarchy.
 
 ## Bug Fixes & Critical Patches
 

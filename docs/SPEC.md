@@ -1757,6 +1757,20 @@ Persist Shuffle (Swing) and Drive knob values with saved beats.
 - Save swing/drive values when persisting beats to database
 - Fixes UI/engine desync when loading beats with custom effect setting
 
+#### feat: PR #21 - Chiclet Grid Integration & Color Logic ✅ COMPLETE
+
+Replace circular pads with photorealistic chiclet buttons using prerendered PNG assets and 4-step color banding.
+
+**Key Changes:**
+
+- **New Component:** `src/components/Chiclet.tsx` (70px photorealistic button)
+- **Image Assets:** 8 PNG files (on/off for red, orange, yellow, cream)
+- **Color Logic:** `getChicletVariant(stepIndex)` maps step 0-15 to color band (4 steps per color)
+- **3-State Rendering:** Opacity-based visual feedback (25% off, 100% on, 60% accent)
+- **Brightness:** Playhead glow (brightness-175) + 16th note highlight (brightness-135)
+- **Props:** `variant`, `isActive`, `isAccented`, `isCurrentStep`, `is16thNote`, `onClick`, `disabled`
+- **Integration:** Minimal refactor of App.tsx grid rendering loop (swapped Pad → Chiclet)
+
 ## Summary Table
 
 | PR  | Title           | Files       | Hours | Tests  | Blocker Dependencies | Status      |
@@ -1772,8 +1786,9 @@ Persist Shuffle (Swing) and Drive knob values with saved beats.
 | #9  | UI Pitch/Accent | 3 touch     | 2-3   | Comp   | PR #8                | ✅ COMPLETE |
 | #11 | Mute/Solo UI    | 1 touch     | 1-2   | Manual | PR #9                | ✅ COMPLETE |
 | #12 | Beat Library    | 6 new/touch | 2-3   | Manual | PR #3                | ✅ COMPLETE |
+| #21 | Chiclet Grid    | 2 new/touch | 1-2   | Manual | PR #19               | ✅ COMPLETE |
 
-**Total Effort:** ~20-25 hours (actual) | **Status:** 11 PRs COMPLETE - v1.2 IN PROGRESS
+**Total Effort:** ~21-27 hours (actual) | **Status:** 12 PRs COMPLETE - v1.2 READY FOR RELEASE
 
 ---
 
