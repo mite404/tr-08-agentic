@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { toManifest, toGridArray, calculateEffectiveVolume } from "./beatUtils";
-import { normalizeBeatData } from "../types/beat";
-import type { TrackID, BeatManifest, TrackData } from "../types/beat";
+import {
+  toManifest,
+  toGridArray,
+  calculateEffectiveVolume,
+} from "../beatUtils";
+import { normalizeBeatData } from "../../types/beat";
+import type { TrackID, BeatManifest, TrackData } from "../../types/beat";
 
 /**
  * Test Suite 1: Volume Calculation (PR #8 - Accent Logic)
