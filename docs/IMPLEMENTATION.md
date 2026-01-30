@@ -463,6 +463,114 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 **Deliverable:** The 10×16 grid now renders as a photo-realistic TR-08 panel with correct color banding and fully functional 3-state interaction. Playhead and 16th notes receive brightness boost for visual hierarchy.
 
+---
+
+### Testing Phase
+
+Here is a **6-PR Roadmap** to cover all three categories. This follows a "Walk, Jog, Run" strategy: start with the test environment (Components), move to complex logic (Integration), and finish with the browser simulation (E2E).
+
+---
+
+### Part 1: Component Tests (The "Walk")
+
+**Goal:** Verify UI renders correctly without needing a real browser or backend.
+
+**Dependencies to Add:** `@testing-library/react`, `@testing-library/jest-dom`, `happy-dom` (faster than jsdom).
+
+#### PR #22: Test Environment & Static Components
+
+- **Focus:** Infrastructure setup and testing "dumb" components.
+- **Tasks:**
+  - Configure `vitest.config.ts` to use `environment: 'happy-dom'`.
+  - Create `src/test/setup.ts` to extend matchers (like `.toBeInTheDocument()`).
+  - **Test:** `SkeletonGrid` (Verify it renders the correct number of cells).
+  - **Test:** `PortraitBlocker` (Verify it renders text, but only visible under specific CSS conditions - _Note: usually we just test it renders into the DOM_).
+- **Why:** Ensures the testing harness works before tackling complex logic.
+
+#### PR #23: The Error Boundary & Complex UI
+
+- **Focus:** Testing React lifecycle and error catching.
+- **Tasks:**
+  - **Test:** `ErrorBoundary`.
+    - Create a "Bomb" component that throws an error on render.
+    - Wrap it in `ErrorBoundary`.
+    - Verify the fallback UI ("Something went wrong") appears.
+    - _Challenge:_ You'll need to suppress `console.error` in the test setup so the test output stays clean.
+- **Why:** This is a critical safety net. Testing it separately keeps PR #22 clean.
+
+---
+
+### Part 2: Integration Tests (The "Jog")
+
+**Goal:** Test hooks and state logic. This requires **Mocking** (faking Supabase and Timers).
+
+#### PR #24: Supabase Mocking & Auth Hooks
+
+- **Focus:** Testing the `useAuth` hook.
+- **Tasks:**
+  - Create a reusable Mock for the Supabase Client (intercept `auth.getSession`, `onAuthStateChange`).
+  - **Test:** `useAuth`.
+    - Verify it initializes explicitly.
+    - Verify it updates state when the mock emits a session change.
+- **Why:** This establishes the pattern for how you will "fake" your backend for all future tests.
+
+#### PR #25: Logic & Timers (Save/Load)
+
+- **Focus:** Testing business logic (Debounce & Data Transformation).
+- **Tasks:**
+  - **Test:** `useSaveBeat`.
+    - Use `vi.useFakeTimers()`.
+    - Trigger a save -> Fast forward 1s -> Verify save _didn't_ happen.
+    - Fast forward 3s -> Verify save _did_ happen.
+  - **Test:** `useLoadBeat`.
+    - Mock a Supabase response with a v1.0 beat.
+    - Verify it returns the normalized structure (checking if your `normalizeBeatData` is integrated correctly).
+- **Why:** This validates your "Prevent Data Loss" features.
+
+---
+
+### Part 3: E2E Tests (The "Run")
+
+**Goal:** Simulate a real user clicking buttons in a real Chrome browser.
+
+**Dependencies to Add:** `@playwright/test`.
+
+#### PR #26: Playwright Setup & Smoke Test
+
+- **Focus:** Getting Playwright running and checking sanity.
+- **Tasks:**
+  - Run `bun init playwright`.
+  - Configure `playwright.config.ts` (Base URL, browsers).
+  - **Test:** "The Smoke Test".
+    - Navigate to `localhost:xxxx`.
+    - Verify Page Title is "TR-08".
+    - Verify the "Sign In" or "Start" button is visible.
+- **Why:** Playwright can be finicky to set up (installing browser binaries). This PR ensures the robot can simply "open the page."
+
+#### PR #27: Critical User Flows (The Guest Experience)
+
+- **Focus:** The "Graffiti Wall" experience.
+- **Tasks:**
+  - **Test:** "Guest Playback".
+    - Load page.
+    - Click "Start" (to unlock AudioContext).
+    - Verify the "Stop" button appears.
+    - _Challenge:_ Testing audio in E2E is hard. You usually check for **Visual Side Effects** (e.g., the playhead moving or the "Stop" button becoming active) rather than listening to sound.
+- **Why:** This replaces your manual "Guest load -> Create beat -> Play" checklist item.
+
+---
+
+### Summary Checklist
+
+1.  **PR #22:** React Testing Library Setup + Static Components
+2.  **PR #23:** ErrorBoundary Tests
+3.  **PR #24:** Supabase Mocks + `useAuth` Integration
+4.  **PR #25:** `useSaveBeat` (Debounce) + `useLoadBeat` Integration
+5.  **PR #26:** Playwright Installation + Smoke Test
+6.  **PR #27:** Playwright Guest Flow Test
+
+---
+
 ## Bug Fixes & Critical Patches
 
 ---
