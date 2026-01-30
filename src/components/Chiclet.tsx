@@ -26,7 +26,15 @@ export function Chiclet({
   onClick,
   disabled = false,
 }: ChicletProps) {
-  if (disabled) return;
+  if (disabled) {
+    return (
+      <button
+        className="aspect-2/1 h-[25px] w-full cursor-not-allowed rounded-sm bg-gray-800 opacity-30 grayscale"
+        disabled
+        title="This track failed to load"
+      />
+    );
+  }
 
   const chicletImages = {
     red: { on: redChicletOn, off: redChicletOff },
@@ -58,7 +66,7 @@ export function Chiclet({
 
   return (
     <button
-      className={`aspect-2/1 h-[70px] w-full ${opacityClass} ${brightnessModifiers}`}
+      className={`aspect-2/1 h-[70px] w-full cursor-pointer hover:opacity-80 ${opacityClass} ${brightnessModifiers}`}
       style={{
         backgroundImage: `url(${chicletImage})`,
         backgroundSize: "cover",
