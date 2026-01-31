@@ -650,7 +650,90 @@ onClick={() => handlePadClick(rowIndex, colIndex)}  // ← Modifies state
 
 ---
 
-## 9. Testing: The Verbal Formula (PR #22)
+## 9. Testing Browser APIs with Mocks (PR #22)
+
+### The Challenge: Testing Code That Uses Browser APIs
+
+Some code depends on browser APIs that don't work in the test environment. Examples:
+
+- `window.matchMedia()` — Detect screen size, orientation
+- `localStorage` — Persistent storage
+- `fetch()` — Network requests
+- `window.location` — URL and navigation
+- `Date.now()` — Current time
+
+**The problem:** Happy-dom (the fake browser) doesn't implement these APIs realistically.
+
+**Example from PortraitBlocker:**
+
+```typescript
+// In the actual component
+const mediaQuery = window.matchMedia(
+  "(orientation: portrait) and (max-width: 768px)",
+);
+setIsPortrait(mediaQuery.matches); // Will always be false in tests
+```
+
+In happy-dom, `mediaQuery.matches` is always `false` because there's no real CSS engine to evaluate the media query.
+
+### Solution: Mock the API
+
+A **mock** is a fake version of an API that you control for testing. Here's how to mock `window.matchMedia`:
+
+```typescript
+beforeEach(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: query === "(orientation: portrait) and (max-width: 768px)",
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => true,
+    }),
+  });
+});
+```
+
+**What's happening:**
+
+1. `Object.defineProperty(window, 'matchMedia', ...)` — Override the window's matchMedia
+2. `value: (query: string) => ({ ... })` — When called, return a fake object
+3. `matches: query === '(orientation: portrait) and (max-width: 768px)'` — Return `true` ONLY for portrait
+4. Rest of properties — Required by the API spec, but we don't really use them
+
+**Result:** When the component calls `window.matchMedia("(orientation: portrait) and (max-width: 768px)")`, it gets `matches: true`, and the component renders.
+
+### Why This Matters
+
+Without the mock:
+
+- ❌ Component returns `null` (thinks it's not portrait)
+- ❌ Nothing renders
+- ❌ Tests fail because they can't find elements
+
+With the mock:
+
+- ✅ Component renders
+- ✅ Tests can find the text and overlay
+- ✅ Tests pass
+
+### Common Mocking Pattern
+
+When you encounter a test failure like "Unable to find element", ask:
+
+1. **Is this element optional?** (Component might conditionally return `null`)
+2. **Does it depend on a browser API?** (matchMedia, localStorage, fetch, etc.)
+3. **Is the browser API returning unexpected values?** (false instead of true)
+
+If any are yes, you probably need a mock.
+
+---
+
+## 10. Testing: The Verbal Formula (PR #22)
 
 ### The Test Naming Pattern
 
@@ -732,6 +815,57 @@ it("should display portrait warning message when component renders", () => {
   expect(screen.getByText(/rotate.*landscape/i)).toBeInTheDocument()
 })
 ```
+
+### Query Preference: getByRole > getByText > getByTestId
+
+When finding elements in tests, prefer queries in this order:
+
+| Query           | Best For                   | Example                                          |
+| --------------- | -------------------------- | ------------------------------------------------ |
+| **getByRole**   | Semantic HTML elements     | `getByRole('button')`, `getByRole('heading')`    |
+| **getByText**   | Finding by visible text    | `getByText('Click me')` or `getByText(/click/i)` |
+| **getByTestId** | Last resort (non-semantic) | `getByTestId('custom-widget')`                   |
+
+**Why this order matters:**
+
+- `getByRole` — Tests the accessibility layer (how screen readers see it). Most resilient.
+- `getByText` — Tests what users see (visible content). Good for semantic elements without roles.
+- `getByTestId` — Tests implementation details. Brittle if you change HTML structure, but necessary for non-semantic divs.
+
+**Real example from PortraitBlocker:**
+
+```typescript
+// ✅ BEST: Uses semantic role
+const overlay = screen.getByRole("region", { name: /portrait/i });
+
+// ✅ GOOD: Uses visible text
+expect(screen.getByText(/rotate/i)).toBeInTheDocument();
+
+// ❌ AVOID unless necessary: Uses test ID
+const overlay = screen.getByTestId("portrait-blocker");
+```
+
+### Quick Note: Regex Flags in Tests
+
+When you see `/text/i` in a test query, the `/i` at the end is a **regex flag** that makes matching **case-insensitive**.
+
+```typescript
+// Without /i flag (case-sensitive)
+/rotate/ matches only "rotate", not "Rotate" or "ROTATE"
+
+// With /i flag (case-insensitive)
+/rotate/i matches "rotate", "Rotate", "ROTATE", "rOtAtE", etc.
+```
+
+**Why this matters in tests:** UI text is often capitalized (`"Please Rotate Your Device"`), but you want to search for just the word regardless of case. The `/i` flag lets you write flexible, resilient tests.
+
+**Other common regex flags you might see:**
+
+| Flag | Meaning           | Example                             |
+| ---- | ----------------- | ----------------------------------- |
+| `i`  | Case-insensitive  | `/hello/i` matches "Hello", "HELLO" |
+| `g`  | Global (find all) | `/a/g` finds every "a" in a string  |
+| `m`  | Multiline         | `/^start/m` matches at line starts  |
 
 ### Common Test Verbs
 

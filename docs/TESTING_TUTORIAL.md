@@ -20,12 +20,13 @@
 ## What is Testing? (The Big Picture)
 
 Imagine you're filming a scene for a movie. Before the final shoot, you need to:
+
 - Check that the lights are positioned correctly
 - Verify the camera is in focus
 - Test that the audio equipment is working
 - Confirm the actors hit their marks
 
-**Testing code is exactly the same idea.** You write small automated checks to verify your code behaves the way you expect *before* shipping it to users.
+**Testing code is exactly the same idea.** You write small automated checks to verify your code behaves the way you expect _before_ shipping it to users.
 
 ### Three Levels of Testing (Your Testing Pyramid)
 
@@ -44,6 +45,7 @@ Think of testing like checking your film at different stages:
 ```
 
 **For PR #22, we're starting at the base: Unit Tests**
+
 - Simplest to write
 - Fastest to run
 - Tests one component in isolation
@@ -51,6 +53,7 @@ Think of testing like checking your film at different stages:
 ### Why Test Components?
 
 When you write a React component like `SkeletonGrid`, you're creating a **visual unit**. Testing verifies:
+
 - ✅ It renders without crashing
 - ✅ It shows the correct number of items
 - ✅ It displays the right colors/styles
@@ -65,6 +68,7 @@ When you write a React component like `SkeletonGrid`, you're creating a **visual
 **Vitest** is a testing framework (like a film critic who automatically watches your film and reports issues).
 
 You already have Vitest installed. Now you need to tell it:
+
 - What environment to use (how to simulate a browser)
 - Where to find your tests
 - How to handle React components
@@ -74,6 +78,7 @@ You already have Vitest installed. Now you need to tell it:
 Testing requires a **fake browser environment** because you don't want to launch Chrome for every test (too slow).
 
 Two popular options:
+
 - **jsdom:** More realistic, slower
 - **happy-dom:** Simpler, faster
 
@@ -83,26 +88,26 @@ Two popular options:
 
 ```typescript
 // vitest.config.ts
-import { defineConfig } from 'vitest/config'
-import react from '@vitejs/plugin-react-swc'
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react-swc";
 
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'happy-dom',
+    environment: "happy-dom",
     globals: true,
-    setupFiles: ['src/test/setup.ts'],
+    setupFiles: ["src/test/setup.ts"],
   },
-})
+});
 ```
 
 **What each line does:**
 
-| Line | Purpose |
-|------|---------|
-| `environment: 'happy-dom'` | Use the lightweight fake browser |
-| `globals: true` | Make `describe`, `it`, `expect` available everywhere (no imports needed) |
-| `setupFiles: ['src/test/setup.ts']` | Run this file before every test to set up shared helpers |
+| Line                                | Purpose                                                                  |
+| ----------------------------------- | ------------------------------------------------------------------------ |
+| `environment: 'happy-dom'`          | Use the lightweight fake browser                                         |
+| `globals: true`                     | Make `describe`, `it`, `expect` available everywhere (no imports needed) |
+| `setupFiles: ['src/test/setup.ts']` | Run this file before every test to set up shared helpers                 |
 
 **Key Insight:** This file tells Vitest "pretend you're a browser, use happy-dom, and load these helpers first."
 
@@ -119,9 +124,9 @@ Before running tests, you need to extend Vitest with extra matchers (assertions)
 A **matcher** is a function that checks if something is true. Examples:
 
 ```typescript
-expect(element).toBeInTheDocument()    // Is element on the page?
-expect(text).toContain('Hello')        // Does text contain 'Hello'?
-expect(count).toBe(5)                  // Is count exactly 5?
+expect(element).toBeInTheDocument(); // Is element on the page?
+expect(text).toContain("Hello"); // Does text contain 'Hello'?
+expect(count).toBe(5); // Is count exactly 5?
 ```
 
 Some matchers come built-in. Others (like `.toBeInTheDocument()`) come from a library called **@testing-library/jest-dom**.
@@ -130,12 +135,13 @@ Some matchers come built-in. Others (like `.toBeInTheDocument()`) come from a li
 
 ```typescript
 // src/test/setup.ts
-import '@testing-library/jest-dom'
+import "@testing-library/jest-dom";
 ```
 
 That's it! One line.
 
 **What happens:**
+
 1. Vitest loads this file before running any tests
 2. The import extends `expect` with 50+ new matchers
 3. Now your tests can use `.toBeInTheDocument()`, `.toBeVisible()`, etc.
@@ -146,14 +152,16 @@ Without this setup, you'd have to write:
 
 ```typescript
 // ❌ Without setup
-expect(element !== null && element.ownerDocument.body.contains(element)).toBe(true)
+expect(element !== null && element.ownerDocument.body.contains(element)).toBe(
+  true,
+);
 ```
 
 With setup, you write:
 
 ```typescript
 // ✅ With setup
-expect(element).toBeInTheDocument()
+expect(element).toBeInTheDocument();
 ```
 
 Much clearer, right? That's what test helpers do — they make your tests readable.
@@ -189,19 +197,19 @@ describe('SkeletonGrid', () => {
   it('renders the correct number of skeleton pads', () => {
     // 1. Render the component
     render(<SkeletonGrid />)
-    
+
     // 2. Find all skeleton pads
     const pads = screen.getAllByTestId('skeleton-pad')
-    
+
     // 3. Check that we got 160 (10 rows × 16 columns)
     expect(pads).toHaveLength(160)
   })
 
   it('each pad has the skeleton styling class', () => {
     render(<SkeletonGrid />)
-    
+
     const pads = screen.getAllByTestId('skeleton-pad')
-    
+
     // Each pad should have the 'animate-pulse' class (Tailwind loading animation)
     pads.forEach(pad => {
       expect(pad).toHaveClass('animate-pulse')
@@ -215,9 +223,9 @@ describe('SkeletonGrid', () => {
 #### Part 1: The `describe` Block
 
 ```typescript
-describe('SkeletonGrid', () => {
+describe("SkeletonGrid", () => {
   // All tests for SkeletonGrid go here
-})
+});
 ```
 
 **In film terms:** This is your "scene" or "chapter." All tests inside are about one component.
@@ -225,9 +233,9 @@ describe('SkeletonGrid', () => {
 #### Part 2: The `it` Block
 
 ```typescript
-it('renders the correct number of skeleton pads', () => {
+it("renders the correct number of skeleton pads", () => {
   // This is one test
-})
+});
 ```
 
 **In film terms:** This is one specific thing you're checking. "Does the lighting look right?" is one test. "Does the actor hit their mark?" is another test.
@@ -245,7 +253,7 @@ render(<SkeletonGrid />)
 #### Part 4: Query
 
 ```typescript
-const pads = screen.getAllByTestId('skeleton-pad')
+const pads = screen.getAllByTestId("skeleton-pad");
 ```
 
 **What it does:** Finds all elements with `data-testid="skeleton-pad"` in the rendered output.
@@ -255,7 +263,7 @@ const pads = screen.getAllByTestId('skeleton-pad')
 #### Part 5: Assert (Check)
 
 ```typescript
-expect(pads).toHaveLength(160)
+expect(pads).toHaveLength(160);
 ```
 
 **What it does:** Verifies that we found exactly 160 pads.
@@ -284,6 +292,7 @@ export default function SkeletonGrid() {
 ```
 
 **Why `data-testid`?**
+
 - Not a visual attribute (doesn't affect styling)
 - Only exists for tests to find elements
 - Clear intent: "This element is for testing"
@@ -295,6 +304,7 @@ bun run test
 ```
 
 Output:
+
 ```
 ✓ SkeletonGrid
   ✓ renders the correct number of skeleton pads (2ms)
@@ -312,7 +322,7 @@ Tests       2 passed (2)
 
 A component that shows an overlay on mobile phones in portrait mode (vertical). It says "Rotate your device to landscape."
 
-**The trick:** The overlay is ALWAYS in the DOM, but only *visible* in portrait mode via CSS media queries.
+**The trick:** The overlay is ALWAYS in the DOM, but only _visible_ in portrait mode via CSS media queries.
 
 ### The Question: What Should We Test?
 
@@ -325,60 +335,117 @@ Here's where it gets interesting. The comment in IMPLEMENTATION.md says:
 **Truly testing CSS media queries requires a real browser** because you need to actually change the viewport size and check computed styles.
 
 In unit tests with happy-dom, we **usually skip the CSS part** and just verify:
+
 - ✅ The text is in the DOM
 - ✅ The overlay structure is correct
 
 ### Writing the Test
 
 ```typescript
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import PortraitBlocker from '../PortraitBlocker'
 
 describe('PortraitBlocker', () => {
+  beforeEach(() => {
+    // Mock window.matchMedia to simulate portrait orientation
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: (query: string) => ({
+        matches: query === '(orientation: portrait) and (max-width: 768px)',
+        media: query,
+        onchange: null,
+        addListener: () => {}, // deprecated but kept for compatibility
+        removeListener: () => {}, // deprecated but kept for compatibility
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => true,
+      }),
+    })
+  })
+
   it('renders the portrait warning text', () => {
     render(<PortraitBlocker />)
-    
-    // Check that the warning message is in the DOM
-    expect(screen.getByText(/rotate.*landscape/i)).toBeInTheDocument()
+
+    expect(screen.getByText(/rotate/i)).toBeInTheDocument()
+    expect(screen.getByText(/landscape/i)).toBeInTheDocument()
   })
 
   it('renders an overlay element', () => {
     render(<PortraitBlocker />)
-    
-    // Check that the overlay (usually a div with fixed positioning) exists
+
     const overlay = screen.getByRole('region', { name: /portrait/i })
     expect(overlay).toBeInTheDocument()
   })
 })
 ```
 
+**The `beforeEach` setup:**
+
+`PortraitBlocker` uses `window.matchMedia()` to check if the device is in portrait mode. In the test environment (happy-dom), `matchMedia` doesn't actually evaluate media queries—it needs to be mocked.
+
+The `beforeEach` hook runs before each test and intercepts `matchMedia` calls:
+
+- When the query is `'(orientation: portrait) and (max-width: 768px)'`, it returns `matches: true`
+- This triggers the component to render (instead of returning `null`)
+
+**Why this matters:** Without the mock, the component would never render because `matchMedia` would always return `matches: false`, and the test would fail trying to find elements that don't exist.
+
 ### Understanding the Test
 
 #### The First Test
 
 ```typescript
-expect(screen.getByText(/rotate.*landscape/i)).toBeInTheDocument()
+it("renders the portrait warning text", () => {
+  render(<PortraitBlocker />)
+
+  // Check both parts of the message separately
+  expect(screen.getByText(/rotate/i)).toBeInTheDocument()
+  expect(screen.getByText(/landscape/i)).toBeInTheDocument()
+})
 ```
 
-**Breaking it down:**
-- `screen.getByText(...)` — Find text matching this pattern
-- `/rotate.*landscape/i` — Regex that matches "rotate" followed by anything, then "landscape" (case-insensitive)
-- `.toBeInTheDocument()` — Assert it's on the page
+**Why two separate queries?**
 
-**In film terms:** "Is there a message saying 'Rotate to Landscape' in the scene?"
+The text is split across multiple elements:
+
+- `<h1>Please Rotate Your Device to Play</h1>` — Contains "rotate"
+- `<p>This drum machine requires landscape orientation...</p>` — Contains "landscape"
+
+**Important lesson:** `getByText(/rotate.*landscape/i)` won't work because the regex expects both words in the same element. When text is split across multiple elements, query for the words separately.
+
+**Breaking it down:**
+
+- `screen.getByText(/rotate/i)` — Find the element containing "rotate"
+  - The `/i` flag makes the regex **case-insensitive**, so it matches "Rotate", "ROTATE", etc.
+- `screen.getByText(/landscape/i)` — Find the element containing "landscape"
+- `.toBeInTheDocument()` — Assert each is on the page
+
+**In film terms:** "Are there messages about rotating AND landscape mode in the scene?"
+
+**Quick tip on `/i`:** In regex, the `/i` flag at the end makes matching case-insensitive. So `/hello/i` matches "hello", "Hello", "HELLO", etc. This is super useful in tests because UI text might be capitalized differently than what you expect.
 
 #### The Second Test
 
 ```typescript
-const overlay = screen.getByRole('region', { name: /portrait/i })
-expect(overlay).toBeInTheDocument()
+it("renders an overlay element", () => {
+  render(<PortraitBlocker />)
+
+  const overlay = screen.getByRole('region', { name: /portrait/i })
+  expect(overlay).toBeInTheDocument()
+})
 ```
 
 **Breaking it down:**
+
 - `screen.getByRole('region', ...)` — Find an element with ARIA role 'region'
 - `{ name: /portrait/i }` — The region's accessible name should match "portrait"
 - `.toBeInTheDocument()` — Assert it exists
+
+**IMPORTANT:** For `getByRole` to work, your component must have:
+
+- `role="region"` — Declares it as a content region
+- `aria-label="..."` — Provides the accessible name (this is what `{ name: /portrait/i }` matches)
 
 **In film terms:** "Is there a visual barrier/overlay marked as the 'portrait warning'?"
 
@@ -387,6 +454,7 @@ expect(overlay).toBeInTheDocument()
 CSS is **rendered by the browser**, not by happy-dom. Happy-dom is a minimal fake browser that simulates the DOM but not the rendering engine.
 
 **Real CSS testing requires:**
+
 - ✅ Playwright (full browser simulation)
 - ✅ Cypress (full browser simulation)
 - ✗ Vitest with happy-dom (no CSS rendering)
@@ -420,6 +488,7 @@ export default function PortraitBlocker() {
 ```
 
 **Key points for testability:**
+
 - `role="region"` — Makes it findable by `getByRole`
 - `aria-label="..."` — Provides an accessible name for finding it
 - Text in plain English — `getByText` can find it
@@ -436,16 +505,17 @@ All tests follow this pattern:
 it('does something', () => {
   // ARRANGE: Set up the component and data
   render(<SkeletonGrid />)
-  
+
   // ACT: Do something (click, type, etc.)
   // (Not always needed for static components)
-  
+
   // ASSERT: Check the result
   expect(pads).toHaveLength(160)
 })
 ```
 
 **In film terms:**
+
 1. **ARRANGE:** Set the stage (lights, camera, actors positioned)
 2. **ACT:** Roll camera, action (perform the scene)
 3. **ASSERT:** Check the footage (does it look right?)
@@ -454,43 +524,46 @@ it('does something', () => {
 
 React Testing Library provides queries to find elements in the DOM:
 
-| Query | Use When | Example |
-|-------|----------|---------|
-| `getByTestId` | Element has `data-testid` | `screen.getByTestId('pad')` |
-| `getByText` | Finding text content | `screen.getByText('Play')` |
-| `getByRole` | Element has semantic role | `screen.getByRole('button')` |
-| `getByPlaceholder` | Input has placeholder | `screen.getByPlaceholderText('Enter')` |
-| `queryBy*` | Returns null if not found | `screen.queryByText('Missing')` |
-| `getAllBy*` | Returns array of all matches | `screen.getAllByTestId('pad')` |
+| Query              | Use When                     | Example                                |
+| ------------------ | ---------------------------- | -------------------------------------- |
+| `getByTestId`      | Element has `data-testid`    | `screen.getByTestId('pad')`            |
+| `getByText`        | Finding text content         | `screen.getByText('Play')`             |
+| `getByRole`        | Element has semantic role    | `screen.getByRole('button')`           |
+| `getByPlaceholder` | Input has placeholder        | `screen.getByPlaceholderText('Enter')` |
+| `queryBy*`         | Returns null if not found    | `screen.queryByText('Missing')`        |
+| `getAllBy*`        | Returns array of all matches | `screen.getAllByTestId('pad')`         |
 
 **Rule of thumb:** Prefer `getByRole` > `getByText` > `getByTestId`
 
 **In film terms:** Different ways to find the right person on set:
+
 - "Find everyone with the 'actor' role" → `getByRole`
 - "Find the person who says this line" → `getByText`
 - "Find person with name tag 'Lead'" → `getByTestId`
 
 ### 3. Matchers: How to Check Results
 
-| Matcher | Checks | Example |
-|---------|--------|---------|
-| `.toBeInTheDocument()` | Element is in the DOM | `expect(button).toBeInTheDocument()` |
-| `.toHaveLength(n)` | Array has n items | `expect(items).toHaveLength(5)` |
-| `.toHaveClass(name)` | Element has CSS class | `expect(div).toHaveClass('hidden')` |
+| Matcher                    | Checks                | Example                                  |
+| -------------------------- | --------------------- | ---------------------------------------- |
+| `.toBeInTheDocument()`     | Element is in the DOM | `expect(button).toBeInTheDocument()`     |
+| `.toHaveLength(n)`         | Array has n items     | `expect(items).toHaveLength(5)`          |
+| `.toHaveClass(name)`       | Element has CSS class | `expect(div).toHaveClass('hidden')`      |
 | `.toHaveTextContent(text)` | Element contains text | `expect(div).toHaveTextContent('Hello')` |
-| `.toBe(value)` | Exact equality | `expect(count).toBe(5)` |
-| `.toEqual(obj)` | Object equality | `expect(user).toEqual({ name: 'John' })` |
+| `.toBe(value)`             | Exact equality        | `expect(count).toBe(5)`                  |
+| `.toEqual(obj)`            | Object equality       | `expect(user).toEqual({ name: 'John' })` |
 
 ### 4. Why `data-testid`?
 
 In the real world, you'd never add a `data-testid` attribute to production code just for testing. But here's the honest truth:
 
 ✅ **DO use** `data-testid` when:
+
 - The element doesn't have a semantic role
 - You can't reliably find it by text
 - It's an internal UI detail you're testing
 
 ❌ **DON'T use** `data-testid` when:
+
 - The element is a `<button>` (use `getByRole('button')`)
 - The element is a heading (use `getByRole('heading')`)
 - It has unique text content (use `getByText()`)
@@ -503,12 +576,12 @@ Happy-dom simulates the DOM but **doesn't render CSS**. This means:
 
 ```typescript
 // ✅ This works in happy-dom
-expect(element).toBeInTheDocument()
-expect(element).toHaveClass('hidden')
+expect(element).toBeInTheDocument();
+expect(element).toHaveClass("hidden");
 
 // ❌ This doesn't work in happy-dom
-const styles = getComputedStyle(element)
-expect(styles.display).toBe('none')  // Happy-dom returns empty string
+const styles = getComputedStyle(element);
+expect(styles.display).toBe("none"); // Happy-dom returns empty string
 ```
 
 **Why?** Computing styles requires a real CSS engine, which only exists in real browsers.
@@ -536,6 +609,7 @@ src/
 ### After PR #22 is Complete
 
 You'll have:
+
 - ✅ Vitest configured
 - ✅ Test setup working
 - ✅ Two simple tests passing
@@ -544,6 +618,7 @@ You'll have:
 ### What Makes Tests Fail?
 
 Tests fail when:
+
 - Component doesn't render (missing import, syntax error)
 - Expected text is missing or misspelled
 - Element has wrong classes
@@ -570,14 +645,15 @@ Good tests answer this question: **"If I make a code change, will my tests catch
 
 ## Summary: What You're Building
 
-| Step | Task | Purpose |
-|------|------|---------|
-| 1 | Configure `vitest.config.ts` | Tell Vitest: use happy-dom, load setup.ts |
-| 2 | Create `src/test/setup.ts` | Import matchers (toBeInTheDocument, etc.) |
-| 3 | Test SkeletonGrid | Verify 160 pads render with correct classes |
-| 4 | Test PortraitBlocker | Verify text and structure are in DOM |
+| Step | Task                         | Purpose                                     |
+| ---- | ---------------------------- | ------------------------------------------- |
+| 1    | Configure `vitest.config.ts` | Tell Vitest: use happy-dom, load setup.ts   |
+| 2    | Create `src/test/setup.ts`   | Import matchers (toBeInTheDocument, etc.)   |
+| 3    | Test SkeletonGrid            | Verify 160 pads render with correct classes |
+| 4    | Test PortraitBlocker         | Verify text and structure are in DOM        |
 
 **After PR #22, you'll have:**
+
 - A working test environment
 - Two passing tests
 - A pattern to follow for more tests
@@ -587,18 +663,18 @@ Good tests answer this question: **"If I make a code change, will my tests catch
 
 ## Glossary
 
-| Term | Definition |
-|------|-----------|
-| **Test** | An automated check that verifies code behaves as expected |
-| **Unit Test** | Test of a single component in isolation |
-| **Integration Test** | Test of multiple components working together |
-| **E2E Test** | Test of entire app flow in a real browser |
-| **Mock** | Fake object used to replace real dependencies |
-| **Matcher** | Function that checks if something is true (e.g., `.toBe()`) |
-| **Render** | Mount a React component in the test environment |
-| **Query** | Function to find elements in the rendered output |
-| **happy-dom** | Lightweight fake browser for fast unit tests |
-| **Vitest** | Modern testing framework (replacement for Jest) |
+| Term                 | Definition                                                  |
+| -------------------- | ----------------------------------------------------------- |
+| **Test**             | An automated check that verifies code behaves as expected   |
+| **Unit Test**        | Test of a single component in isolation                     |
+| **Integration Test** | Test of multiple components working together                |
+| **E2E Test**         | Test of entire app flow in a real browser                   |
+| **Mock**             | Fake object used to replace real dependencies               |
+| **Matcher**          | Function that checks if something is true (e.g., `.toBe()`) |
+| **Render**           | Mount a React component in the test environment             |
+| **Query**            | Function to find elements in the rendered output            |
+| **happy-dom**        | Lightweight fake browser for fast unit tests                |
+| **Vitest**           | Modern testing framework (replacement for Jest)             |
 
 ---
 

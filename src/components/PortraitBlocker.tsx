@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from "react";
 
-export function PortraitBlocker() {
+export default function PortraitBlocker() {
   const [isPortrait, setIsPortrait] = useState(false);
 
   useEffect(() => {
@@ -39,7 +39,12 @@ export function PortraitBlocker() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black">
+    <div
+      data-testid="portrait-blocker"
+      role="region"
+      aria-label="Portrait orientation warning"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black"
+    >
       <div className="flex flex-col items-center gap-4 px-6 text-center">
         <svg
           className="h-16 w-16 text-white"

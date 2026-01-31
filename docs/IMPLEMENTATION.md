@@ -1,6 +1,6 @@
 # TR-08 v1.0 Implementation Checklist
 
-**Status:** ✅ **v1.2 RELEASED (Mute/Solo + Beat Library + Photorealistic Knobs + Chiclet Grid)** | **Last Updated:** 2026-01-30
+**Status:** ✅ **v1.2 RELEASED (Mute/Solo + Beat Library + Photorealistic Knobs + Chiclet Grid) + Testing Infrastructure (PR #22)** | **Last Updated:** 2026-01-30
 
 ---
 
@@ -477,15 +477,16 @@ Here is a **6-PR Roadmap** to cover all three categories. This follows a "Walk, 
 
 **Dependencies to Add:** `@testing-library/react`, `@testing-library/jest-dom`, `happy-dom` (faster than jsdom).
 
-#### PR #22: Test Environment & Static Components
+#### PR #22: Test Environment & Static Components ✅ COMPLETE
 
 - **Focus:** Infrastructure setup and testing "dumb" components.
 - **Tasks:**
-  - Configure `vitest.config.ts` to use `environment: 'happy-dom'`.
-  - Create `src/test/setup.ts` to extend matchers (like `.toBeInTheDocument()`).
-  - **Test:** `SkeletonGrid` (Verify it renders the correct number of cells).
-  - **Test:** `PortraitBlocker` (Verify it renders text, but only visible under specific CSS conditions - _Note: usually we just test it renders into the DOM_).
-- **Why:** Ensures the testing harness works before tackling complex logic.
+  - [x] Configure `vitest.config.ts` to use `environment: 'happy-dom'`.
+  - [x] Create `src/test/setup.ts` to extend matchers (like `.toBeInTheDocument()`).
+  - [x] **Test:** `SkeletonGrid` (Verify it renders the correct number of cells).
+  - [x] **Test:** `PortraitBlocker` (Verify it renders text and ARIA role/label; includes `window.matchMedia` mock for browser API testing).
+  - [x] Document test patterns in `TESTING_TUTORIAL.md` and `FOR_ETHAN.md`.
+- **Why:** Ensures the testing harness works before tackling complex logic. Foundation for all future unit tests.
 
 #### PR #23: The Error Boundary & Complex UI
 

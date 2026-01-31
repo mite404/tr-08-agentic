@@ -1404,6 +1404,30 @@ Each PR is **atomic, reviewable, and deployable**. No partial implementations. E
 
 ---
 
+### PR #22: Test Environment & Static Components ✅ COMPLETE
+
+**Scope:** Test infrastructure setup and testing two static UI components.
+**Delivered:** 2026-01-30 | **Effort:** 2-3 hours | **Complexity:** Low
+
+#### Deliverables
+
+- **vite.config.ts:** Integrated Vitest config with `environment: 'happy-dom'`, globals enabled, setupFiles pointing to src/test/setup.ts.
+- **src/test/setup.ts:** Imports `@testing-library/jest-dom` to extend matchers (`.toBeInTheDocument()`, `.toHaveClass()`, etc.).
+- **src/components/**tests**/SkeletonGrid.test.tsx:** Tests that the component renders 160 skeleton pads with `animate-pulse` class.
+- **src/components/**tests**/PortraitBlocker.test.tsx:** Tests that the component renders text and overlay with ARIA role/label. Includes `window.matchMedia` mock (critical for happy-dom).
+- **Documentation:** `TESTING_TUTORIAL.md` and `FOR_ETHAN.md` updated with test patterns, regex flags, and query preferences.
+
+**Test Results:** ✅ 3 test files, 39 tests passing.
+
+#### Key Patterns Established
+
+1. **Query Preference:** `getByRole > getByText > getByTestId` (accessibility-first testing)
+2. **Browser API Mocking:** `window.matchMedia` mock pattern for conditional rendering tests
+3. **Regex Flags:** Case-insensitive matching with `/pattern/i` for resilient text queries
+4. **Component Test Structure:** AAA pattern (Arrange, Act, Assert) with `beforeEach` setup
+
+---
+
 ### PR #1: The Foundation (Types, Validation, DB Setup)
 
 **Scope:** Zero UI changes. Types, schemas, and DB infrastructure only.
