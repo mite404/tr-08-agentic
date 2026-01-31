@@ -49,12 +49,13 @@ Imagine you're building a skyscraper. Workers are installing windows on the 40th
 ### Why This is Different from Testing Normal Components
 
 In PR #22, you tested:
+
 - `SkeletonGrid` — Does it render 160 pads? ✅
 - `PortraitBlocker` — Does it show the warning? ✅
 
 Both were **happy path tests** (things working normally).
 
-**Now you need to test the *sad path*** — what happens when things break?
+**Now you need to test the _sad path_** — what happens when things break?
 
 ### The Challenge
 
@@ -81,19 +82,20 @@ const mockFetch = vi.fn().mockResolvedValue({ data: "fake response" });
 
 ### Why Mock in Tests?
 
-| Real Thing | Problem | Mock Solution |
-|------------|---------|---------------|
-| API call | Slow, requires network | Fake response, instant |
-| `console.error` | Spams test output | Silent fake, verify it was called |
-| `window.location.reload` | Actually reloads the page! | Fake function, check if called |
+| Real Thing               | Problem                    | Mock Solution                     |
+| ------------------------ | -------------------------- | --------------------------------- |
+| API call                 | Slow, requires network     | Fake response, instant            |
+| `console.error`          | Spams test output          | Silent fake, verify it was called |
+| `window.location.reload` | Actually reloads the page! | Fake function, check if called    |
 
 ### Three Types of Mocks You'll Use Today
 
 #### 1. **Spy** (The Observer)
+
 Watches a function to see if/when it's called.
 
 ```typescript
-const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 // console.error still exists, but does nothing
 // You can check: expect(spy).toHaveBeenCalled();
 ```
@@ -101,6 +103,7 @@ const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 **Construction analogy:** A camera watching the safety net to see if it's used.
 
 #### 2. **Mock Implementation** (The Replacement)
+
 Replaces a function entirely.
 
 ```typescript
@@ -112,6 +115,7 @@ window.location = { reload: vi.fn() } as any;
 **Construction analogy:** A dummy net you can inspect without the real danger.
 
 #### 3. **Fake Component** (The Test Dummy)
+
 A component designed to fail on purpose.
 
 ```typescript
@@ -130,10 +134,12 @@ const BombComponent = () => {
 <summary>Click to reveal answer</summary>
 
 **Yes!** You create a spy that both:
+
 1. **Suppresses output** (mockImplementation does nothing)
 2. **Records calls** (you can check `expect(spy).toHaveBeenCalled()`)
 
 It's like a muted microphone that still records audio.
+
 </details>
 
 ---
@@ -147,16 +153,20 @@ Before each test, you need to set up the "testing environment" — think of it a
 **File:** `src/components/__tests__/ErrorBoundary.test.tsx`
 
 ```typescript
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { ErrorBoundary } from '../ErrorBoundary';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { ErrorBoundary } from "../ErrorBoundary";
 ```
 
 ### The Bomb Component (Your Test Dummy)
 
 ```typescript
 // This component's job is to crash on purpose
-const BombComponent = ({ message = "Test explosion" }: { message?: string }) => {
+const BombComponent = ({
+  message = "Test explosion",
+}: {
+  message?: string;
+}) => {
   throw new Error(message);
 };
 ```
@@ -166,11 +176,11 @@ const BombComponent = ({ message = "Test explosion" }: { message?: string }) => 
 ### The beforeEach Setup (Putting on Safety Gear)
 
 ```typescript
-describe('ErrorBoundary component:', () => {
+describe("ErrorBoundary component:", () => {
   beforeEach(() => {
     // 1. Suppress console noise
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
 
     // 2. Mock window.location.reload
     delete (window as any).location;
@@ -194,10 +204,12 @@ describe('ErrorBoundary component:', () => {
 <summary>Click to reveal answer</summary>
 
 React logs TWO types of messages when an error is caught:
+
 1. **`console.error`** — Your custom ErrorBoundary logging
 2. **`console.warn`** — React's internal warnings about the error
 
 If you only mock `error`, you'll still see React's warnings. Mocking both gives clean output.
+
 </details>
 
 ### 🤔 Pause & Predict
@@ -212,6 +224,7 @@ If you only mock `error`, you'll still see React's warnings. Mocking both gives 
 **Solution:** Cast to `any` to bypass TypeScript's protection, delete the property, then reassign.
 
 This is acceptable in **test code only** (never in production).
+
 </details>
 
 ---
@@ -227,11 +240,13 @@ Like testing a parachute on the ground before jumping out of a plane.
 ### Your Task (Try First!)
 
 Write a test that:
+
 1. Renders `<ErrorBoundary>` with normal content inside
 2. Verifies the normal content appears
 3. Verifies the error fallback does NOT appear
 
 **Hints:**
+
 - Use `<div>Normal content</div>` as the child
 - Use `getByText` to find "Normal content"
 - Use `queryByText` (not `getByText`) to check that error UI is absent
@@ -243,15 +258,15 @@ it('renders children when there is no error', () => {
   // 1. Render ErrorBoundary with normal content
   render(
     <ErrorBoundary>
-      {/* TODO: Add a div with "Normal content" */}
+      {/* TODO: What should go here? */}
     </ErrorBoundary>
   );
 
   // 2. Verify normal content appears
-  // TODO: expect(screen.getByText(...)).toBeInTheDocument();
+  // TODO: Write an expect() that checks for "Normal content"
 
   // 3. Verify error UI does NOT appear
-  // TODO: expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument();
+  // TODO: Write an expect() that checks error UI is absent
 });
 ```
 
@@ -272,6 +287,7 @@ it('renders children when there is no error', () => {
 ```
 
 **Why `queryByText` for the error check?**
+
 - `getByText` throws an error if not found
 - `queryByText` returns `null` if not found
 - `.not.toBeInTheDocument()` needs `null` to verify absence
@@ -284,12 +300,14 @@ bun run test ErrorBoundary
 ```
 
 **Expected output:**
+
 ```
 ✓ ErrorBoundary component:
   ✓ renders children when there is no error
 ```
 
 **If it fails,** check:
+
 - Did you import `ErrorBoundary` correctly?
 - Is the text exact? ("Normal content" not "normal content")
 
@@ -306,11 +324,13 @@ The safety net (ErrorBoundary) should catch it and show fallback UI.
 ### Your Task (Try First!)
 
 Write a test that:
+
 1. Renders `<ErrorBoundary>` with `<BombComponent />` inside
 2. Verifies "Something went wrong" appears
 3. Verifies the "Reload Page" button appears
 
 **Hints:**
+
 - The BombComponent will throw an error during render
 - ErrorBoundary will catch it with `getDerivedStateFromError`
 - Use `getByRole('button')` to find the button
@@ -319,18 +339,18 @@ Write a test that:
 
 ```typescript
 it('displays fallback UI when child component throws error', () => {
-  // 1. Render ErrorBoundary with BombComponent
+  // 1. Render ErrorBoundary with the error component
   render(
     <ErrorBoundary>
-      {/* TODO: Add <BombComponent /> */}
+      {/* TODO: What component should throw an error here? */}
     </ErrorBoundary>
   );
 
   // 2. Verify error heading appears
-  // TODO: expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+  // TODO: Write an expect() that checks for the error heading
 
   // 3. Verify reload button appears
-  // TODO: expect(screen.getByRole('button', { name: /reload page/i })).toBeInTheDocument();
+  // TODO: Write an expect() that checks for the button
 });
 ```
 
@@ -351,6 +371,7 @@ it('displays fallback UI when child component throws error', () => {
 ```
 
 **Why `/reload page/i`?**
+
 - The `/` slashes indicate regex
 - `i` flag = case-insensitive
 - Matches "Reload Page", "reload page", "RELOAD PAGE"
@@ -366,6 +387,7 @@ it('displays fallback UI when child component throws error', () => {
 Because of your `beforeEach` setup! You mocked `console.error` and `console.warn`.
 
 **Without the mocks**, you'd see:
+
 ```
 Error: Test explosion
   at BombComponent ...
@@ -373,6 +395,7 @@ Warning: React will try to recreate this component...
 ```
 
 The mocks **suppress the noise** so you only see test results.
+
 </details>
 
 ---
@@ -388,6 +411,7 @@ The ErrorBoundary should show the actual error message, not a generic one.
 ### Your Task (Try First!)
 
 Write a test that:
+
 1. Renders `<BombComponent message="Custom error message" />`
 2. Verifies "Custom error message" appears in the UI
 
@@ -400,12 +424,12 @@ it('displays the error message in the fallback UI', () => {
   // 1. Render with custom error message
   render(
     <ErrorBoundary>
-      {/* TODO: Pass message="Custom error message" to BombComponent */}
+      {/* TODO: How do you pass a custom message to BombComponent? */}
     </ErrorBoundary>
   );
 
   // 2. Verify the custom message appears
-  // TODO: expect(screen.getByText(...)).toBeInTheDocument();
+  // TODO: Write an expect() that checks for the custom message
 });
 ```
 
@@ -425,6 +449,7 @@ it('displays the error message in the fallback UI', () => {
 ```
 
 **Why this matters:**
+
 - Helps debugging (you know WHAT broke)
 - Better user experience (specific feedback)
 </details>
@@ -451,9 +476,9 @@ expect(result).toBe(...);
 In **UI testing**, you simulate user actions:
 
 ```typescript
-const button = screen.getByRole('button');
-fireEvent.click(button);  // Simulate click
-expect(mockFunction).toHaveBeenCalled();  // Verify effect
+const button = screen.getByRole("button");
+fireEvent.click(button); // Simulate click
+expect(mockFunction).toHaveBeenCalled(); // Verify effect
 ```
 
 **Construction analogy:** Like pressing the emergency button on the safety harness to test the release mechanism.
@@ -461,12 +486,14 @@ expect(mockFunction).toHaveBeenCalled();  // Verify effect
 ### Your Task (Try First!)
 
 Write a test that:
+
 1. Renders ErrorBoundary with BombComponent (trigger error state)
 2. Finds the "Reload Page" button
 3. Clicks it with `fireEvent.click()`
 4. Verifies `window.location.reload` was called
 
 **Hints:**
+
 - `window.location.reload` is a mock function (from `beforeEach`)
 - Use `toHaveBeenCalledTimes(1)` to verify it was called once
 
@@ -484,11 +511,11 @@ it('calls window.location.reload when reload button is clicked', () => {
   // 2. Find the reload button
   const reloadButton = screen.getByRole('button', { name: /reload page/i });
 
-  // 3. Click it
-  // TODO: fireEvent.click(reloadButton);
+  // 3. Simulate the user clicking the button
+  // TODO: Use fireEvent to click the button
 
   // 4. Verify reload was called
-  // TODO: expect(window.location.reload).toHaveBeenCalledTimes(1);
+  // TODO: Write an expect() that verifies window.location.reload was called exactly once
 });
 ```
 
@@ -511,6 +538,7 @@ it('calls window.location.reload when reload button is clicked', () => {
 ```
 
 **Why `.toHaveBeenCalledTimes(1)` instead of just `.toHaveBeenCalled()`?**
+
 - More specific assertion
 - If button accidentally triggers twice, test would catch it
 - Better debugging (you know exactly how many times it was called)
@@ -526,11 +554,13 @@ it('calls window.location.reload when reload button is clicked', () => {
 **The test runner would actually reload the page!**
 
 This would:
+
 1. Stop the test mid-execution
 2. Restart the test suite from the beginning
 3. Create an infinite loop of reloading
 
 **Mocking prevents this chaos.**
+
 </details>
 
 ---
@@ -548,18 +578,21 @@ The ErrorBoundary should log errors to `console.error` for debugging.
 You mocked `console.error` to suppress output. But now you need to verify it was called!
 
 **How?** The mock is BOTH:
+
 1. A silencer (mockImplementation does nothing)
 2. A recorder (you can check the call history)
 
 ### Your Task (Try First!)
 
 Write a test that:
+
 1. Creates a fresh console spy
 2. Renders ErrorBoundary with BombComponent
 3. Verifies `console.error` was called
 4. Verifies it was called with the ErrorBoundary prefix `"[ErrorBoundary] Caught error:"`
 
 **Hints:**
+
 - Use `expect.stringContaining()` for partial string matching
 - Use `expect.any(Error)` to match any Error object
 
@@ -577,11 +610,10 @@ it('logs error to console when error is caught', () => {
     </ErrorBoundary>
   );
 
-  // 3. Verify console.error was called with correct prefix
-  // TODO: expect(consoleSpy).toHaveBeenCalledWith(
-  //   expect.stringContaining('[ErrorBoundary] Caught error:'),
-  //   expect.any(Error)
-  // );
+  // 3. Verify console.error was called with the correct prefix and an Error
+  // TODO: Write an expect() that checks:
+  // - console.error was called with a string containing '[ErrorBoundary] Caught error:'
+  // - AND it was called with an Error object as the second argument
 });
 ```
 
@@ -606,6 +638,7 @@ it('logs error to console when error is caught', () => {
 ```
 
 **Why create a NEW spy in this test?**
+
 - The `beforeEach` spy is for suppressing output
 - This spy is for **inspection**
 - Each test can have its own spy for specific verification needs
@@ -618,19 +651,21 @@ it('logs error to console when error is caught', () => {
 <details>
 <summary>Click to reveal answer</summary>
 
-| Matcher | Checks | Use When |
-|---------|--------|----------|
-| `toHaveBeenCalled()` | Was the function called at all? | You just care IF it happened |
-| `toHaveBeenCalledWith(args)` | Was it called with specific arguments? | You care WHAT was passed |
+| Matcher                      | Checks                                 | Use When                     |
+| ---------------------------- | -------------------------------------- | ---------------------------- |
+| `toHaveBeenCalled()`         | Was the function called at all?        | You just care IF it happened |
+| `toHaveBeenCalledWith(args)` | Was it called with specific arguments? | You care WHAT was passed     |
 
 **Example:**
+
 ```typescript
 // Just checking IF
-expect(mockFn).toHaveBeenCalled();  // ✅ Called at least once
+expect(mockFn).toHaveBeenCalled(); // ✅ Called at least once
 
 // Checking WHAT
-expect(mockFn).toHaveBeenCalledWith('specific', 'args');  // ✅ Called with exact values
+expect(mockFn).toHaveBeenCalledWith("specific", "args"); // ✅ Called with exact values
 ```
+
 </details>
 
 ---
@@ -681,13 +716,13 @@ describe('ErrorBoundary component:', () => {
 
 ### What Each Test Validates
 
-| Test | Validates | Why It Matters |
-|------|-----------|----------------|
-| 1 | Normal render | Ensures boundary doesn't break happy path |
-| 2 | Error catching | Core functionality works |
-| 3 | Error messages | Debugging information propagates |
-| 4 | Reload button | User can escape error state |
-| 5 | Console logging | Developers can trace errors |
+| Test | Validates       | Why It Matters                            |
+| ---- | --------------- | ----------------------------------------- |
+| 1    | Normal render   | Ensures boundary doesn't break happy path |
+| 2    | Error catching  | Core functionality works                  |
+| 3    | Error messages  | Debugging information propagates          |
+| 4    | Reload button   | User can escape error state               |
+| 5    | Console logging | Developers can trace errors               |
 
 ---
 
@@ -700,6 +735,7 @@ bun run test ErrorBoundary
 ```
 
 **Expected output:**
+
 ```
 ✓ ErrorBoundary component: (5)
   ✓ renders children when there is no error
@@ -719,6 +755,7 @@ bun run test
 ```
 
 **Expected output:**
+
 ```
 Test Files  4 passed (4)
 Tests       44 passed (44)
@@ -743,6 +780,7 @@ Because error boundaries require lifecycle methods (`getDerivedStateFromError`, 
 **Mock:** Replaces a function entirely with a fake implementation
 
 In our tests, we use `vi.spyOn(...).mockImplementation(...)` which is BOTH — it spies (records calls) AND mocks (replaces behavior).
+
 </details>
 
 **Q3:** Why do we mock `window.location.reload`?
@@ -773,20 +811,22 @@ When testing code that should NOT log errors (like normal components). You only 
 
 ### When to Apply These Patterns
 
-| Pattern | Use When | Example |
-|---------|----------|---------|
-| Console mocking | Testing code that logs errors | Error boundaries, error handlers |
-| Window mocking | Testing navigation/reload | Logout buttons, error recovery |
-| Error simulation | Testing error handling | Error boundaries, try-catch blocks |
-| fireEvent | Testing user interactions | Buttons, forms, clicks |
+| Pattern          | Use When                      | Example                            |
+| ---------------- | ----------------------------- | ---------------------------------- |
+| Console mocking  | Testing code that logs errors | Error boundaries, error handlers   |
+| Window mocking   | Testing navigation/reload     | Logout buttons, error recovery     |
+| Error simulation | Testing error handling        | Error boundaries, try-catch blocks |
+| fireEvent        | Testing user interactions     | Buttons, forms, clicks             |
 
 ### Next Steps
 
 **Practice:** Try writing a test for the "Reload Page" button that verifies:
+
 - The button text says "Reload Page" (not "Reload" or "Refresh")
 - The button has red styling (`bg-red-600`)
 
 **Challenge:** Create a second error boundary test that:
+
 - Throws an error in a child component's `useEffect` (not during render)
 - Verify ErrorBoundary does NOT catch it (ErrorBoundary only catches render errors)
 
