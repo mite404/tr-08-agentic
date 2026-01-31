@@ -17,6 +17,7 @@ export function SkeletonGrid() {
       {skeletonCells.map((index) => (
         <div
           key={index}
+          data-testid="skeleton-pad"
           className="[rounded-[10px] aspect-2/1 h-[25px] w-full animate-pulse rounded bg-gray-800 p-2"
           aria-hidden="true"
         />

@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { toManifest, toGridArray, calculateEffectiveVolume } from "./beatUtils";
-import { normalizeBeatData } from "../types/beat";
-import type { TrackID, BeatManifest, TrackData } from "../types/beat";
+import {
+  toManifest,
+  toGridArray,
+  calculateEffectiveVolume,
+} from "../beatUtils";
+import { normalizeBeatData } from "../../types/beat";
+import type { TrackID, BeatManifest, TrackData } from "../../types/beat";
 
 /**
  * Test Suite 1: Volume Calculation (PR #8 - Accent Logic)
@@ -779,10 +783,10 @@ describe("normalizeBeatData - Migration Defaults (PR #19)", () => {
       expect(result.data.global.swing).toBe(0);
       expect(result.data.global.drive).toBe(0);
       Object.keys(result.data.tracks).forEach((trackId) => {
-        expect(result.data.tracks[trackId as never].pitch).toBe(0);
-        expect(result.data.tracks[trackId as never].accents).toEqual(
-          Array(16).fill(false),
-        );
+        const track =
+          result.data.tracks[trackId as keyof typeof result.data.tracks];
+        expect(track.pitch).toBe(0);
+        expect(track.accents).toEqual(Array(16).fill(false));
       });
     }
   });
