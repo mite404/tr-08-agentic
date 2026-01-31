@@ -8,7 +8,7 @@
  * Styling: Matches the grid layout classes from App.tsx
  */
 
-export default function SkeletonGrid() {
+export function SkeletonGrid() {
   // Generate 160 skeleton cells (10 rows × 16 columns)
   const skeletonCells = Array.from({ length: 160 }, (_, i) => i);
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import SkeletonGrid from "../SkeletonGrid";
+import { SkeletonGrid } from "../SkeletonGrid";
 
 describe("SkeletonGrid component:", () => {
   it("renders the correct number of skeleton pads", () => {

@@ -783,10 +783,10 @@ describe("normalizeBeatData - Migration Defaults (PR #19)", () => {
       expect(result.data.global.swing).toBe(0);
       expect(result.data.global.drive).toBe(0);
       Object.keys(result.data.tracks).forEach((trackId) => {
-        expect(result.data.tracks[trackId as never].pitch).toBe(0);
-        expect(result.data.tracks[trackId as never].accents).toEqual(
-          Array(16).fill(false),
-        );
+        const track =
+          result.data.tracks[trackId as keyof typeof result.data.tracks];
+        expect(track.pitch).toBe(0);
+        expect(track.accents).toEqual(Array(16).fill(false));
       });
     }
   });

@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from "react";
 
-export default function PortraitBlocker() {
+export function PortraitBlocker() {
   const [isPortrait, setIsPortrait] = useState(false);
 
   useEffect(() => {
