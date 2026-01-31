@@ -947,6 +947,127 @@ it("should [behavior]", () => {
 
 ---
 
+## 11. Destructuring with Defaults and Type Annotations
+
+**Pattern:** `({ propertyName = defaultValue }: { propertyName?: Type })`
+
+**You'll see this in test files and component props.** It combines two TypeScript features in one line.
+
+### Breaking It Down
+
+The pattern has **two sides** separated by a colon `:`:
+
+**Left side: Default value**
+
+```typescript
+{
+  message = "Test explosion";
+}
+```
+
+Says: "Extract the `message` property. If it's `undefined`, use `"Test explosion"` instead."
+
+**Right side: Type annotation**
+
+```typescript
+{ message?: string; }
+```
+
+Says: "The parameter is an object with an optional `message` property that must be a string."
+
+### Real Example from Testing
+
+```typescript
+const BombComponent = ({
+  message = "Test explosion",
+}: {
+  message?: string;
+}) => {
+  throw new Error(message);
+};
+```
+
+**Without destructuring:**
+
+```typescript
+const BombComponent = (props) => {
+  const message = props.message || "Test explosion"; // manually extract + default
+  throw new Error(message);
+};
+```
+
+**The destructured version is cleaner** because `message` is available directly as a variable.
+
+### How It Works in Practice
+
+```typescript
+// Usage 1: No prop passed
+<BombComponent />
+// → message defaults to "Test explosion"
+
+// Usage 2: Prop passed
+<BombComponent message="Custom error" />
+// → message is "Custom error"
+
+// Usage 3: Explicitly undefined
+<BombComponent message={undefined} />
+// → message defaults to "Test explosion"
+```
+
+### Why the `?` Matters
+
+The `?` in `message?: string` means "optional" — the property might not exist in the object. Compare:
+
+```typescript
+// Without ?: message MUST be provided
+({ message }: { message: string })
+
+// With ?: message is optional
+({ message = "default" }: { message?: string })
+```
+
+### Common Pattern in React Components
+
+This exact pattern appears in component props:
+
+```typescript
+interface ButtonProps {
+  label?: string;
+  onClick?: () => void;
+}
+
+function MyButton({ label = "Click me", onClick }: ButtonProps) {
+  return <button onClick={onClick}>{label}</button>;
+}
+```
+
+You'll use this constantly as your components grow more complex.
+
+---
+
+## 12. Mocking Readonly Properties with `as any` (Testing Pattern)
+
+**Quick reminder:** In tests, you sometimes need to mock **readonly** browser APIs like `window.location`.
+
+```typescript
+// In test setup:
+delete (window as any).location; // Remove the readonly protection
+window.location = { reload: vi.fn() } as any; // Assign fake object
+```
+
+**Why two `as any` casts?**
+
+1. **First `as any`** — Tells TypeScript "let me delete this readonly property"
+2. **Second `as any`** — Tells TypeScript "accept this fake object as a real location"
+
+Each cast temporarily removes TypeScript's protection **just for that line**.
+
+**Important:** Only use `as any` in **test code**. Never in production. It's a deliberate rule-break for testing purposes only.
+
+**See also:** Section 9 covers general mocking patterns for browser APIs.
+
+---
+
 ## Study Resources
 
 ### Topics to explore deeper:
