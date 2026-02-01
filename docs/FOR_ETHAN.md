@@ -1339,6 +1339,135 @@ Each cast temporarily removes TypeScript's protection **just for that line**.
 
 ---
 
+## 13. Reading Function Definitions in Documentation
+
+When you hover over a function or see it in MDN/TypeScript docs, the signature can look cryptic. Here's how to decode it.
+
+### The Pattern
+
+```typescript
+functionName(parameter1: Type1, parameter2: Type2): ReturnType
+```
+
+**Reading order:**
+
+1. **Function name** — What it's called
+2. **Parameters** — What you pass in (inputs)
+3. **Return type** — What you get back (output)
+
+### Real Example 1: `expect.any()`
+
+**What you saw:**
+
+```typescript
+(property) ExpectStatic.any: (constructor: unknown) => any
+```
+
+**Breaking it down:**
+
+| Part                     | Meaning                         | Translation                                           |
+| ------------------------ | ------------------------------- | ----------------------------------------------------- |
+| `(property)`             | It's a property on an object    | Lives on the `expect` object                          |
+| `ExpectStatic.any`       | The full path to this function  | `expect.any` (static method on expect)                |
+| `(constructor: unknown)` | Takes one parameter of any type | You pass in a class/constructor (Error, String, etc.) |
+| `=> any`                 | Returns a matcher of type `any` | Returns a test matcher                                |
+
+**In plain English:**
+"This is a function on the `expect` object called `any`. It takes a constructor (like `Error` or `String`) and returns a matcher you can use in tests."
+
+**How you use it:**
+
+```typescript
+expect(consoleSpy).toHaveBeenCalledWith(
+  expect.stringContaining("..."),
+  expect.any(Error), // ← Pass Error class as the constructor
+);
+```
+
+### Real Example 2: `Array.filter()`
+
+**MDN signature:**
+
+```typescript
+filter(callbackFn: (element: T, index: number, array: T[]) => boolean): T[]
+```
+
+**Breaking it down:**
+
+| Part                                                 | Meaning                              |
+| ---------------------------------------------------- | ------------------------------------ |
+| `filter`                                             | Function name                        |
+| `callbackFn`                                         | Parameter name (you pass a function) |
+| `(element: T, index: number, array: T[]) => boolean` | The callback function's signature    |
+| `: T[]`                                              | Returns an array                     |
+
+**Nested callback breakdown:**
+
+| Part         | Meaning                                 |
+| ------------ | --------------------------------------- |
+| `element`    | Current item in array                   |
+| `index`      | Position of item                        |
+| `array`      | The original array                      |
+| `=> boolean` | Your callback must return true or false |
+
+**In plain English:**
+"Pass a function that receives each element, its index, and the array. Your function returns `true` to keep the item, `false` to filter it out. Returns a new array with kept items."
+
+**How you use it:**
+
+```typescript
+const numbers = [1, 2, 3, 4];
+const evens = numbers.filter((num) => num % 2 === 0);
+//                            ↑       ↑
+//                         element  return true/false
+```
+
+### Real Example 3: `vi.spyOn()`
+
+**Vitest signature:**
+
+```typescript
+spyOn<T, K extends keyof T>(
+  object: T,
+  method: K
+): SpyInstance<T[K]>
+```
+
+**Breaking it down:**
+
+| Part            | Meaning                                        |
+| --------------- | ---------------------------------------------- |
+| `spyOn`         | Function name                                  |
+| `<T, K>`        | Generic types (you don't write these directly) |
+| `object: T`     | First parameter: the object to spy on          |
+| `method: K`     | Second parameter: name of method to spy on     |
+| `: SpyInstance` | Returns a spy object                           |
+
+**In plain English:**
+"Pass an object and the name of one of its methods. Returns a spy that wraps that method."
+
+**How you use it:**
+
+```typescript
+const consoleSpy = vi.spyOn(console, "error");
+//                           ↑        ↑
+//                         object   method name
+```
+
+### Reading Checklist
+
+When you see a function signature, ask in this order:
+
+1. **What's the function name?** (The part before `(`)
+2. **How many parameters does it take?** (Count the commas)
+3. **What type is each parameter?** (Look after the `:` for each param)
+4. **Is any parameter optional?** (Look for `?` before the `:`)
+5. **What does it return?** (Look after the closing `)` for the final `:`)
+
+### Why `unknown` Instead of `any`?
+
+---
+
 ## Study Resources
 
 ### Topics to explore deeper
