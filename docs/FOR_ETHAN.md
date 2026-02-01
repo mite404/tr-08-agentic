@@ -1036,6 +1036,22 @@ const evens = numbers.filter((num) => num % 2 === 0);
 
 ### Real Example 3: `vi.spyOn()`
 
+**What is `vi`?**
+
+`vi` stands for **Vitest Interface** — it's Vitest's API object for mocking and spying, like a "mock API toolkit." Think of it like:
+
+- Jest uses: `jest.fn()`, `jest.mock()`, `jest.spyOn()`
+- Vitest uses: `vi.fn()`, `vi.mock()`, `vi.spyOn()`
+
+**Common `vi` methods:**
+
+```typescript
+vi.fn(); // Create a mock function
+vi.mock(path, impl); // Mock a module
+vi.spyOn(obj, key); // Spy on an object's method
+vi.clearAllMocks(); // Reset all mocks between tests
+```
+
 **Vitest signature:**
 
 ```typescript

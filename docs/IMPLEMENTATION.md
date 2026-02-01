@@ -508,28 +508,40 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 **Goal:** Test hooks and state logic. This requires **Mocking** (faking Supabase and Timers).
 
-#### PR #24: Supabase Mocking & Auth Hooks
+#### PR #24: Supabase Mocking & Auth Hooks — 🚧 PLANNED
 
-- **Focus:** Testing the `useAuth` hook.
+- **Focus:** Testing the `useAuth` hook with backend mocking.
+- **Scope:** Establish the pattern for mocking Supabase throughout the test suite.
 - **Tasks:**
-  - Create a reusable Mock for the Supabase Client (intercept `auth.getSession`, `onAuthStateChange`).
-  - **Test:** `useAuth`.
-    - Verify it initializes explicitly.
-    - Verify it updates state when the mock emits a session change.
-- **Why:** This establishes the pattern for how you will "fake" your backend for all future tests.
+  - [ ] Create a reusable Mock for the Supabase Client
+    - [ ] Intercept `auth.getSession()` calls
+    - [ ] Mock `onAuthStateChange()` listener pattern
+  - [ ] **Test:** `useAuth` hook initialization
+    - [ ] Verify it calls `getSession()` on mount
+    - [ ] Verify it sets up `onAuthStateChange` listener
+  - [ ] **Test:** State updates via session changes
+    - [ ] Mock session change event
+    - [ ] Verify `setSession()` is called with new session data
+- **Why:** This establishes the mocking foundation for all future integration tests. Every hook that depends on Supabase will follow this pattern.
 
-#### PR #25: Logic & Timers (Save/Load)
+#### PR #25: Logic & Timers (Save/Load) — 🚧 PLANNED
 
-- **Focus:** Testing business logic (Debounce & Data Transformation).
+- **Focus:** Testing business logic with fake timers and data transformation.
+- **Scope:** Validate debouncing, retries, and data normalization.
 - **Tasks:**
-  - **Test:** `useSaveBeat`.
-    - Use `vi.useFakeTimers()`.
-    - Trigger a save -> Fast forward 1s -> Verify save _didn't_ happen.
-    - Fast forward 3s -> Verify save _did_ happen.
-  - **Test:** `useLoadBeat`.
-    - Mock a Supabase response with a v1.0 beat.
-    - Verify it returns the normalized structure (checking if your `normalizeBeatData` is integrated correctly).
-- **Why:** This validates your "Prevent Data Loss" features.
+  - [ ] **Test:** `useSaveBeat` hook (debounce behavior)
+    - [ ] Use `vi.useFakeTimers()` to control time
+    - [ ] Trigger a save -> Fast forward 1s -> Verify save **didn't** happen (debounce window)
+    - [ ] Fast forward 2s more (total 3s) -> Verify save **did** happen (debounce triggered)
+    - [ ] Test retry logic: Mock DB failure -> Verify exponential backoff (max 3x)
+  - [ ] **Test:** `useLoadBeat` hook (data normalization)
+    - [ ] Mock Supabase response with v1.0 beat (missing new fields)
+    - [ ] Verify `normalizeBeatData()` injects defaults for missing fields
+    - [ ] Verify React state is correctly hydrated from manifest
+  - [ ] **Test:** Error handling in both hooks
+    - [ ] Verify failed saves don't crash the app
+    - [ ] Verify load errors show appropriate UI feedback
+- **Why:** This validates critical features: debounce prevents data loss, normalization handles schema evolution, error handling is graceful.
 
 ---
 
@@ -537,30 +549,50 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 **Goal:** Simulate a real user clicking buttons in a real Chrome browser.
 
-**Dependencies to Add:** `@playwright/test`.
+**Dependencies:** `@playwright/test`
 
-#### PR #26: Playwright Setup & Smoke Test
+#### PR #26: Playwright Setup & Smoke Test — 🚧 PLANNED
 
-- **Focus:** Getting Playwright running and checking sanity.
+- **Focus:** Getting Playwright infrastructure running and verifying basic sanity.
+- **Scope:** Install, configure, and validate Playwright can access the app.
 - **Tasks:**
-  - Run `bun init playwright`.
-  - Configure `playwright.config.ts` (Base URL, browsers).
-  - **Test:** "The Smoke Test".
-    - Navigate to `localhost:xxxx`.
-    - Verify Page Title is "TR-08".
-    - Verify the "Sign In" or "Start" button is visible.
-- **Why:** Playwright can be finicky to set up (installing browser binaries). This PR ensures the robot can simply "open the page."
+  - [ ] Run `bun init playwright` (installs Playwright and browser binaries)
+  - [ ] Configure `playwright.config.ts`
+    - [ ] Set `baseURL` to `http://localhost:5173` (Vite dev server)
+    - [ ] Configure browsers: Chromium, Firefox, WebKit
+    - [ ] Set `timeout: 30000` (30s per test)
+  - [ ] **Test:** "The Smoke Test" (most basic sanity check)
+    - [ ] Navigate to `/` (home page)
+    - [ ] Verify page title is "TR-08"
+    - [ ] Verify "Sign In" button is visible (guest mode)
+    - [ ] Verify "Start" button is visible (playback control)
+- **Why:** Playwright installation is tricky (browser binary downloads). This PR isolates the setup so you know the test runner itself works before writing complex tests.
 
-#### PR #27: Critical User Flows (The Guest Experience)
+#### PR #27: Critical User Flows (The Guest Experience) — 🚧 PLANNED
 
-- **Focus:** The "Graffiti Wall" experience.
+- **Focus:** Test the "Graffiti Wall" remix loop: load → modify → play.
+- **Scope:** Verify the core user experience end-to-end.
 - **Tasks:**
-  - **Test:** "Guest Playback".
-    - Load page.
-    - Click "Start" (to unlock AudioContext).
-    - Verify the "Stop" button appears.
-    - _Challenge:_ Testing audio in E2E is hard. You usually check for **Visual Side Effects** (e.g., the playhead moving or the "Stop" button becoming active) rather than listening to sound.
-- **Why:** This replaces your manual "Guest load -> Create beat -> Play" checklist item.
+  - [ ] **Test:** "Guest Loads & Plays Latest Beat"
+    - [ ] Navigate to `/`
+    - [ ] Wait for Skeleton to disappear (data loads)
+    - [ ] Verify grid is populated with pads (beat loaded)
+    - [ ] Click "Start" button
+    - [ ] Wait for button text to change to "Stop"
+    - [ ] Verify playhead is advancing (check `currentStep` indicator)
+    - [ ] Click "Stop" button
+    - [ ] Verify playhead resets to 0
+  - [ ] **Test:** "Guest Modifies & Saves"
+    - [ ] Navigate to `/`
+    - [ ] Wait for beat to load
+    - [ ] Click 5 random pads to toggle them
+    - [ ] Wait for "Save" button to be enabled
+    - [ ] Click "Save" button
+    - [ ] Verify save succeeds (toast/loading state)
+  - [ ] **Challenge:** Testing audio playback itself is not practical in E2E
+    - [ ] Instead: Verify visual side effects (playhead movement, button state changes)
+    - [ ] Audio testing belongs in integration tests (mock Tone.js) or manual testing
+- **Why:** This replaces the manual checklist: "Guest loads app → presses play → hears sound → saves beat → reloads → sees saved beat." Now automated and repeatable.
 
 ---
 
