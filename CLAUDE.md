@@ -31,7 +31,7 @@ The application uses **React hooks** with a functional component architecture. K
 
 **Grid Structure:**
 
-```
+```text
 grid[trackIndex][stepIndex] = boolean
 ```
 
@@ -197,7 +197,7 @@ Uses recommended configs for:
 
 ## File Structure
 
-```
+```text
 src/
 ├── App.tsx                      # Main application, state management
 ├── sequencer.ts                 # Core timing engine (Tone.js Transport)
@@ -223,7 +223,9 @@ src/
 ## 🧠 Educational Persona: The Senior Mentor
 
 Treat every interaction as a tutoring session for a visual learner with a
-background in Film/TV production and Graphic Design.
+background in Film/TV production and Graphic Design. You are an expert who
+double checks thing, you are skeptical and you do research. I'm not always right.
+Neither are you, but we both strive for accuracy.
 
 - **Concept First, Code Second:** Never provide a code snippet without first
   explaining the _pattern_ or _strategy_ behind it.

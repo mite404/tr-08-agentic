@@ -34,6 +34,7 @@ const opacityClass = chicletOpacity[state];
 2. **Multiple conditions** - More than 2-3 branches
    - 3+ states, 4+ color variants, etc.
 3. **Data-driven** - The mapping might come from a config/database later
+
    ```typescript
    const statusColors = {
      pending: "yellow",
@@ -45,10 +46,12 @@ const opacityClass = chicletOpacity[state];
 **Use if/else when:**
 
 1. **Complex logic** - Need to evaluate multiple variables or ranges
+
    ```typescript
    if (age < 18 && hasParentConsent) { ... }
    else if (age >= 18 && age < 65) { ... }
    ```
+
 2. **Side effects** - Need to do more than just return a value
 
    ```typescript
@@ -60,6 +63,7 @@ const opacityClass = chicletOpacity[state];
    ```
 
 3. **Only 2 branches** - Simple binary choice (though ternary works too)
+
    ```typescript
    const textColor = isActive ? "text-white" : "text-gray-500";
    ```
@@ -193,7 +197,7 @@ Why? Only 2 outcomes, simple condition.
 
 **The pattern:**
 
-```
+```text
 App.tsx (parent)
   ↓ passes props
 Chiclet.tsx (child)
@@ -283,7 +287,7 @@ import image from "src/assets/images/photo.png";
 
 **Path breakdown:**
 
-```
+```text
 src/
   components/
     Chiclet.tsx  ← You are here
@@ -888,7 +892,7 @@ These are the verbs you'll use most when writing test names:
 
 When writing a test from scratch, use this mental process:
 
-```
+```text
 1. WHAT should happen?        → "should [VERB]"
 2. WHAT specifically?          → "the [OBJECT/CONTENT]"
 3. UNDER what condition?       → "when [TRIGGER]"
@@ -944,6 +948,273 @@ it("should [behavior]", () => {
 1. **ARRANGE:** Set the stage (lights, camera, actors positioned)
 2. **ACT:** Roll camera, action (perform the scene)
 3. **ASSERT:** Check the footage (does it look right?)
+
+---
+
+## 13. Reading Function Definitions in Documentation
+
+When you hover over a function or see it in MDN/TypeScript docs, the signature can look cryptic. Here's how to decode it.
+
+### The Pattern
+
+```typescript
+functionName(parameter1: Type1, parameter2: Type2): ReturnType
+```
+
+**Reading order:**
+
+1. **Function name** — What it's called
+2. **Parameters** — What you pass in (inputs)
+3. **Return type** — What you get back (output)
+
+### Real Example 1: `expect.any()`
+
+**What you saw:**
+
+```typescript
+(property) ExpectStatic.any: (constructor: unknown) => any
+```
+
+**Breaking it down:**
+
+| Part                     | Meaning                         | Translation                                           |
+| ------------------------ | ------------------------------- | ----------------------------------------------------- |
+| `(property)`             | It's a property on an object    | Lives on the `expect` object                          |
+| `ExpectStatic.any`       | The full path to this function  | `expect.any` (static method on expect)                |
+| `(constructor: unknown)` | Takes one parameter of any type | You pass in a class/constructor (Error, String, etc.) |
+| `=> any`                 | Returns a matcher of type `any` | Returns a test matcher                                |
+
+**In plain English:**
+"This is a function on the `expect` object called `any`. It takes a constructor (like `Error` or `String`) and returns a matcher you can use in tests."
+
+**How you use it:**
+
+```typescript
+expect(consoleSpy).toHaveBeenCalledWith(
+  expect.stringContaining("..."),
+  expect.any(Error), // ← Pass Error class as the constructor
+);
+```
+
+### Real Example 2: `Array.filter()`
+
+**MDN signature:**
+
+```typescript
+filter(callbackFn: (element: T, index: number, array: T[]) => boolean): T[]
+```
+
+**Breaking it down:**
+
+| Part                                                 | Meaning                              |
+| ---------------------------------------------------- | ------------------------------------ |
+| `filter`                                             | Function name                        |
+| `callbackFn`                                         | Parameter name (you pass a function) |
+| `(element: T, index: number, array: T[]) => boolean` | The callback function's signature    |
+| `: T[]`                                              | Returns an array                     |
+
+**Nested callback breakdown:**
+
+| Part         | Meaning                                 |
+| ------------ | --------------------------------------- |
+| `element`    | Current item in array                   |
+| `index`      | Position of item                        |
+| `array`      | The original array                      |
+| `=> boolean` | Your callback must return true or false |
+
+**In plain English:**
+"Pass a function that receives each element, its index, and the array. Your function returns `true` to keep the item, `false` to filter it out. Returns a new array with kept items."
+
+**How you use it:**
+
+```typescript
+const numbers = [1, 2, 3, 4];
+const evens = numbers.filter((num) => num % 2 === 0);
+//                            ↑       ↑
+//                         element  return true/false
+```
+
+### Real Example 3: `vi.spyOn()`
+
+**Vitest signature:**
+
+```typescript
+spyOn<T, K extends keyof T>(
+  object: T,
+  method: K
+): SpyInstance<T[K]>
+```
+
+**Breaking it down:**
+
+| Part            | Meaning                                        |
+| --------------- | ---------------------------------------------- |
+| `spyOn`         | Function name                                  |
+| `<T, K>`        | Generic types (you don't write these directly) |
+| `object: T`     | First parameter: the object to spy on          |
+| `method: K`     | Second parameter: name of method to spy on     |
+| `: SpyInstance` | Returns a spy object                           |
+
+**In plain English:**
+"Pass an object and the name of one of its methods. Returns a spy that wraps that method."
+
+**How you use it:**
+
+```typescript
+const consoleSpy = vi.spyOn(console, "error");
+//                           ↑        ↑
+//                         object   method name
+```
+
+### Reading Checklist
+
+When you see a function signature, ask in this order:
+
+1. **What's the function name?** (The part before `(`)
+2. **How many parameters does it take?** (Count the commas)
+3. **What type is each parameter?** (Look after the `:` for each param)
+4. **Is any parameter optional?** (Look for `?` before the `:`)
+5. **What does it return?** (Look after the closing `)` for the final `:`)
+
+### Why `unknown` Instead of `any`?
+
+You'll see both `unknown` and `any` in type signatures:
+
+**`any`** — TypeScript turns off all type checking
+
+```typescript
+const x: any = 5;
+x.toUpperCase(); // ✅ TypeScript allows this (will crash at runtime!)
+```
+
+**`unknown`** — TypeScript enforces checking before use
+
+```typescript
+const x: unknown = 5;
+x.toUpperCase(); // ❌ TypeScript blocks this (protects you!)
+
+// You must check the type first
+if (typeof x === "string") {
+  x.toUpperCase(); // ✅ Now TypeScript knows it's safe
+}
+```
+
+**In function signatures:**
+
+- `constructor: unknown` means "we accept anything, but we don't know what it is"
+- This forces the library author to handle all possible types safely
+- More type-safe than `constructor: any`
+
+**Rule of thumb:** `unknown` is safer than `any`. If you see `unknown` in a signature, it means the library is being careful about type safety.
+
+---
+
+## 14. Error Boundaries and Lifecycle Methods (PR #23)
+
+**Concept:** Error Boundaries are React components that catch errors in child components and prevent the entire app from crashing.
+
+### Key Lifecycle Methods
+
+**`getDerivedStateFromError(error)`**
+
+```typescript
+static getDerivedStateFromError(error: Error): State {
+  return { hasError: true, error };
+}
+```
+
+- Called **during render** when an error is caught
+- Updates component state to trigger a re-render
+- Controls what gets displayed (fallback UI vs normal children)
+- Must be `static` (doesn't use `this`)
+
+**`componentDidCatch(error, errorInfo)`**
+
+```typescript
+componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  console.error("[ErrorBoundary] Caught error:", error);
+  console.error("[ErrorBoundary] Error info:", errorInfo);
+}
+```
+
+- Called **after render** when an error is caught
+- Used for logging, analytics, error reporting
+- Can access `errorInfo.componentStack` to see which component threw
+- Does NOT control what renders (that's `getDerivedStateFromError`'s job)
+
+### The Difference: Logging vs Rendering
+
+**Important distinction you discovered:**
+
+When ErrorBoundary catches an error:
+
+1. `getDerivedStateFromError()` sets state → determines what to **render**
+2. `componentDidCatch()` logs the error → goes to **console**
+3. `render()` checks state and either shows fallback UI or children
+
+**In your test:**
+
+```typescript
+// This logs to console (componentDidCatch)
+console.error("[ErrorBoundary] Caught error:", error);
+
+// This renders on the page (getDerivedStateFromError + render)
+<p>{this.state.error?.message || "An unexpected error occurred"}</p>
+```
+
+So when testing ErrorBoundary:
+
+- Look for the **rendered message** on the page (the actual fallback UI)
+- Not the **console.error** text (which is just logging)
+
+### Error Message Flow
+
+```text
+Component throws: new Error("Error in useEffect")
+        ↓
+ErrorBoundary catches it
+        ↓
+getDerivedStateFromError stores: { hasError: true, error }
+        ↓
+render() checks state and renders:
+        ↓
+<p>{this.state.error?.message}</p>  ← Displays "Error in useEffect"
+        ↓
+User sees on page: "Error in useEffect"
+```
+
+The error message string comes from the **`.message` property** of the caught error object.
+
+### Common Testing Confusion: `getByText` vs `queryByText`
+
+**The confusion you had:**
+
+You tried to use `getByText()` to check if something does NOT exist:
+
+```typescript
+// ❌ This throws an error because getByText can't find the text
+expect(
+  screen.getByText("This component rendered successfully!"),
+).toBeInTheDocument();
+```
+
+**The difference:**
+
+| Method          | Behavior                    | When to use                         |
+| --------------- | --------------------------- | ----------------------------------- |
+| `getByText()`   | Throws error if not found   | Assert element **SHOULD** exist     |
+| `queryByText()` | Returns `null` if not found | Assert element **SHOULD NOT** exist |
+
+**The fix:**
+
+```typescript
+// ✅ This works - queryByText returns null, then we assert it's not there
+expect(
+  screen.queryByText("This component rendered successfully!"),
+).not.toBeInTheDocument();
+```
+
+**Rule:** If you're using `.not.toBeInTheDocument()`, always use `query` methods. Never use `get` methods with `.not.` because `get` will throw before your assertion runs.
 
 ---
 
@@ -1070,7 +1341,7 @@ Each cast temporarily removes TypeScript's protection **just for that line**.
 
 ## Study Resources
 
-### Topics to explore deeper:
+### Topics to explore deeper
 
 1. **Object destructuring** - How `{ variant, isActive, ...rest }` works
 2. **Template literals** - How `` `url(${image})` `` constructs strings
@@ -1078,8 +1349,9 @@ Each cast temporarily removes TypeScript's protection **just for that line**.
 4. **Array methods** - `.map()`, `.filter()`, `.join()`
 5. **CSS background properties** - `backgroundSize`, `backgroundPosition`, etc.
 6. **Component composition** - When to split things into separate components
+7. **TypeScript generics** - What `<T>` and `<K extends keyof T>` mean in signatures
 
-### Good practice:
+### Good practice
 
 When you see a pattern you don't understand, add it here! This becomes your
 personal pattern library.
@@ -1103,7 +1375,7 @@ personal pattern library.
 
 **Props flow:**
 
-```
+```text
 App.tsx calculates:
   - variant (from colIndex)
   - isActive (from grid array)

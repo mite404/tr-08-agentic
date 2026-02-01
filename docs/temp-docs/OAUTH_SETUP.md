@@ -34,13 +34,15 @@ If prompted, configure the OAuth consent screen:
 - Application type: **Web application**
 - Name: `TR-08 Production`
 - Authorized JavaScript origins:
-  ```
+
+  ```text
   https://[YOUR-PROJECT-REF].supabase.co
   http://localhost:5173
   ```
+
 - Authorized redirect URIs:
 
-  ```
+  ```text
   https://[YOUR-PROJECT-REF].supabase.co/auth/v1/callback
   http://localhost:5173/auth/v1/callback
   ```
@@ -69,7 +71,7 @@ If prompted, configure the OAuth consent screen:
    - **Application description**: Beat sequencer web app
    - **Authorization callback URL**:
 
-     ```
+     ```text
      https://[YOUR-PROJECT-REF].supabase.co/auth/v1/callback
      ```
 
@@ -109,7 +111,7 @@ After setting up both providers:
 
 Add these redirect URIs when testing locally:
 
-```
+```text
 http://localhost:5173/auth/v1/callback
 ```
 
@@ -117,7 +119,7 @@ http://localhost:5173/auth/v1/callback
 
 When you deploy, update the redirect URIs to your production domain:
 
-```
+```text
 https://your-domain.com/auth/v1/callback
 ```
 

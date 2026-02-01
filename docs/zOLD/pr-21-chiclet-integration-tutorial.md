@@ -16,7 +16,7 @@ component, adding photorealistic visuals with 4-step color banding
 
 **Visual Pattern:**
 
-```
+```text
 Steps:   [0][1][2][3] [4][5][6][7] [8][9][10][11] [12][13][14][15]
 Colors:  RED  RED  RED  RED | ORANGE ORANGE ORANGE ORANGE | YELLOW YELLOW YELLOW YELLOW | CREAM CREAM CREAM CREAM
 ```
@@ -140,9 +140,9 @@ Pass these props to Chiclet:
 
 Let me break down how the state mapping works:
 
-### How State is Determined:
+### How State is Determined
 
-```
+```text
 Step clicked → Check grid[row][col] → isActive?
                                           ↓
                                     ┌─────┴─────┐
@@ -156,9 +156,9 @@ Step clicked → Check grid[row][col] → isActive?
                                     state='on'   state='ghost'
 ```
 
-### How Color is Determined:
+### How Color is Determined
 
-```
+```text
 colIndex → getChicletVariant(colIndex) → variant
    0-3   →         'red'               → Red background
    4-7   →       'orange'              → Orange background
@@ -166,9 +166,9 @@ colIndex → getChicletVariant(colIndex) → variant
   12-15  →       'cream'               → Cream background
 ```
 
-### How Final Appearance is Built:
+### How Final Appearance is Built
 
-```
+```text
 variant + state → background color
     'red' + 'off'   → bg-red-950 (dark) + opacity-20
     'red' + 'on'    → bg-red-600 (bright) + opacity-100
