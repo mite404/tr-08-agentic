@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ErrorBoundary } from "../ErrorBoundary";
+import { useEffect } from "react";
 
 const BombComponent = ({
   message = "Test explosion",
@@ -8,6 +9,14 @@ const BombComponent = ({
   message?: string;
 }) => {
   throw new Error(message);
+};
+
+const TestChildComponent = () => {
+  useEffect(() => {
+    throw new Error("Error in useEffect");
+  }, []);
+
+  return <div>This component rendered successfully!</div>;
 };
 
 describe("ErrorBoundary component:", () => {
@@ -79,5 +88,49 @@ describe("ErrorBoundary component:", () => {
     // Simulate the user clicking the button
     fireEvent.click(reloadButton);
     expect(window.location.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs error to console when error is caught", () => {
+    // create a fresh console spy
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // renders ErrorBoundary w/ BombComponent
+    render(
+      <ErrorBoundary>
+        <BombComponent message="Logged error" />
+      </ErrorBoundary>,
+    );
+
+    // verifies console.error was called
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("[ErrorBoundary] Caught error:"),
+      expect.any(Error),
+    );
+  });
+
+  it("displays btn to reload page", () => {
+    render(
+      <ErrorBoundary>
+        <BombComponent />
+      </ErrorBoundary>,
+    );
+
+    const reloadButton = screen.getByRole("button", { name: /reload page/i });
+
+    expect(reloadButton).toBeInTheDocument();
+    expect(reloadButton).toHaveClass("bg-red-600");
+  });
+
+  it("throws an error in a child component's useEffect", () => {
+    render(
+      <ErrorBoundary>
+        <TestChildComponent />
+      </ErrorBoundary>,
+    );
+
+    expect(
+      screen.queryByText("This component rendered successfully!"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Error in useEffect")).toBeInTheDocument();
   });
 });

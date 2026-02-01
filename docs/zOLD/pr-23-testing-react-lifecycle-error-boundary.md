@@ -1,8 +1,8 @@
 # PR #23 Tutorial: Testing Error Boundaries (The Safety Net)
 
-**Audience:** Intermediate TypeScript developer, new to React component testing  
-**Prerequisites:** Completed PR #22 (test environment setup)  
-**Learning Style:** Guided discovery with construction/safety net analogies  
+**Audience:** Intermediate TypeScript developer, new to React component testing
+**Prerequisites:** Completed PR #22 (test environment setup)
+**Learning Style:** Guided discovery with construction/safety net analogies
 **Estimated Time:** 60-90 minutes (includes exercises and experimentation)
 
 ---
@@ -301,7 +301,7 @@ bun run test ErrorBoundary
 
 **Expected output:**
 
-```
+```text
 ✓ ErrorBoundary component:
   ✓ renders children when there is no error
 ```
@@ -388,7 +388,7 @@ Because of your `beforeEach` setup! You mocked `console.error` and `console.warn
 
 **Without the mocks**, you'd see:
 
-```
+```text
 Error: Test explosion
   at BombComponent ...
 Warning: React will try to recreate this component...
@@ -736,7 +736,7 @@ bun run test ErrorBoundary
 
 **Expected output:**
 
-```
+```text
 ✓ ErrorBoundary component: (5)
   ✓ renders children when there is no error
   ✓ displays fallback UI when child component throws error
@@ -756,7 +756,7 @@ bun run test
 
 **Expected output:**
 
-```
+```text
 Test Files  4 passed (4)
 Tests       44 passed (44)
 ```
@@ -831,7 +831,7 @@ When testing code that should NOT log errors (like normal components). You only 
 - Verify ErrorBoundary does NOT catch it (ErrorBoundary only catches render errors)
 
 **Explore:** Read the React docs on Error Boundaries to understand why class components are required:
-https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary
+<https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary>
 
 ---
 
