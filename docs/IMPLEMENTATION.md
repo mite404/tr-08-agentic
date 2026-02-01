@@ -1,6 +1,6 @@
 # TR-08 v1.0 Implementation Checklist
 
-**Status:** ✅ **v1.2 RELEASED (Mute/Solo + Beat Library + Photorealistic Knobs + Chiclet Grid) + Testing Infrastructure (PR #22)** | **Last Updated:** 2026-01-30
+**Status:** ✅ **v1.2 RELEASED + Testing Infrastructure Complete (PR #22-23)** | **Last Updated:** 2026-01-31
 
 ---
 
@@ -368,20 +368,20 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 **Status:** Implemented with soft-clip saturation (Sigmoid/Tanh) instead of hard distortion.
 
-1.  **Audio Engine (`audioEngine.ts`):** ✅ COMPLETE
-    - [x] Implemented `Tone.WaveShaper` with sigmoid curve (`Math.tanh`) for warm saturation
-    - [x] **Master Chain:** `Channel → DriveGain → SoftClipper → OutputComp → Compressor → Limiter → Destination`
-    - [x] **DriveGain:** Maps knob 0-100% → gain 1.0-4.0 (+0 to +12dB boost into clipper)
-    - [x] **SoftClipper:** Smooth analog-style clipping (no harsh digital artifacts)
-    - [x] **OutputComp:** Auto-gain compensation (inverse of drive gain) maintains consistent volume
-    - [x] **Control:** `setMasterDrive(percent: 0-100)` sets driveGain and outputComp simultaneously
+1. **Audio Engine (`audioEngine.ts`):** ✅ COMPLETE
+   - [x] Implemented `Tone.WaveShaper` with sigmoid curve (`Math.tanh`) for warm saturation
+   - [x] **Master Chain:** `Channel → DriveGain → SoftClipper → OutputComp → Compressor → Limiter → Destination`
+   - [x] **DriveGain:** Maps knob 0-100% → gain 1.0-4.0 (+0 to +12dB boost into clipper)
+   - [x] **SoftClipper:** Smooth analog-style clipping (no harsh digital artifacts)
+   - [x] **OutputComp:** Auto-gain compensation (inverse of drive gain) maintains consistent volume
+   - [x] **Control:** `setMasterDrive(percent: 0-100)` sets driveGain and outputComp simultaneously
 
-2.  **UI (`App.tsx`):** ✅ COMPLETE
-    - [x] Added **"DRIVE" Knob** (labeled "SHUFFLE" and "DRIVE" in master section)
-    - [x] Uses `GLOBAL_SWING.png` asset (same knob as swing control)
-    - [x] Both knobs positioned left of Analyzer spectrum
-    - [x] Drive knob triggers `handleDriveChange()` on drag
-    - [x] Knob state persists in `drive` (0-100%) state variable
+2. **UI (`App.tsx`):** ✅ COMPLETE
+   - [x] Added **"DRIVE" Knob** (labeled "SHUFFLE" and "DRIVE" in master section)
+   - [x] Uses `GLOBAL_SWING.png` asset (same knob as swing control)
+   - [x] Both knobs positioned left of Analyzer spectrum
+   - [x] Drive knob triggers `handleDriveChange()` on drag
+   - [x] Knob state persists in `drive` (0-100%) state variable
 
 ---
 
@@ -413,18 +413,18 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ### PR #19: Global Settings Persistence
 
-1.  **Schema Update (`src/types/beat.ts`):**
-    - [x] Add `swing: number` (0-100) to `BeatManifest.global`.
-    - [x] Add `drive: number` (0-100) to `BeatManifest.global`.
-    - [x] Update Zod schema.
-    - [x] Update `normalizeBeatData` to inject defaults (0) for old beats.
+1. **Schema Update (`src/types/beat.ts`):**
+   - [x] Add `swing: number` (0-100) to `BeatManifest.global`.
+   - [x] Add `drive: number` (0-100) to `BeatManifest.global`.
+   - [x] Update Zod schema.
+   - [x] Update `normalizeBeatData` to inject defaults (0) for old beats.
 
-2.  **App Logic (`src/App.tsx`):**
-    - [x] Update `handleLoadBeat` to read these values and set state (`setSwing`, `setDrive`).
-    - [x] **Crucial:** Call the audio engine setters (`setMasterDrive`, `setMasterSwing`) immediately on load.
+2. **App Logic (`src/App.tsx`):**
+   - [x] Update `handleLoadBeat` to read these values and set state (`setSwing`, `setDrive`).
+   - [x] **Crucial:** Call the audio engine setters (`setMasterDrive`, `setMasterSwing`) immediately on load.
 
-3.  **Utils (`src/lib/beatUtils.ts`):**
-    - [x] Update `toManifest` to grab the current Swing/Drive values from arguments/state.
+3. **Utils (`src/lib/beatUtils.ts`):**
+   - [x] Update `toManifest` to grab the current Swing/Drive values from arguments/state.
 
 ### PR #21: Grid Integration & Color Logic — ✅ COMPLETE
 
@@ -467,7 +467,7 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ### Testing Phase
 
-Here is a **6-PR Roadmap** to cover all three categories. This follows a "Walk, Jog, Run" strategy: start with the test environment (Components), move to complex logic (Integration), and finish with the browser simulation (E2E).
+**6-PR Testing Roadmap** (Walk, Jog, Run strategy): test infrastructure (Components), then logic (Integration), then browser (E2E).
 
 ---
 
@@ -475,29 +475,32 @@ Here is a **6-PR Roadmap** to cover all three categories. This follows a "Walk, 
 
 **Goal:** Verify UI renders correctly without needing a real browser or backend.
 
-**Dependencies to Add:** `@testing-library/react`, `@testing-library/jest-dom`, `happy-dom` (faster than jsdom).
-
 #### PR #22: Test Environment & Static Components ✅ COMPLETE
 
 - **Focus:** Infrastructure setup and testing "dumb" components.
-- **Tasks:**
+- **Completed:**
   - [x] Configure `vitest.config.ts` to use `environment: 'happy-dom'`.
   - [x] Create `src/test/setup.ts` to extend matchers (like `.toBeInTheDocument()`).
   - [x] **Test:** `SkeletonGrid` (Verify it renders the correct number of cells).
   - [x] **Test:** `PortraitBlocker` (Verify it renders text and ARIA role/label; includes `window.matchMedia` mock for browser API testing).
   - [x] Document test patterns in `TESTING_TUTORIAL.md` and `FOR_ETHAN.md`.
-- **Why:** Ensures the testing harness works before tackling complex logic. Foundation for all future unit tests.
 
-#### PR #23: The Error Boundary & Complex UI
+#### PR #23: ErrorBoundary Testing & React Lifecycle ✅ COMPLETE
 
-- **Focus:** Testing React lifecycle and error catching.
-- **Tasks:**
-  - **Test:** `ErrorBoundary`.
-    - Create a "Bomb" component that throws an error on render.
-    - Wrap it in `ErrorBoundary`.
-    - Verify the fallback UI ("Something went wrong") appears.
-    - _Challenge:_ You'll need to suppress `console.error` in the test setup so the test output stays clean.
-- **Why:** This is a critical safety net. Testing it separately keeps PR #22 clean.
+- **Focus:** Testing React class components, lifecycle methods, and error catching.
+- **Completed:**
+  - [x] **Test:** `ErrorBoundary` catches render-time errors.
+    - [x] `BombComponent` throws during render → ErrorBoundary fallback UI appears.
+    - [x] Custom error messages are displayed on the page.
+  - [x] **Test:** `ErrorBoundary` does NOT catch useEffect errors (lifecycle limitation).
+    - [x] `TestChildComponent` throws in useEffect (post-render phase).
+    - [x] Component renders successfully before error occurs.
+    - [x] ErrorBoundary fallback UI does NOT appear.
+    - [x] Error is logged to console instead (componentDidCatch side effect).
+  - [x] **Test:** Reload button functionality.
+    - [x] Verify button is present and clickable.
+    - [x] Verify `window.location.reload()` is called when clicked.
+  - [x] **Documentation:** Section 14 of `FOR_ETHAN.md` documents the key distinction between `getDerivedStateFromError` (render control) and `componentDidCatch` (logging/side effects).
 
 ---
 
@@ -563,12 +566,12 @@ Here is a **6-PR Roadmap** to cover all three categories. This follows a "Walk, 
 
 ### Summary Checklist
 
-1.  **PR #22:** React Testing Library Setup + Static Components
-2.  **PR #23:** ErrorBoundary Tests
-3.  **PR #24:** Supabase Mocks + `useAuth` Integration
-4.  **PR #25:** `useSaveBeat` (Debounce) + `useLoadBeat` Integration
-5.  **PR #26:** Playwright Installation + Smoke Test
-6.  **PR #27:** Playwright Guest Flow Test
+1. **PR #22:** React Testing Library Setup + Static Components
+2. **PR #23:** ErrorBoundary Tests
+3. **PR #24:** Supabase Mocks + `useAuth` Integration
+4. **PR #25:** `useSaveBeat` (Debounce) + `useLoadBeat` Integration
+5. **PR #26:** Playwright Installation + Smoke Test
+6. **PR #27:** Playwright Guest Flow Test
 
 ---
 
@@ -759,7 +762,7 @@ The project ships without automated tests. All requirements have been **manually
 
 All errors logged with structured format:
 
-```
+```text
 [Module] Message
 ```
 

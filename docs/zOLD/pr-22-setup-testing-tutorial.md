@@ -32,7 +32,7 @@ Imagine you're filming a scene for a movie. Before the final shoot, you need to:
 
 Think of testing like checking your film at different stages:
 
-```
+```text
         ╱╲  E2E Tests (Full Movie)
        ╱  ╲ "Does the entire film work from start to finish?"
       ╱────╲
@@ -178,7 +178,7 @@ A "skeleton" is a placeholder UI that shows while data loads. Think of it like a
 
 ### What Should We Test?
 
-```
+```text
 ✅ Does it render without crashing?
 ✅ Does it render the correct number of pads (160)?
 ✅ Does each pad have the right classes/styling?
@@ -305,7 +305,7 @@ bun run test
 
 Output:
 
-```
+```text
 ✓ SkeletonGrid
   ✓ renders the correct number of skeleton pads (2ms)
   ✓ each pad has the skeleton styling class (1ms)
@@ -588,7 +588,7 @@ expect(styles.display).toBe("none"); // Happy-dom returns empty string
 
 ### 6. Test Organization
 
-```
+```text
 src/
 ├── components/
 │   ├── SkeletonGrid.tsx

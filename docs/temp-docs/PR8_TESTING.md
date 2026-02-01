@@ -13,6 +13,7 @@ bun test src/lib/beatUtils.test.ts
 ### Test Coverage
 
 ✅ **Volume Calculation Tests** (`calculateEffectiveVolume`)
+
 - Standard volume (0dB, no accent) → 0dB
 - Accent active (0dB, accent) → -7dB
 - Accent + Knob (-10dB, accent) → -17dB
@@ -30,6 +31,7 @@ bun test src/lib/beatUtils.test.ts
 ### Setup
 
 1. Start the dev server:
+
    ```bash
    npm run dev
    ```
@@ -39,7 +41,8 @@ bun test src/lib/beatUtils.test.ts
 3. Open Chrome DevTools Console (F12)
 
 4. Wait for the console message:
-   ```
+
+   ```text
    🎹 TR-08 Console Harness Ready!
    ```
 
@@ -203,6 +206,7 @@ window.tr08.play('kick_01', 0, false)   // Should be normal speed again
 ### `window.tr08.play(trackId, pitch, accent)`
 
 **Parameters:**
+
 - `trackId`: `TrackID` - One of: `kick_01`, `kick_02`, `bass_01`, `bass_02`, `snare_01`, `snare_02`, `synth_01`, `clap`, `hh_01`, `hh_02`
 - `pitch`: `number` - Semitones (-12 to +12, default: 0)
 - `accent`: `boolean` - Ghost note flag (default: false)
@@ -222,11 +226,13 @@ Displays the current beat manifest (useful for inspecting pitch and accent state
 ## Next Steps
 
 After manual testing confirms:
+
 1. ✅ Pitch shifting works correctly
 2. ✅ Ghost notes work correctly
 3. ✅ Volume hierarchy is maintained
 
 Proceed to **PR #9: UI Implementation** to add:
+
 - Pitch knob UI component
 - Accent toggle UI (second click on grid cells)
 - Visual feedback for accented cells

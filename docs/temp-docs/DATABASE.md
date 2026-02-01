@@ -150,7 +150,7 @@ If you see errors about `auth.users`:
 
 ## File Structure
 
-```
+```text
 ├── drizzle.config.ts          # Drizzle configuration
 ├── src/
 │   └── db/

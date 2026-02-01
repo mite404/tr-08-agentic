@@ -1,6 +1,6 @@
 # TR-08 v1.0: System Specification
 
-**Status:** ✅ v1.2 IN PROGRESS (Global Swing + Drive Saturation) | **Version:** 1.2 | **Last Updated:** 2026-01-14 (PR #14: Soft-Clip Saturation & Master Drive Control)
+**Status:** ✅ v1.2 COMPLETE + Test Infrastructure (PR #22-23) | **Version:** 1.2 | **Last Updated:** 2026-01-31 (PR #23: ErrorBoundary Testing & React Lifecycle Patterns)
 
 ---
 
@@ -33,7 +33,7 @@ TR-08 is a persistent, social drum machine. Users load the last published beat, 
 
 ### 2.1 The "Two Clocks" Diagram
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                    USER INTERACTION                         │
 │              (Click, Drag, Input Events)                    │
@@ -74,7 +74,7 @@ TR-08 is a persistent, social drum machine. Users load the last published beat, 
 
 ### 2.2 Directory Structure
 
-```
+```text
 src/
 ├── App.tsx                         # Main app, state orchestration
 ├── sequencer.ts                    # Tone.js Transport wrapper
@@ -1067,7 +1067,7 @@ analyzer.connectInput(nativeNode);
 
 **Signal Flow:**
 
-```
+```text
 All Tone.Player Instances
           ↓
     getMasterChannel()
@@ -1095,7 +1095,7 @@ All Tone.Player Instances
 
 Pitch shifting is implemented using playback rate modulation. The formula converts musical semitones to linear playback rate:
 
-```
+```text
 playbackRate = 2^(semitones / 12)
 ```
 
@@ -1118,7 +1118,7 @@ Accents (ghost notes) reduce a track's volume by 7 dB for specific steps. This c
 
 **Volume Formula:**
 
-```
+```text
 effectiveVolume = trackVolume + masterVolume + (isAccented ? -7 : 0)
 ```
 
@@ -1157,7 +1157,7 @@ Per-track mute and solo buttons provide signal control. Mute silences a track un
 
 **Signal Hierarchy (Precedence):**
 
-```
+```text
 1. Mute (highest priority)    → Volume = -∞ (SILENT)
 2. Solo (if any active)       → Non-solo tracks = -∞
 3. Normal Volume              → Use knob value + Master volume
@@ -1435,7 +1435,7 @@ Each PR is **atomic, reviewable, and deployable**. No partial implementations. E
 
 #### Files to Touch
 
-```
+```text
 src/types/beat.ts                 (new)
 src/config/trackConfig.ts         (new)
 src/lib/beatUtils.ts              (new - transformers only)
@@ -1482,7 +1482,7 @@ describe("BeatManifest", () => {
 
 #### Files to Touch
 
-```
+```text
 src/lib/audioEngine.ts            (new)
 src/sequencer.ts                  (refactor: use calculateEffectiveVolume)
 src/App.tsx                        (update: call resumeAudioContext on Play)
@@ -1532,7 +1532,7 @@ describe("calculateEffectiveVolume", () => {
 
 #### Files to Touch
 
-```
+```text
 src/lib/supabase.ts               (✅ new)
 src/hooks/useAuth.ts              (✅ new)
 src/hooks/useSaveBeat.ts          (✅ new - renamed from useSaveHook)
@@ -1585,7 +1585,7 @@ describe("useSaveBeat", () => {
 
 #### Files to Touch
 
-```
+```text
 src/components/SkeletonGrid.tsx    (new)
 src/components/LoginModal.tsx      (new - OAuth buttons)
 src/components/PortraitBlocker.tsx (new - mobile constraint)
@@ -1626,7 +1626,7 @@ describe("SkeletonGrid", () => {
 
 #### Files Completed
 
-```
+```text
 ✅ src/App.tsx                        (add: visibilitychange listener, error boundaries)
 ✅ src/components/ErrorBoundary.tsx   (new - class component with error UI)
 ✅ src/lib/audioEngine.ts            (refactor: 10s timeout with Promise.race)
@@ -1679,29 +1679,29 @@ describe("SkeletonGrid", () => {
 
 **Goal:** Update the "Contracts" to support the new data fields without breaking existing saves.
 
-1.  **Update `TrackID`:** Add `ac_01` (Accent) to the enum.
-2.  **Update `TrackData`:** Add `pitch: number` property.
-3.  **Update `BeatManifestSchema` (Zod):**
-    - Add validation for `pitch` (min -12, max 12).
-    - Add `ac_01` to the allowed keys.
-4.  **Update `normalizeBeatData`:**
-    - **Crucial:** When loading old v1.0 beats (which lack `pitch`), inject default `pitch: 0`.
-    - When loading old beats (which lack `ac_01`), inject an empty accent track.
-5.  **Update `TRACK_REGISTRY`:** Add the entry for `ac_01`.
-    - _Note:_ It won't have a sample URL. We need to handle `sampleId: null` or a specific "virtual" flag.
+1. **Update `TrackID`:** Add `ac_01` (Accent) to the enum.
+2. **Update `TrackData`:** Add `pitch: number` property.
+3. **Update `BeatManifestSchema` (Zod):**
+   - Add validation for `pitch` (min -12, max 12).
+   - Add `ac_01` to the allowed keys.
+4. **Update `normalizeBeatData`:**
+   - **Crucial:** When loading old v1.0 beats (which lack `pitch`), inject default `pitch: 0`.
+   - When loading old beats (which lack `ac_01`), inject an empty accent track.
+5. **Update `TRACK_REGISTRY`:** Add the entry for `ac_01`.
+   - _Note:_ It won't have a sample URL. We need to handle `sampleId: null` or a specific "virtual" flag.
 
 ## PR #8: Audio Engine Physics
 
 **Goal:** Teach the audio engine how to "bend time" (Pitch) and "boost gain" (Accent).
 
-1.  **Pitch:** Calculate playback rate: `rate = 2 ^ (pitch / 12)`.
+1. **Pitch:** Calculate playback rate: `rate = 2 ^ (pitch / 12)`.
 
-2.  **Accent (Ghost Note):**
-    - Look up `trackData.accents[stepIndex]`.
-    - If `true` -> Subtract 7dB from the volume (Ghost note).
-    - If `false` -> Play at Knob volume.
-3.  **Signal Flow Update:**
-    - `playTrack` logic: `Final Volume = Track Volume + (IsAccented ? AccentStrength : 0)`.
+2. **Accent (Ghost Note):**
+   - Look up `trackData.accents[stepIndex]`.
+   - If `true` -> Subtract 7dB from the volume (Ghost note).
+   - If `false` -> Play at Knob volume.
+3. **Signal Flow Update:**
+   - `playTrack` logic: `Final Volume = Track Volume + (IsAccented ? AccentStrength : 0)`.
 
 **Goal:** Teach the engine to interpret `pitch` and the new `accents` array.
 
@@ -1711,19 +1711,19 @@ describe("SkeletonGrid", () => {
 
 **Goal:** Expose the new controls.
 
-1.  **Knob Mode Toggle:**
-    - Add a toggle switch in `App.tsx`.
-    - Pass `knobMode` ("vol" | "pitch") to the `ControlPanel`.
-    - Update `Knob` to render differently based on mode (e.g., center zero for pitch).
-2.  **Grid Rendering:**
-    - The `SequencerGrid` will automatically render the 11th row because it iterates `TRACK_REGISTRY`.
-    - Ensure the Accent row looks distinct (maybe a different color LED).
+1. **Knob Mode Toggle:**
+   - Add a toggle switch in `App.tsx`.
+   - Pass `knobMode` ("vol" | "pitch") to the `ControlPanel`.
+   - Update `Knob` to render differently based on mode (e.g., center zero for pitch).
+2. **Grid Rendering:**
+   - The `SequencerGrid` will automatically render the 11th row because it iterates `TRACK_REGISTRY`.
+   - Ensure the Accent row looks distinct (maybe a different color LED).
 
 ---
 
 ## Phase 8: v1.2 Feature Implementation (Mute/Solo, Beat Library Panel, Knob Asset Raster Impl.) — ✅ COMPLETE (PR #11, #12, #13)
 
-#### PR #11: Mute & Solo Architecture — ✅ COMPLETE
+### PR #11: Mute & Solo Architecture — ✅ COMPLETE
 
 Per-track mute/solo buttons with full audio engine integration. Mute silences a track (returns -Infinity to playback logic). Solo isolates tracks: if ANY track has solo enabled, only solo'd tracks play.
 
@@ -1840,7 +1840,7 @@ Replace circular pads with photorealistic chiclet buttons using prerendered PNG 
 
 When you use Tone.js, audio signals pass through multiple abstraction layers:
 
-```
+```text
 Your Code (TypeScript)
     ↓
 Tone.js wrappers (ToneAudioNode, Channel, Player, etc.)
@@ -1911,7 +1911,7 @@ analyzer.connectInput(nativeNode);
 
 ### Understanding the Unwrapping Chain
 
-```
+```text
 Tone.Channel                                    ← What you create
   .output → Tone._PanVol (pan + volume)
     .output → Tone._Volume (volume control)
@@ -1953,7 +1953,7 @@ Each layer adds functionality:
 
 **Simple (works with `source:` option):**
 
-```
+```text
 <audio> element
     ↓ (AudioMotionAnalyzer creates this automatically)
 MediaElementSourceNode
@@ -1965,7 +1965,7 @@ Destination (speakers)
 
 **Complex (requires manual `audioCtx:` + `connectInput()`):**
 
-```
+```text
               Tone.Transport (scheduler)
                       ↓
 Player₁  Player₂  Player₃ ... Player₁₀

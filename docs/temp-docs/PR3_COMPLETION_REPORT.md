@@ -37,12 +37,14 @@ All documentation has been updated to match the actual implementation of PR #3.
 ## Code vs Documentation Verification
 
 ### Hook Names
+
 | SPEC.md (Old) | Actual Code | SPEC.md (Updated) | Status |
 |---------------|-------------|-------------------|--------|
 | useSaveHook.ts | useSaveBeat.ts | useSaveBeat.ts | ✅ MATCH |
 | useLoadHook.ts | useLoadBeat.ts | useLoadBeat.ts | ✅ MATCH |
 
 ### Directory Structure
+
 | Path | SPEC.md | Code | Status |
 |------|---------|------|--------|
 | src/lib/supabase.ts | ✅ | ✅ | ✅ MATCH |
@@ -53,6 +55,7 @@ All documentation has been updated to match the actual implementation of PR #3.
 | src/components/LoginModal.tsx | ✅ | ✅ | ✅ MATCH |
 
 ### Implementation Status
+
 | Task | SPEC.md | IMPLEMENTATION_PLAN.md | Code | Status |
 |------|---------|------------------------|------|--------|
 | Supabase Client | ✅ | ✅ | ✅ | ✅ SYNCED |
@@ -70,14 +73,17 @@ All documentation has been updated to match the actual implementation of PR #3.
 ## Key Changes Documented
 
 ### Renamed Files
+
 - `useSaveHook.ts` → `useSaveBeat.ts`
 - `useLoadHook.ts` → `useLoadBeat.ts`
 
 ### New Files Documented
+
 - `src/types/database.ts` (Supabase TypeScript types)
 - `tsconfig.app.json` (excluded src/db/)
 
 ### Function Signatures Updated
+
 ```typescript
 // Old (SPEC.md before update)
 useSaveHook() → triggers save
@@ -127,11 +133,13 @@ These are now tracked in IMPLEMENTATION_PLAN.md Phase 4.
 ✅ **Documentation = Code (1:1)**
 
 All hook names, file paths, function signatures, and implementation status match between:
+
 - The actual codebase
 - SPEC.md
 - IMPLEMENTATION_PLAN.md
 
 PR #3 is ready for:
+
 - Manual smoke testing
 - Final code review
 - Merge to main branch

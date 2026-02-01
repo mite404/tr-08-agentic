@@ -21,8 +21,8 @@
 
 The application bridges two incompatible timing systems:
 
-1.  **The Audio Clock (Tone.js):** The Master. Uses Sample-rate precision. Audio instances live in `useRef` (detached from React render).
-2.  **The Visual Clock (React):** The Follower. Uses `useState` to represent the "Sheet Music."
+1. **The Audio Clock (Tone.js):** The Master. Uses Sample-rate precision. Audio instances live in `useRef` (detached from React render).
+2. **The Visual Clock (React):** The Follower. Uses `useState` to represent the "Sheet Music."
 
 ### 2.2 Data Strategy: Semantic Schema-on-Read
 
@@ -37,22 +37,22 @@ We reject array-based storage (fragile) in favor of **Semantic Keying** (robust)
 
 ### 3.1 The "Guest" Experience (Read-Only)
 
-1.  **Initialization:** App enters **Skeleton State** (UI dimmed). Fetches `ORDER BY created_at DESC LIMIT 1`.
-2.  **Hydration:**
-    - Data passes Zod Validation.
-    - Transformer maps `tracks.kick_1` -> `Grid Row 0`.
-    - Audio Samples pre-load.
-3.  **Playback:**
-    - Guest clicks "START".
-    - App forces `Tone.context.resume()` before Transport starts.
+1. **Initialization:** App enters **Skeleton State** (UI dimmed). Fetches `ORDER BY created_at DESC LIMIT 1`.
+2. **Hydration:**
+   - Data passes Zod Validation.
+   - Transformer maps `tracks.kick_1` -> `Grid Row 0`.
+   - Audio Samples pre-load.
+3. **Playback:**
+   - Guest clicks "START".
+   - App forces `Tone.context.resume()` before Transport starts.
 
 ### 3.2 The "Creator" Experience (Write Access)
 
-1.  **Authentication:** OAuth (Google/GitHub). Postgres Trigger (`on_auth_user_created`) creates the Profile row.
-2.  **Publishing:**
-    - User clicks "SAVE".
-    - **Serialization:** App converts UI Array State -> Semantic JSON Manifest.
-    - **Insert:** New record created in `beats` table.
+1. **Authentication:** OAuth (Google/GitHub). Postgres Trigger (`on_auth_user_created`) creates the Profile row.
+2. **Publishing:**
+   - User clicks "SAVE".
+   - **Serialization:** App converts UI Array State -> Semantic JSON Manifest.
+   - **Insert:** New record created in `beats` table.
 
 ---
 
@@ -150,14 +150,14 @@ interface TrackData {
 
 The Audio Engine must calculate effective volume for every track on every frame using this strict precedence:
 
-1.  **Mute Priority:** If a track's `Mute` is **ON**, the track is **SILENT** (Volume = -Infinity), regardless of any other setting.
-2.  **Solo Isolation:**
-    - First, check: Is there _at least one_ track in the system with `Solo` **ON**?
-    - **If YES (Solo Mode Active):**
-      - If current track `Solo` is **ON**: Play (at Knob Volume).
-      - If current track `Solo` is **OFF**: **SILENT**.
-    - **If NO (Normal Mode):**
-      - Play all tracks (at Knob Volume).
+1. **Mute Priority:** If a track's `Mute` is **ON**, the track is **SILENT** (Volume = -Infinity), regardless of any other setting.
+2. **Solo Isolation:**
+   - First, check: Is there _at least one_ track in the system with `Solo` **ON**?
+   - **If YES (Solo Mode Active):**
+     - If current track `Solo` is **ON**: Play (at Knob Volume).
+     - If current track `Solo` is **OFF**: **SILENT**.
+   - **If NO (Normal Mode):**
+     - Play all tracks (at Knob Volume).
 
 _Summary:_ Mute defeats Solo. Solo defeats Normal Playback.
 
