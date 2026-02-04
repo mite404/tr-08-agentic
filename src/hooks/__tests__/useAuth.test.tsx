@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { useAuth } from "../useAuth";
-import { supabase } from "../../lib/supabase";
-import { Session, User } from "@supabase/supabase-js";
-import { Subscript } from "lucide-react";
+import type { Session, User } from "@supabase/supabase-js";
 
 function createMockSupabaseClient() {
   return {
@@ -176,16 +174,18 @@ describe("useAuth hook", () => {
     const mockUnsubscribe = vi.fn();
 
     // Override onAuthStateChange to track unsubscribe
-    mockSupabaseClient.auth.onAuthStateChange = vi.fn((callback) => {
-      capturedCallback = callback;
-      return {
-        data: {
-          subscription: {
-            unsubscribe: mockUnsubscribe,
+    mockSupabaseClient.auth.onAuthStateChange = vi.fn(
+      (callback: (event: string, session: Session | null) => void) => {
+        capturedCallback = callback;
+        return {
+          data: {
+            subscription: {
+              unsubscribe: mockUnsubscribe,
+            },
           },
-        },
-      };
-    });
+        };
+      },
+    );
 
     // Render the hook
     const { unmount } = renderHook(() => useAuth());
@@ -302,7 +302,12 @@ describe("useAuth hook", () => {
 
     const { result } = renderHook(() => useAuth());
 
+    // Wait for initial load to complete
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
     // Assert calling signOut throws error
-    expect(result.current.signOut).rejects.toThrow(mockError);
+    await expect(result.current.signOut()).rejects.toThrow(mockError);
   });
 });

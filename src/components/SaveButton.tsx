@@ -19,17 +19,13 @@ export interface SaveButtonProps {
 export function SaveButton({ onClick, isSaving, disabled }: SaveButtonProps) {
   return (
     <button
-      onClick={onClick}
+      onClick={() => void onClick()}
       disabled={disabled || isSaving}
       className="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {isSaving ? (
         <span className="flex items-center gap-2">
-          <svg
-            className="h-4 w-4 animate-spin"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
+          <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
             <circle
               className="opacity-25"
               cx="12"

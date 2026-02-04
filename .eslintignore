@@ -1,0 +1,14 @@
+# Test files
+**/__tests__/**
+**/*.test.ts
+**/*.test.tsx
+
+# Scripts and config
+scripts/
+drizzle.config.ts
+test-supabase.ts
+
+# Build output
+dist/
+build/
+node_modules/

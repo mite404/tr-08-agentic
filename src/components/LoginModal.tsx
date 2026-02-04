@@ -48,7 +48,7 @@ export function LoginModal({
           <span className="text-xs text-gray-400">Signed in</span>
         </div>
         <button
-          onClick={signOut}
+          onClick={() => void signOut()}
           className="rounded bg-red-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-red-700"
         >
           Sign Out
@@ -60,11 +60,9 @@ export function LoginModal({
   // Unauthenticated state
   return (
     <div className="flex flex-col gap-2 rounded bg-gray-800 p-4">
-      <p className="mb-2 text-sm text-gray-300">
-        Sign in to save your beats
-      </p>
+      <p className="mb-2 text-sm text-gray-300">Sign in to save your beats</p>
       <button
-        onClick={signInWithGoogle}
+        onClick={() => void signInWithGoogle()}
         className="flex items-center justify-center gap-2 rounded bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-100"
       >
         <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -88,7 +86,7 @@ export function LoginModal({
         Sign in with Google
       </button>
       <button
-        onClick={signInWithGithub}
+        onClick={() => void signInWithGithub()}
         className="flex items-center justify-center gap-2 rounded bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
       >
         <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
