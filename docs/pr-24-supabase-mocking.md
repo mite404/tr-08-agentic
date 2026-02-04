@@ -1030,12 +1030,6 @@ it("should register auth state listener on mount", () => {
 
 ```typescript
 it("should update session when auth state changes", async () => {
-  // Mock getSession to return null initially
-  mockSupabaseClient.auth.getSession.mockResolvedValue({
-    data: { session: null },
-    error: null,
-  });
-
   // Use callback capture mock
   mockSupabaseClient.auth.onAuthStateChange = createAuthListenerMock();
 
@@ -1080,22 +1074,19 @@ it("should update session when auth state changes", async () => {
 
 ```typescript
 it("should unsubscribe from listener on unmount", () => {
-  // Mock getSession
-  mockSupabaseClient.auth.getSession.mockResolvedValue({
-    data: { session: null },
-    error: null,
-  });
-
   // Create mock unsubscribe function
   const mockUnsubscribe = vi.fn();
 
-  // Mock onAuthStateChange to return our mock unsubscribe
-  mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-    data: {
-      subscription: {
-        unsubscribe: mockUnsubscribe,
+  // Override onAuthStateChange to track unsubscribe
+  mockSupabaseClient.auth.onAuthStateChange = vi.fn((callback) => {
+    capturedCallback = callback;
+    return {
+      data: {
+        subscription: {
+          unsubscribe: mockUnsubscribe,
+        },
       },
-    },
+    };
   });
 
   // Render the hook
@@ -1180,19 +1171,6 @@ expect(mockSupabaseClient.auth.signInWithOAuth).toHaveBeenCalledWith({
 
 ```typescript
 it("should call signInWithOAuth with google provider", async () => {
-  // Mock getSession
-  mockSupabaseClient.auth.getSession.mockResolvedValue({
-    data: { session: null },
-    error: null,
-  });
-
-  // Mock listener
-  mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-    data: {
-      subscription: { unsubscribe: vi.fn() },
-    },
-  });
-
   // Mock signInWithOAuth to succeed
   mockSupabaseClient.auth.signInWithOAuth.mockResolvedValue({
     error: null,
@@ -1225,19 +1203,6 @@ it("should call signInWithOAuth with google provider", async () => {
 
 ```typescript
 it("should call signInWithOAuth with github provider", async () => {
-  // Mock getSession
-  mockSupabaseClient.auth.getSession.mockResolvedValue({
-    data: { session: null },
-    error: null,
-  });
-
-  // Mock listener
-  mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-    data: {
-      subscription: { unsubscribe: vi.fn() },
-    },
-  });
-
   // Mock signInWithOAuth to succeed
   mockSupabaseClient.auth.signInWithOAuth.mockResolvedValue({
     error: null,
@@ -1266,19 +1231,6 @@ it("should call signInWithOAuth with github provider", async () => {
 
 ```typescript
 it("should throw error when signInWithOAuth fails", async () => {
-  // Mock getSession
-  mockSupabaseClient.auth.getSession.mockResolvedValue({
-    data: { session: null },
-    error: null,
-  });
-
-  // Mock listener
-  mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-    data: {
-      subscription: { unsubscribe: vi.fn() },
-    },
-  });
-
   // Mock signInWithOAuth to return error
   const mockError = new Error("OAuth failed");
   mockSupabaseClient.auth.signInWithOAuth.mockResolvedValue({
@@ -1349,19 +1301,6 @@ You've learned:
 
 ```typescript
 it("should call signOut on Supabase client", async () => {
-  // Mock getSession
-  mockSupabaseClient.auth.getSession.mockResolvedValue({
-    data: { session: null },
-    error: null,
-  });
-
-  // Mock listener
-  mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-    data: {
-      subscription: { unsubscribe: vi.fn() },
-    },
-  });
-
   // Mock signOut to succeed
   mockSupabaseClient.auth.signOut.mockResolvedValue({
     error: null,
@@ -1389,19 +1328,6 @@ it("should call signOut on Supabase client", async () => {
 
 ```typescript
 it("should throw error when signOut fails", async () => {
-  // Mock getSession
-  mockSupabaseClient.auth.getSession.mockResolvedValue({
-    data: { session: null },
-    error: null,
-  });
-
-  // Mock listener
-  mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-    data: {
-      subscription: { unsubscribe: vi.fn() },
-    },
-  });
-
   // Mock signOut to fail
   const mockError = new Error("Sign out failed");
   mockSupabaseClient.auth.signOut.mockResolvedValue({

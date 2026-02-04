@@ -257,8 +257,6 @@ describe("useAuth hook", () => {
   });
 
   it("should throw error when signInWithOAuth fails", async () => {
-    mockSupabaseClient.auth.onAuthStateChange = createAuthListenerMock();
-
     const mockError = new Error("OAuth failed");
     mockSupabaseClient.auth.signInWithOAuth.mockResolvedValue({
       error: mockError,
@@ -274,5 +272,37 @@ describe("useAuth hook", () => {
 
     // TODO: Assert that calling signInWithGoogle throws error
     await expect(result.current.signInWithGoogle()).rejects.toThrow(mockError);
+  });
+
+  it("should call signOut on Supabase client", async () => {
+    mockSupabaseClient.auth.signOut.mockResolvedValue({
+      error: null,
+    });
+
+    const { result } = renderHook(() => useAuth());
+
+    // Wait for initial load
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    // Call signOut
+    await result.current.signOut();
+
+    // Assert signOut was called on Supabase client
+    expect(mockSupabaseClient.auth.signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("should throw error when signOut fails", async () => {
+    // Mock signOut to fail
+    const mockError = new Error("Sign out failed");
+    mockSupabaseClient.auth.signOut.mockResolvedValue({
+      error: mockError,
+    });
+
+    const { result } = renderHook(() => useAuth());
+
+    // Assert calling signOut throws error
+    expect(result.current.signOut).rejects.toThrow(mockError);
   });
 });

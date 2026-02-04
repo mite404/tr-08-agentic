@@ -508,20 +508,31 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 **Goal:** Test hooks and state logic. This requires **Mocking** (faking Supabase and Timers).
 
-#### PR #24: Supabase Mocking & Auth Hooks — 🚧 PLANNED
+#### PR #24: Supabase Mocking & Auth Hooks ✅ COMPLETE
+
+**Completed:** 2026-02-04  
+**Test File:** `src/hooks/__tests__/useAuth.test.tsx` (12 tests passing)
 
 - **Focus:** Testing the `useAuth` hook with backend mocking.
 - **Scope:** Establish the pattern for mocking Supabase throughout the test suite.
 - **Tasks:**
-  - [ ] Create a reusable Mock for the Supabase Client
-    - [ ] Intercept `auth.getSession()` calls
-    - [ ] Mock `onAuthStateChange()` listener pattern
-  - [ ] **Test:** `useAuth` hook initialization
-    - [ ] Verify it calls `getSession()` on mount
-    - [ ] Verify it sets up `onAuthStateChange` listener
-  - [ ] **Test:** State updates via session changes
-    - [ ] Mock session change event
-    - [ ] Verify `setSession()` is called with new session data
+  - [x] Create a reusable Mock for the Supabase Client
+    - [x] Intercept `auth.getSession()` calls
+    - [x] Mock `onAuthStateChange()` listener pattern
+  - [x] **Test:** `useAuth` hook initialization
+    - [x] Verify it calls `getSession()` on mount
+    - [x] Verify it sets up `onAuthStateChange` listener
+  - [x] **Test:** State updates via session changes
+    - [x] Mock session change event
+    - [x] Verify `setSession()` is called with new session data
+  - [x] **Test:** Sign-in methods (Google, GitHub)
+    - [x] Verify `signInWithOAuth` is called with correct provider
+    - [x] Verify errors are thrown when OAuth fails
+  - [x] **Test:** Sign-out functionality
+    - [x] Verify `signOut()` is called on Supabase client
+    - [x] Verify errors are thrown when sign-out fails
+  - [x] **Test:** Cleanup on unmount
+    - [x] Verify `unsubscribe()` is called when component unmounts
 - **Why:** This establishes the mocking foundation for all future integration tests. Every hook that depends on Supabase will follow this pattern.
 
 #### PR #25: Logic & Timers (Save/Load) — 🚧 PLANNED

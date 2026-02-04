@@ -153,6 +153,39 @@ const imageState = state === "off" ? "off" : "on";
 
 Why? Only 2 outcomes, simple condition.
 
+### Your Chiclet Implementation Notes
+
+**What you built:**
+
+- A component that takes step data and renders a styled image button
+- Uses object lookups for dynamic values (opacity, image selection)
+- Handles 3 visual states: off, on, ghost (accented)
+- Applies brightness modifiers for playhead and 16th notes
+
+**Key files:**
+
+- `src/components/Chiclet.tsx` - The component
+- `src/App.tsx` - Where it's used (in the grid rendering loop)
+- `src/assets/images/` - Where the images live
+
+**Props flow:**
+
+```text
+App.tsx calculates:
+  - variant (from colIndex)
+  - isActive (from grid array)
+  - isAccented (from manifest)
+  - isCurrentStep (from currentStep state)
+  - is16thNote (from colIndex % 4)
+
+Chiclet receives props and:
+  - Computes state (off/on/ghost)
+  - Looks up image
+  - Looks up opacity
+  - Combines brightness modifiers
+  - Renders <button> with background image
+```
+
 ---
 
 ## 2. Background Images vs `<img>` Tags
@@ -982,6 +1015,127 @@ If you used `toBe(mockSession)`, the test would fail even though the hook is wor
 
 ---
 
+## 11. Destructuring with Defaults and Type Annotations
+
+**Pattern:** `({ propertyName = defaultValue }: { propertyName?: Type })`
+
+**You'll see this in test files and component props.** It combines two TypeScript features in one line.
+
+### Breaking It Down
+
+The pattern has **two sides** separated by a colon `:`:
+
+**Left side: Default value**
+
+```typescript
+{
+  message = "Test explosion";
+}
+```
+
+Says: "Extract the `message` property. If it's `undefined`, use `"Test explosion"` instead."
+
+**Right side: Type annotation**
+
+```typescript
+{ message?: string; }
+```
+
+Says: "The parameter is an object with an optional `message` property that must be a string."
+
+### Real Example from Testing
+
+```typescript
+const BombComponent = ({
+  message = "Test explosion",
+}: {
+  message?: string;
+}) => {
+  throw new Error(message);
+};
+```
+
+**Without destructuring:**
+
+```typescript
+const BombComponent = (props) => {
+  const message = props.message || "Test explosion"; // manually extract + default
+  throw new Error(message);
+};
+```
+
+**The destructured version is cleaner** because `message` is available directly as a variable.
+
+### How It Works in Practice
+
+```typescript
+// Usage 1: No prop passed
+<BombComponent />
+// → message defaults to "Test explosion"
+
+// Usage 2: Prop passed
+<BombComponent message="Custom error" />
+// → message is "Custom error"
+
+// Usage 3: Explicitly undefined
+<BombComponent message={undefined} />
+// → message defaults to "Test explosion"
+```
+
+### Why the `?` Matters
+
+The `?` in `message?: string` means "optional" — the property might not exist in the object. Compare:
+
+```typescript
+// Without ?: message MUST be provided
+({ message }: { message: string })
+
+// With ?: message is optional
+({ message = "default" }: { message?: string })
+```
+
+### Common Pattern in React Components
+
+This exact pattern appears in component props:
+
+```typescript
+interface ButtonProps {
+  label?: string;
+  onClick?: () => void;
+}
+
+function MyButton({ label = "Click me", onClick }: ButtonProps) {
+  return <button onClick={onClick}>{label}</button>;
+}
+```
+
+You'll use this constantly as your components grow more complex.
+
+---
+
+## 12. Mocking Readonly Properties with `as any` (Testing Pattern)
+
+**Quick reminder:** In tests, you sometimes need to mock **readonly** browser APIs like `window.location`.
+
+```typescript
+// In test setup:
+delete (window as any).location; // Remove the readonly protection
+window.location = { reload: vi.fn() } as any; // Assign fake object
+```
+
+**Why two `as any` casts?**
+
+1. **First `as any`** — Tells TypeScript "let me delete this readonly property"
+2. **Second `as any`** — Tells TypeScript "accept this fake object as a real location"
+
+Each cast temporarily removes TypeScript's protection **just for that line**.
+
+**Important:** Only use `as any` in **test code**. Never in production. It's a deliberate rule-break for testing purposes only.
+
+**See also:** Section 9 covers general mocking patterns for browser APIs.
+
+---
+
 ## 13. Reading Function Definitions in Documentation
 
 When you hover over a function or see it in MDN/TypeScript docs, the signature can look cryptic. Here's how to decode it.
@@ -1265,253 +1419,97 @@ expect(
 
 ---
 
-## 11. Destructuring with Defaults and Type Annotations
+## 15. Testing React Hooks with Mocks (PR #24)
 
-**Pattern:** `({ propertyName = defaultValue }: { propertyName?: Type })`
+**Pattern:** Module mocking with Vitest
 
-**You'll see this in test files and component props.** It combines two TypeScript features in one line.
+### Callback Capture Pattern
 
-### Breaking It Down
-
-The pattern has **two sides** separated by a colon `:`:
-
-**Left side: Default value**
+When testing hooks that register listeners (like `onAuthStateChange`), you need to manually trigger the callback in your tests. The key is **capturing** the callback when the mock is called:
 
 ```typescript
-{
-  message = "Test explosion";
-}
+let capturedCallback;
+
+// In your mock setup:
+mockClient.onAuthStateChange.mockImplementation((callback) => {
+  capturedCallback = callback; // Store the callback
+  return {
+    data: {
+      subscription: { unsubscribe: vi.fn() },
+    },
+  };
+});
+
+// Later in your test: manually trigger it
+await waitFor(() => {
+  capturedCallback("SIGNED_IN", mockSession);
+  expect(result.current.session).toEqual(mockSession);
+});
 ```
 
-Says: "Extract the `message` property. If it's `undefined`, use `"Test explosion"` instead."
+**Why this matters:** Real listeners are async—they fire callbacks at unpredictable times. By capturing the callback, you control _when_ it fires in tests, making tests deterministic and fast.
 
-**Right side: Type annotation**
+### Module Mocking with Vitest
+
+When a component depends on an external module (like `supabase`), mock the entire module:
 
 ```typescript
-{ message?: string; }
+vi.mock("../../lib/supabase", () => ({
+  get supabase() {
+    return mockSupabaseClient;
+  },
+}));
 ```
 
-Says: "The parameter is an object with an optional `message` property that must be a string."
+This **intercepts all imports** of that module in your component. When `useAuth` calls `import { supabase }`, it gets your mock instead of the real thing.
 
-### Real Example from Testing
+### Async Hook Testing
+
+Use `waitFor()` to wait for async state updates:
 
 ```typescript
-const BombComponent = ({
-  message = "Test explosion",
-}: {
-  message?: string;
-}) => {
-  throw new Error(message);
-};
+const { result } = renderHook(() => useAuth());
+
+// Wait for the hook to finish loading
+await waitFor(() => {
+  expect(result.current.loading).toBe(false);
+});
+
+// Now result.current.session is populated
+expect(result.current.session).toEqual(mockSession);
 ```
 
-**Without destructuring:**
+**Key insight:** `waitFor()` polls the condition repeatedly (every 50ms by default) until it passes or times out. This lets you test code that updates asynchronously.
+
+### Testing Method Calls on Mocks
+
+When your hook calls Supabase methods like `signOut()`, verify the mock was called correctly:
 
 ```typescript
-const BombComponent = (props) => {
-  const message = props.message || "Test explosion"; // manually extract + default
-  throw new Error(message);
-};
+// Call the hook's method
+await result.current.signOut();
+
+// Verify the underlying Supabase method was called
+expect(mockSupabaseClient.auth.signOut).toHaveBeenCalledTimes(1);
 ```
 
-**The destructured version is cleaner** because `message` is available directly as a variable.
+You're checking the **mock**, not the hook method. The mock is a spy that tracks all calls.
 
-### How It Works in Practice
+### Testing Async Errors
+
+When a hook method should throw an error, use `.rejects.toThrow()`:
 
 ```typescript
-// Usage 1: No prop passed
-<BombComponent />
-// → message defaults to "Test explosion"
+const mockError = new Error("Sign-out failed");
+mockSupabaseClient.auth.signOut.mockResolvedValue({
+  error: mockError,
+});
 
-// Usage 2: Prop passed
-<BombComponent message="Custom error" />
-// → message is "Custom error"
+const { result } = renderHook(() => useAuth());
 
-// Usage 3: Explicitly undefined
-<BombComponent message={undefined} />
-// → message defaults to "Test explosion"
+// The hook should throw when Supabase returns an error
+await expect(result.current.signOut()).rejects.toThrow(mockError);
 ```
-
-### Why the `?` Matters
-
-The `?` in `message?: string` means "optional" — the property might not exist in the object. Compare:
-
-```typescript
-// Without ?: message MUST be provided
-({ message }: { message: string })
-
-// With ?: message is optional
-({ message = "default" }: { message?: string })
-```
-
-### Common Pattern in React Components
-
-This exact pattern appears in component props:
-
-```typescript
-interface ButtonProps {
-  label?: string;
-  onClick?: () => void;
-}
-
-function MyButton({ label = "Click me", onClick }: ButtonProps) {
-  return <button onClick={onClick}>{label}</button>;
-}
-```
-
-You'll use this constantly as your components grow more complex.
-
----
-
-## 12. Mocking Readonly Properties with `as any` (Testing Pattern)
-
-**Quick reminder:** In tests, you sometimes need to mock **readonly** browser APIs like `window.location`.
-
-```typescript
-// In test setup:
-delete (window as any).location; // Remove the readonly protection
-window.location = { reload: vi.fn() } as any; // Assign fake object
-```
-
-**Why two `as any` casts?**
-
-1. **First `as any`** — Tells TypeScript "let me delete this readonly property"
-2. **Second `as any`** — Tells TypeScript "accept this fake object as a real location"
-
-Each cast temporarily removes TypeScript's protection **just for that line**.
-
-**Important:** Only use `as any` in **test code**. Never in production. It's a deliberate rule-break for testing purposes only.
-
-**See also:** Section 9 covers general mocking patterns for browser APIs.
-
----
-
-## 13. Reading Function Definitions in Documentation
-
-When you hover over a function or see it in MDN/TypeScript docs, the signature can look cryptic. Here's how to decode it.
-
-### The Pattern
-
-```typescript
-functionName(parameter1: Type1, parameter2: Type2): ReturnType
-```
-
-**Reading order:**
-
-1. **Function name** — What it's called
-2. **Parameters** — What you pass in (inputs)
-3. **Return type** — What you get back (output)
-
-### Real Example 1: `expect.any()`
-
-**What you saw:**
-
-```typescript
-(property) ExpectStatic.any: (constructor: unknown) => any
-```
-
-**Breaking it down:**
-
-| Part                     | Meaning                         | Translation                                           |
-| ------------------------ | ------------------------------- | ----------------------------------------------------- |
-| `(property)`             | It's a property on an object    | Lives on the `expect` object                          |
-| `ExpectStatic.any`       | The full path to this function  | `expect.any` (static method on expect)                |
-| `(constructor: unknown)` | Takes one parameter of any type | You pass in a class/constructor (Error, String, etc.) |
-| `=> any`                 | Returns a matcher of type `any` | Returns a test matcher                                |
-
-**In plain English:**
-"This is a function on the `expect` object called `any`. It takes a constructor (like `Error` or `String`) and returns a matcher you can use in tests."
-
-**How you use it:**
-
-```typescript
-expect(consoleSpy).toHaveBeenCalledWith(
-  expect.stringContaining("..."),
-  expect.any(Error), // ← Pass Error class as the constructor
-);
-```
-
-### Real Example 2: `Array.filter()`
-
-**MDN signature:**
-
-```typescript
-filter(callbackFn: (element: T, index: number, array: T[]) => boolean): T[]
-```
-
-**Breaking it down:**
-
-| Part                                                 | Meaning                              |
-| ---------------------------------------------------- | ------------------------------------ |
-| `filter`                                             | Function name                        |
-| `callbackFn`                                         | Parameter name (you pass a function) |
-| `(element: T, index: number, array: T[]) => boolean` | The callback function's signature    |
-| `: T[]`                                              | Returns an array                     |
-
-**Nested callback breakdown:**
-
-| Part         | Meaning                                 |
-| ------------ | --------------------------------------- |
-| `element`    | Current item in array                   |
-| `index`      | Position of item                        |
-| `array`      | The original array                      |
-| `=> boolean` | Your callback must return true or false |
-
-**In plain English:**
-"Pass a function that receives each element, its index, and the array. Your function returns `true` to keep the item, `false` to filter it out. Returns a new array with kept items."
-
-**How you use it:**
-
-```typescript
-const numbers = [1, 2, 3, 4];
-const evens = numbers.filter((num) => num % 2 === 0);
-//                            ↑       ↑
-//                         element  return true/false
-```
-
-### Real Example 3: `vi.spyOn()`
-
-**Vitest signature:**
-
-```typescript
-spyOn<T, K extends keyof T>(
-  object: T,
-  method: K
-): SpyInstance<T[K]>
-```
-
-**Breaking it down:**
-
-| Part            | Meaning                                        |
-| --------------- | ---------------------------------------------- |
-| `spyOn`         | Function name                                  |
-| `<T, K>`        | Generic types (you don't write these directly) |
-| `object: T`     | First parameter: the object to spy on          |
-| `method: K`     | Second parameter: name of method to spy on     |
-| `: SpyInstance` | Returns a spy object                           |
-
-**In plain English:**
-"Pass an object and the name of one of its methods. Returns a spy that wraps that method."
-
-**How you use it:**
-
-```typescript
-const consoleSpy = vi.spyOn(console, "error");
-//                           ↑        ↑
-//                         object   method name
-```
-
-### Reading Checklist
-
-When you see a function signature, ask in this order:
-
-1. **What's the function name?** (The part before `(`)
-2. **How many parameters does it take?** (Count the commas)
-3. **What type is each parameter?** (Look after the `:` for each param)
-4. **Is any parameter optional?** (Look for `?` before the `:`)
-5. **What does it return?** (Look after the closing `)` for the final `:`)
-
-### Why `unknown` Instead of `any`?
 
 ---
 
@@ -1533,36 +1531,3 @@ When you see a pattern you don't understand, add it here! This becomes your
 personal pattern library.
 
 ---
-
-## Your Chiclet Implementation Notes
-
-**What you built:**
-
-- A component that takes step data and renders a styled image button
-- Uses object lookups for dynamic values (opacity, image selection)
-- Handles 3 visual states: off, on, ghost (accented)
-- Applies brightness modifiers for playhead and 16th notes
-
-**Key files:**
-
-- `src/components/Chiclet.tsx` - The component
-- `src/App.tsx` - Where it's used (in the grid rendering loop)
-- `src/assets/images/` - Where the images live
-
-**Props flow:**
-
-```text
-App.tsx calculates:
-  - variant (from colIndex)
-  - isActive (from grid array)
-  - isAccented (from manifest)
-  - isCurrentStep (from currentStep state)
-  - is16thNote (from colIndex % 4)
-
-Chiclet receives props and:
-  - Computes state (off/on/ghost)
-  - Looks up image
-  - Looks up opacity
-  - Combines brightness modifiers
-  - Renders <button> with background image
-```
