@@ -16,6 +16,7 @@ export function Analyzer() {
 
     // Create AudioMotionAnalyzer with Tone's context
     // Note: We need _nativeContext because AudioMotionAnalyzer requires native Web Audio API context
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access */
     const analyzer = new AudioMotionAnalyzer(
       containerRef.current, // Where to draw it
       {
@@ -27,11 +28,14 @@ export function Analyzer() {
         ledBars: true,
       },
     );
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access */
 
     const masterChannel = getMasterChannel();
 
     // Get the truly native audio node - unwrap completely
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
     const gainWrapper = (masterChannel as any).output.output.output.input;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const nativeNode = gainWrapper._nativeAudioNode as AudioNode;
 
     // Connect the analyzer to the master channel

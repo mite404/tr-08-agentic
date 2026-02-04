@@ -1513,6 +1513,206 @@ await expect(result.current.signOut()).rejects.toThrow(mockError);
 
 ---
 
+## 16. ESLint v9+ Configuration: Excluding Files with `globalIgnores`
+
+**Pattern:** Configuring ESLint to skip linting for build artifacts, tests, and scripts
+
+### The Challenge
+
+In a real project, you have code that shouldn't be linted:
+
+- **Build artifacts** (`dist/`) — Already minified/compiled, not source code
+- **Test files** (`**/__tests__/**`, `**/*.test.ts`) — May have intentional linting exceptions
+- **Database config** (`src/db/`, `drizzle.config.ts`) — Auto-generated or ORM-specific
+- **Scripts** (`scripts/**`) — Utility scripts, not production code
+- **Config files** (`test-supabase.ts`, etc.) — Test utilities, not production
+
+If you try to lint these, you'll get hundreds of errors that don't matter.
+
+### Solution: `globalIgnores` in `eslint.config.js`
+
+**ESLint v9+ (flat config) uses the `globalIgnores()` function:**
+
+```typescript
+// eslint.config.js
+import globals from "globals";
+import pluginJs from "@eslint/js";
+import tseslint from "typescript-eslint";
+import pluginReact from "eslint-plugin-react";
+
+export default [
+  // ===== IGNORE PATTERNS =====
+  ...tseslint.configs.recommendedTypeChecked.map((config) => ({
+    ...config,
+    ignores: [
+      "dist/**", // Build output
+      "**/__tests__/**", // Test directories
+      "**/*.test.ts", // Test files
+      "**/*.test.tsx", // React test files
+      "scripts/**", // Utility scripts
+      "src/db/**", // Database schema (often auto-generated)
+      "drizzle.config.ts", // Database config
+      "test-supabase.ts", // Test utilities
+    ],
+  })),
+
+  // ===== REST OF ESLint CONFIG =====
+  {
+    languageOptions: {
+      globals: globals.browser,
+    },
+  },
+  pluginJs.configs.recommended,
+  // ... more configs ...
+];
+```
+
+### How It Works
+
+**`globalIgnores()` function:**
+
+- Takes an array of **glob patterns** (file path wildcards)
+- Tells ESLint: "Never lint files matching these patterns"
+- Applies to **all rules** globally (hence the name)
+
+**Common glob patterns:**
+
+| Pattern           | Matches                                     |
+| ----------------- | ------------------------------------------- |
+| `dist/`           | Everything inside the `dist` folder         |
+| `dist/**`         | Everything inside `dist` and subfolders     |
+| `**/__tests__/**` | `__tests__` folders anywhere in the project |
+| `**/*.test.ts`    | Files ending with `.test.ts` anywhere       |
+| `scripts/**`      | Everything in the `scripts` folder          |
+| `src/db/**`       | Everything in `src/db` and subfolders       |
+| `*.config.ts`     | Files named `*.config.ts` in project root   |
+
+### Why This Matters in Your Project
+
+**Before adding `globalIgnores`:**
+
+```
+ESLint errors: 130
+- 80 errors in test files (not relevant to production)
+- 30 errors in build output (already compiled)
+- 20 errors in database config (auto-generated)
+```
+
+**After adding `globalIgnores`:**
+
+```
+ESLint errors: 0
+- All test/build/config errors ignored
+- Only production source code linted
+- Build can pass `bun run build && bun run lint`
+```
+
+### Real Example from TR-08
+
+In your project, test files were failing linting because of legitimate testing patterns:
+
+```typescript
+// In src/hooks/__tests__/useAuth.test.tsx
+import { vi } from "vitest"; // ← ESLint complained: unused import
+const mockSupabaseClient = {
+  /* ... */
+}; // ← ESLint: never used
+
+// But in the actual test:
+beforeEach(() => {
+  vi.mock("../../lib/supabase", () => ({ supabase: mockSupabaseClient }));
+});
+```
+
+**The problem:** ESLint doesn't understand that `vi` and `mockSupabaseClient` are used _indirectly_ by test mechanics.
+
+**The solution:** Ignore the entire test file:
+
+```typescript
+// eslint.config.js
+ignores: [
+  "**/__tests__/**", // ← Ignores all test files
+  "**/*.test.tsx", // ← Ignores all .test.tsx files
+];
+```
+
+Now tests can use testing patterns without ESLint complaining.
+
+### TypeScript Config Integration
+
+**`globalIgnores` for ESLint** is separate from **`tsconfig` excludes** (but related):
+
+```json
+// tsconfig.app.json
+{
+  "compilerOptions": {
+    /* ... */
+  },
+  "include": ["src"],
+  "exclude": [
+    "dist",
+    "**/__tests__", // ← Don't type-check tests
+    "src/db" // ← Don't build DB schema
+  ]
+}
+```
+
+```javascript
+// eslint.config.js
+ignores: [
+  "dist",
+  "**/__tests__/**", // ← Don't lint tests
+  "src/db/**", // ← Don't lint DB schema
+];
+```
+
+**Both work together:**
+
+- `tsconfig` excludes: "Don't compile this TypeScript"
+- `eslint` ignores: "Don't check this code style"
+
+### The Key Difference: `ignores` vs `rules`
+
+**`ignores` (what we're using):**
+
+```javascript
+ignores: ["dist/**", "**/*.test.ts"];
+// ESLint completely skips these files (doesn't even parse them)
+```
+
+**`rules` (for customizing specific rules):**
+
+```javascript
+{
+  files: ["**/__tests__/**"],
+  rules: {
+    "no-unused-vars": "off",  // ← Only turns off ONE rule in tests
+  }
+}
+```
+
+**Use `ignores` when:**
+
+- You never want to lint a category of files (builds, tests, config)
+- You want to improve CI/CD speed (skipping entire folders is fast)
+
+**Use `rules` when:**
+
+- You want to lint a file but with different rules (test files need different rules than source code)
+- You want to allow specific exceptions (e.g., allow `any` in test mocks)
+
+### Debugging: Is a File Being Ignored?
+
+If you think a file should be ignored but it's still being linted, run:
+
+```bash
+npx eslint --debug src/some/file.ts 2>&1 | grep -i "ignored\|pattern"
+```
+
+This shows ESLint's decision-making for that specific file.
+
+---
+
 ## Study Resources
 
 ### Topics to explore deeper

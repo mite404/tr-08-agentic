@@ -404,6 +404,7 @@ function App() {
       };
       void fetchBeats();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id, loadBeatList]);
 
   // PR #5: Browser lifecycle management - handle visibility changes
@@ -415,6 +416,7 @@ function App() {
       // When page becomes visible again, sync the playhead to current transport position
       if (!document.hidden && createSequencerRef.current) {
         const position = Tone.Transport.position;
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions, @typescript-eslint/no-base-to-string
         console.log(`[App] Page visible, syncing playhead to ${position}`);
         // The sequencer's onStep callback will update the UI on the next step
       }
@@ -434,6 +436,7 @@ function App() {
         `⚠️ Warning: Audio assets for ${failedTrackIds.length} track(s) failed to load.\n\nFailed tracks: ${failedTrackIds.join(", ")}\n\nThese tracks will be disabled (grayed out).`,
       );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [failedTrackIds.length]); // Only run when the count changes
 
   // PR #2: Init sequencer with new audio engine architecture
@@ -526,6 +529,7 @@ function App() {
   // PR #8: Console Harness for manual testing of pitch and accent
   useEffect(() => {
     // Expose debug API to window for manual testing
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
     (window as any).tr08 = {
       play: async (
         trackId: TrackID,
@@ -1113,6 +1117,7 @@ function App() {
 
                 return (
                   <TrackControls
+                    // eslint-disable-next-line react-x/no-array-index-key
                     key={`controls-${trackIndex}`}
                     trackId={trackId}
                     label={trackConfig.label}

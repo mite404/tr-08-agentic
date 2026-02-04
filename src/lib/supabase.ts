@@ -14,8 +14,10 @@
 import { createClient } from "@supabase/supabase-js";
 
 // Validate environment variables at module load time
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as
+  | string
+  | undefined;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
