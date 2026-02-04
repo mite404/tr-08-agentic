@@ -153,6 +153,39 @@ const imageState = state === "off" ? "off" : "on";
 
 Why? Only 2 outcomes, simple condition.
 
+### Your Chiclet Implementation Notes
+
+**What you built:**
+
+- A component that takes step data and renders a styled image button
+- Uses object lookups for dynamic values (opacity, image selection)
+- Handles 3 visual states: off, on, ghost (accented)
+- Applies brightness modifiers for playhead and 16th notes
+
+**Key files:**
+
+- `src/components/Chiclet.tsx` - The component
+- `src/App.tsx` - Where it's used (in the grid rendering loop)
+- `src/assets/images/` - Where the images live
+
+**Props flow:**
+
+```text
+App.tsx calculates:
+  - variant (from colIndex)
+  - isActive (from grid array)
+  - isAccented (from manifest)
+  - isCurrentStep (from currentStep state)
+  - is16thNote (from colIndex % 4)
+
+Chiclet receives props and:
+  - Computes state (off/on/ghost)
+  - Looks up image
+  - Looks up opacity
+  - Combines brightness modifiers
+  - Renders <button> with background image
+```
+
 ---
 
 ## 2. Background Images vs `<img>` Tags
@@ -949,272 +982,36 @@ it("should [behavior]", () => {
 2. **ACT:** Roll camera, action (perform the scene)
 3. **ASSERT:** Check the footage (does it look right?)
 
----
+### Assertion Methods: `toBe` vs `toEqual`
 
-## 13. Reading Function Definitions in Documentation
+When asserting in tests, the method you choose depends on what you're comparing:
 
-When you hover over a function or see it in MDN/TypeScript docs, the signature can look cryptic. Here's how to decode it.
+**`toBe()` — For Primitives (Reference Equality)**
 
-### The Pattern
+Use when comparing simple values:
 
-```typescript
-functionName(parameter1: Type1, parameter2: Type2): ReturnType
-```
+- Booleans: `expect(result.current.loading).toBe(false)`
+- Numbers: `expect(count).toBe(5)`
+- Strings: `expect(name).toBe("John")`
+- `null` or `undefined`: `expect(value).toBe(null)`
 
-**Reading order:**
+`toBe` uses `===` (strict equality), checking if two variables point to the exact same thing in memory.
 
-1. **Function name** — What it's called
-2. **Parameters** — What you pass in (inputs)
-3. **Return type** — What you get back (output)
+**`toEqual()` — For Objects & Arrays (Deep Comparison)**
 
-### Real Example 1: `expect.any()`
+Use when comparing complex values:
 
-**What you saw:**
+- Objects: `expect(result.current.session).toEqual(mockSession)`
+- Arrays: `expect(list).toEqual([1, 2, 3])`
+- Nested structures: `expect(result.current.user).toEqual({ id: "123", email: "test@example.com" })`
 
-```typescript
-(property) ExpectStatic.any: (constructor: unknown) => any
-```
+`toEqual` does a **deep comparison**, checking if the contents and structure match, even if they're different objects in memory.
 
-**Breaking it down:**
+**Why This Matters:**
 
-| Part                     | Meaning                         | Translation                                           |
-| ------------------------ | ------------------------------- | ----------------------------------------------------- |
-| `(property)`             | It's a property on an object    | Lives on the `expect` object                          |
-| `ExpectStatic.any`       | The full path to this function  | `expect.any` (static method on expect)                |
-| `(constructor: unknown)` | Takes one parameter of any type | You pass in a class/constructor (Error, String, etc.) |
-| `=> any`                 | Returns a matcher of type `any` | Returns a test matcher                                |
+In your hook tests, the `session` returned by the hook might be a different object reference than `mockSession` (React state might clone it), but it contains the same data. Using `toEqual` says "I don't care if it's the same object, just that it has the same values."
 
-**In plain English:**
-"This is a function on the `expect` object called `any`. It takes a constructor (like `Error` or `String`) and returns a matcher you can use in tests."
-
-**How you use it:**
-
-```typescript
-expect(consoleSpy).toHaveBeenCalledWith(
-  expect.stringContaining("..."),
-  expect.any(Error), // ← Pass Error class as the constructor
-);
-```
-
-### Real Example 2: `Array.filter()`
-
-**MDN signature:**
-
-```typescript
-filter(callbackFn: (element: T, index: number, array: T[]) => boolean): T[]
-```
-
-**Breaking it down:**
-
-| Part                                                 | Meaning                              |
-| ---------------------------------------------------- | ------------------------------------ |
-| `filter`                                             | Function name                        |
-| `callbackFn`                                         | Parameter name (you pass a function) |
-| `(element: T, index: number, array: T[]) => boolean` | The callback function's signature    |
-| `: T[]`                                              | Returns an array                     |
-
-**Nested callback breakdown:**
-
-| Part         | Meaning                                 |
-| ------------ | --------------------------------------- |
-| `element`    | Current item in array                   |
-| `index`      | Position of item                        |
-| `array`      | The original array                      |
-| `=> boolean` | Your callback must return true or false |
-
-**In plain English:**
-"Pass a function that receives each element, its index, and the array. Your function returns `true` to keep the item, `false` to filter it out. Returns a new array with kept items."
-
-**How you use it:**
-
-```typescript
-const numbers = [1, 2, 3, 4];
-const evens = numbers.filter((num) => num % 2 === 0);
-//                            ↑       ↑
-//                         element  return true/false
-```
-
-### Real Example 3: `vi.spyOn()`
-
-**Vitest signature:**
-
-```typescript
-spyOn<T, K extends keyof T>(
-  object: T,
-  method: K
-): SpyInstance<T[K]>
-```
-
-**Breaking it down:**
-
-| Part            | Meaning                                        |
-| --------------- | ---------------------------------------------- |
-| `spyOn`         | Function name                                  |
-| `<T, K>`        | Generic types (you don't write these directly) |
-| `object: T`     | First parameter: the object to spy on          |
-| `method: K`     | Second parameter: name of method to spy on     |
-| `: SpyInstance` | Returns a spy object                           |
-
-**In plain English:**
-"Pass an object and the name of one of its methods. Returns a spy that wraps that method."
-
-**How you use it:**
-
-```typescript
-const consoleSpy = vi.spyOn(console, "error");
-//                           ↑        ↑
-//                         object   method name
-```
-
-### Reading Checklist
-
-When you see a function signature, ask in this order:
-
-1. **What's the function name?** (The part before `(`)
-2. **How many parameters does it take?** (Count the commas)
-3. **What type is each parameter?** (Look after the `:` for each param)
-4. **Is any parameter optional?** (Look for `?` before the `:`)
-5. **What does it return?** (Look after the closing `)` for the final `:`)
-
-### Why `unknown` Instead of `any`?
-
-You'll see both `unknown` and `any` in type signatures:
-
-**`any`** — TypeScript turns off all type checking
-
-```typescript
-const x: any = 5;
-x.toUpperCase(); // ✅ TypeScript allows this (will crash at runtime!)
-```
-
-**`unknown`** — TypeScript enforces checking before use
-
-```typescript
-const x: unknown = 5;
-x.toUpperCase(); // ❌ TypeScript blocks this (protects you!)
-
-// You must check the type first
-if (typeof x === "string") {
-  x.toUpperCase(); // ✅ Now TypeScript knows it's safe
-}
-```
-
-**In function signatures:**
-
-- `constructor: unknown` means "we accept anything, but we don't know what it is"
-- This forces the library author to handle all possible types safely
-- More type-safe than `constructor: any`
-
-**Rule of thumb:** `unknown` is safer than `any`. If you see `unknown` in a signature, it means the library is being careful about type safety.
-
----
-
-## 14. Error Boundaries and Lifecycle Methods (PR #23)
-
-**Concept:** Error Boundaries are React components that catch errors in child components and prevent the entire app from crashing.
-
-### Key Lifecycle Methods
-
-**`getDerivedStateFromError(error)`**
-
-```typescript
-static getDerivedStateFromError(error: Error): State {
-  return { hasError: true, error };
-}
-```
-
-- Called **during render** when an error is caught
-- Updates component state to trigger a re-render
-- Controls what gets displayed (fallback UI vs normal children)
-- Must be `static` (doesn't use `this`)
-
-**`componentDidCatch(error, errorInfo)`**
-
-```typescript
-componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-  console.error("[ErrorBoundary] Caught error:", error);
-  console.error("[ErrorBoundary] Error info:", errorInfo);
-}
-```
-
-- Called **after render** when an error is caught
-- Used for logging, analytics, error reporting
-- Can access `errorInfo.componentStack` to see which component threw
-- Does NOT control what renders (that's `getDerivedStateFromError`'s job)
-
-### The Difference: Logging vs Rendering
-
-**Important distinction you discovered:**
-
-When ErrorBoundary catches an error:
-
-1. `getDerivedStateFromError()` sets state → determines what to **render**
-2. `componentDidCatch()` logs the error → goes to **console**
-3. `render()` checks state and either shows fallback UI or children
-
-**In your test:**
-
-```typescript
-// This logs to console (componentDidCatch)
-console.error("[ErrorBoundary] Caught error:", error);
-
-// This renders on the page (getDerivedStateFromError + render)
-<p>{this.state.error?.message || "An unexpected error occurred"}</p>
-```
-
-So when testing ErrorBoundary:
-
-- Look for the **rendered message** on the page (the actual fallback UI)
-- Not the **console.error** text (which is just logging)
-
-### Error Message Flow
-
-```text
-Component throws: new Error("Error in useEffect")
-        ↓
-ErrorBoundary catches it
-        ↓
-getDerivedStateFromError stores: { hasError: true, error }
-        ↓
-render() checks state and renders:
-        ↓
-<p>{this.state.error?.message}</p>  ← Displays "Error in useEffect"
-        ↓
-User sees on page: "Error in useEffect"
-```
-
-The error message string comes from the **`.message` property** of the caught error object.
-
-### Common Testing Confusion: `getByText` vs `queryByText`
-
-**The confusion you had:**
-
-You tried to use `getByText()` to check if something does NOT exist:
-
-```typescript
-// ❌ This throws an error because getByText can't find the text
-expect(
-  screen.getByText("This component rendered successfully!"),
-).toBeInTheDocument();
-```
-
-**The difference:**
-
-| Method          | Behavior                    | When to use                         |
-| --------------- | --------------------------- | ----------------------------------- |
-| `getByText()`   | Throws error if not found   | Assert element **SHOULD** exist     |
-| `queryByText()` | Returns `null` if not found | Assert element **SHOULD NOT** exist |
-
-**The fix:**
-
-```typescript
-// ✅ This works - queryByText returns null, then we assert it's not there
-expect(
-  screen.queryByText("This component rendered successfully!"),
-).not.toBeInTheDocument();
-```
-
-**Rule:** If you're using `.not.toBeInTheDocument()`, always use `query` methods. Never use `get` methods with `.not.` because `get` will throw before your assertion runs.
+If you used `toBe(mockSession)`, the test would fail even though the hook is working correctly, because they're different objects.
 
 ---
 
@@ -1424,6 +1221,22 @@ const evens = numbers.filter((num) => num % 2 === 0);
 
 ### Real Example 3: `vi.spyOn()`
 
+**What is `vi`?**
+
+`vi` stands for **Vitest Interface** — it's Vitest's API object for mocking and spying, like a "mock API toolkit." Think of it like:
+
+- Jest uses: `jest.fn()`, `jest.mock()`, `jest.spyOn()`
+- Vitest uses: `vi.fn()`, `vi.mock()`, `vi.spyOn()`
+
+**Common `vi` methods:**
+
+```typescript
+vi.fn(); // Create a mock function
+vi.mock(path, impl); // Mock a module
+vi.spyOn(obj, key); // Spy on an object's method
+vi.clearAllMocks(); // Reset all mocks between tests
+```
+
 **Vitest signature:**
 
 ```typescript
@@ -1466,6 +1279,238 @@ When you see a function signature, ask in this order:
 
 ### Why `unknown` Instead of `any`?
 
+You'll see both `unknown` and `any` in type signatures:
+
+**`any`** — TypeScript turns off all type checking
+
+```typescript
+const x: any = 5;
+x.toUpperCase(); // ✅ TypeScript allows this (will crash at runtime!)
+```
+
+**`unknown`** — TypeScript enforces checking before use
+
+```typescript
+const x: unknown = 5;
+x.toUpperCase(); // ❌ TypeScript blocks this (protects you!)
+
+// You must check the type first
+if (typeof x === "string") {
+  x.toUpperCase(); // ✅ Now TypeScript knows it's safe
+}
+```
+
+**In function signatures:**
+
+- `constructor: unknown` means "we accept anything, but we don't know what it is"
+- This forces the library author to handle all possible types safely
+- More type-safe than `constructor: any`
+
+**Rule of thumb:** `unknown` is safer than `any`. If you see `unknown` in a signature, it means the library is being careful about type safety.
+
+---
+
+## 14. Error Boundaries and Lifecycle Methods (PR #23)
+
+**Concept:** Error Boundaries are React components that catch errors in child components and prevent the entire app from crashing.
+
+### Key Lifecycle Methods
+
+**`getDerivedStateFromError(error)`**
+
+```typescript
+static getDerivedStateFromError(error: Error): State {
+  return { hasError: true, error };
+}
+```
+
+- Called **during render** when an error is caught
+- Updates component state to trigger a re-render
+- Controls what gets displayed (fallback UI vs normal children)
+- Must be `static` (doesn't use `this`)
+
+**`componentDidCatch(error, errorInfo)`**
+
+```typescript
+componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  console.error("[ErrorBoundary] Caught error:", error);
+  console.error("[ErrorBoundary] Error info:", errorInfo);
+}
+```
+
+- Called **after render** when an error is caught
+- Used for logging, analytics, error reporting
+- Can access `errorInfo.componentStack` to see which component threw
+- Does NOT control what renders (that's `getDerivedStateFromError`'s job)
+
+### The Difference: Logging vs Rendering
+
+**Important distinction you discovered:**
+
+When ErrorBoundary catches an error:
+
+1. `getDerivedStateFromError()` sets state → determines what to **render**
+2. `componentDidCatch()` logs the error → goes to **console**
+3. `render()` checks state and either shows fallback UI or children
+
+**In your test:**
+
+```typescript
+// This logs to console (componentDidCatch)
+console.error("[ErrorBoundary] Caught error:", error);
+
+// This renders on the page (getDerivedStateFromError + render)
+<p>{this.state.error?.message || "An unexpected error occurred"}</p>
+```
+
+So when testing ErrorBoundary:
+
+- Look for the **rendered message** on the page (the actual fallback UI)
+- Not the **console.error** text (which is just logging)
+
+### Error Message Flow
+
+```text
+Component throws: new Error("Error in useEffect")
+        ↓
+ErrorBoundary catches it
+        ↓
+getDerivedStateFromError stores: { hasError: true, error }
+        ↓
+render() checks state and renders:
+        ↓
+<p>{this.state.error?.message}</p>  ← Displays "Error in useEffect"
+        ↓
+User sees on page: "Error in useEffect"
+```
+
+The error message string comes from the **`.message` property** of the caught error object.
+
+### Common Testing Confusion: `getByText` vs `queryByText`
+
+**The confusion you had:**
+
+You tried to use `getByText()` to check if something does NOT exist:
+
+```typescript
+// ❌ This throws an error because getByText can't find the text
+expect(
+  screen.getByText("This component rendered successfully!"),
+).toBeInTheDocument();
+```
+
+**The difference:**
+
+| Method          | Behavior                    | When to use                         |
+| --------------- | --------------------------- | ----------------------------------- |
+| `getByText()`   | Throws error if not found   | Assert element **SHOULD** exist     |
+| `queryByText()` | Returns `null` if not found | Assert element **SHOULD NOT** exist |
+
+**The fix:**
+
+```typescript
+// ✅ This works - queryByText returns null, then we assert it's not there
+expect(
+  screen.queryByText("This component rendered successfully!"),
+).not.toBeInTheDocument();
+```
+
+**Rule:** If you're using `.not.toBeInTheDocument()`, always use `query` methods. Never use `get` methods with `.not.` because `get` will throw before your assertion runs.
+
+---
+
+## 15. Testing React Hooks with Mocks (PR #24)
+
+**Pattern:** Module mocking with Vitest
+
+### Callback Capture Pattern
+
+When testing hooks that register listeners (like `onAuthStateChange`), you need to manually trigger the callback in your tests. The key is **capturing** the callback when the mock is called:
+
+```typescript
+let capturedCallback;
+
+// In your mock setup:
+mockClient.onAuthStateChange.mockImplementation((callback) => {
+  capturedCallback = callback; // Store the callback
+  return {
+    data: {
+      subscription: { unsubscribe: vi.fn() },
+    },
+  };
+});
+
+// Later in your test: manually trigger it
+await waitFor(() => {
+  capturedCallback("SIGNED_IN", mockSession);
+  expect(result.current.session).toEqual(mockSession);
+});
+```
+
+**Why this matters:** Real listeners are async—they fire callbacks at unpredictable times. By capturing the callback, you control _when_ it fires in tests, making tests deterministic and fast.
+
+### Module Mocking with Vitest
+
+When a component depends on an external module (like `supabase`), mock the entire module:
+
+```typescript
+vi.mock("../../lib/supabase", () => ({
+  get supabase() {
+    return mockSupabaseClient;
+  },
+}));
+```
+
+This **intercepts all imports** of that module in your component. When `useAuth` calls `import { supabase }`, it gets your mock instead of the real thing.
+
+### Async Hook Testing
+
+Use `waitFor()` to wait for async state updates:
+
+```typescript
+const { result } = renderHook(() => useAuth());
+
+// Wait for the hook to finish loading
+await waitFor(() => {
+  expect(result.current.loading).toBe(false);
+});
+
+// Now result.current.session is populated
+expect(result.current.session).toEqual(mockSession);
+```
+
+**Key insight:** `waitFor()` polls the condition repeatedly (every 50ms by default) until it passes or times out. This lets you test code that updates asynchronously.
+
+### Testing Method Calls on Mocks
+
+When your hook calls Supabase methods like `signOut()`, verify the mock was called correctly:
+
+```typescript
+// Call the hook's method
+await result.current.signOut();
+
+// Verify the underlying Supabase method was called
+expect(mockSupabaseClient.auth.signOut).toHaveBeenCalledTimes(1);
+```
+
+You're checking the **mock**, not the hook method. The mock is a spy that tracks all calls.
+
+### Testing Async Errors
+
+When a hook method should throw an error, use `.rejects.toThrow()`:
+
+```typescript
+const mockError = new Error("Sign-out failed");
+mockSupabaseClient.auth.signOut.mockResolvedValue({
+  error: mockError,
+});
+
+const { result } = renderHook(() => useAuth());
+
+// The hook should throw when Supabase returns an error
+await expect(result.current.signOut()).rejects.toThrow(mockError);
+```
+
 ---
 
 ## Study Resources
@@ -1486,36 +1531,3 @@ When you see a pattern you don't understand, add it here! This becomes your
 personal pattern library.
 
 ---
-
-## Your Chiclet Implementation Notes
-
-**What you built:**
-
-- A component that takes step data and renders a styled image button
-- Uses object lookups for dynamic values (opacity, image selection)
-- Handles 3 visual states: off, on, ghost (accented)
-- Applies brightness modifiers for playhead and 16th notes
-
-**Key files:**
-
-- `src/components/Chiclet.tsx` - The component
-- `src/App.tsx` - Where it's used (in the grid rendering loop)
-- `src/assets/images/` - Where the images live
-
-**Props flow:**
-
-```text
-App.tsx calculates:
-  - variant (from colIndex)
-  - isActive (from grid array)
-  - isAccented (from manifest)
-  - isCurrentStep (from currentStep state)
-  - is16thNote (from colIndex % 4)
-
-Chiclet receives props and:
-  - Computes state (off/on/ghost)
-  - Looks up image
-  - Looks up opacity
-  - Combines brightness modifiers
-  - Renders <button> with background image
-```

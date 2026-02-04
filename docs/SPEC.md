@@ -1404,7 +1404,7 @@ Each PR is **atomic, reviewable, and deployable**. No partial implementations. E
 
 ---
 
-### PR #22: Test Environment & Static Components ✅ COMPLETE
+### PR #1: The Foundation (Types, Validation, DB Setup)
 
 **Scope:** Test infrastructure setup and testing two static UI components.
 **Delivered:** 2026-01-30 | **Effort:** 2-3 hours | **Complexity:** Low
@@ -1794,6 +1794,163 @@ Replace circular pads with photorealistic chiclet buttons using prerendered PNG 
 - **Brightness:** Playhead glow (brightness-175) + 16th note highlight (brightness-135)
 - **Props:** `variant`, `isActive`, `isAccented`, `isCurrentStep`, `is16thNote`, `onClick`, `disabled`
 - **Integration:** Minimal refactor of App.tsx grid rendering loop (swapped Pad → Chiclet)
+
+---
+
+## Testing Roadmap (PR #22-27)
+
+**Strategy:** "Walk, Jog, Run" — Start with component tests, move to integration tests with mocks, finish with E2E browser automation.
+
+### Part 1: Component Tests (The "Walk") ✅ COMPLETE
+
+**Goal:** Verify UI renders correctly without needing a real browser or backend.
+
+#### PR #22: Test Environment & Static Components ✅ COMPLETE
+
+**Scope:** Test infrastructure setup and testing two static UI components.
+**Delivered:** 2026-01-30 | **Effort:** 2-3 hours | **Complexity:** Low
+
+**Deliverables:**
+
+- **vite.config.ts:** Integrated Vitest config with `environment: 'happy-dom'`, globals enabled, setupFiles pointing to src/test/setup.ts.
+- **src/test/setup.ts:** Imports `@testing-library/jest-dom` to extend matchers (`.toBeInTheDocument()`, `.toHaveClass()`, etc.).
+- **src/components/**tests**/SkeletonGrid.test.tsx:** Tests that the component renders 160 skeleton pads with `animate-pulse` class.
+- **src/components/**tests**/PortraitBlocker.test.tsx:** Tests that the component renders text and overlay with ARIA role/label. Includes `window.matchMedia` mock (critical for happy-dom).
+- **Documentation:** `TESTING_TUTORIAL.md` and `FOR_ETHAN.md` updated with test patterns, regex flags, and query preferences.
+
+**Test Results:** ✅ 3 test files, 39 tests passing.
+
+**Key Patterns Established:**
+
+1. **Query Preference:** `getByRole > getByText > getByTestId` (accessibility-first testing)
+2. **Browser API Mocking:** `window.matchMedia` mock pattern for conditional rendering tests
+3. **Regex Flags:** Case-insensitive matching with `/pattern/i` for resilient text queries
+4. **Component Test Structure:** AAA pattern (Arrange, Act, Assert) with `beforeEach` setup
+
+#### PR #23: ErrorBoundary Testing & React Lifecycle ✅ COMPLETE
+
+**Scope:** Testing React class components, lifecycle methods, and error catching.
+**Delivered:** 2026-01-31 | **Effort:** 2-3 hours | **Complexity:** Medium
+
+**Deliverables:**
+
+- **src/components/**tests**/ErrorBoundary.test.tsx:** Comprehensive test coverage for error boundary behavior
+  - Tests render-time error catching with `BombComponent`
+  - Tests useEffect errors (lifecycle limitation — ErrorBoundary does NOT catch these)
+  - Tests reload button functionality with `window.location.reload` mock
+  - Tests console logging via `componentDidCatch` side effects
+
+**Key Insights Documented:**
+
+- `getDerivedStateFromError()` controls **what renders** (fallback UI vs children)
+- `componentDidCatch()` controls **side effects** (logging, analytics)
+- ErrorBoundary catches errors during render phase only (not async effects)
+
+---
+
+### Part 2: Integration Tests (The "Jog") 🚧 PLANNED
+
+**Goal:** Test hooks and state logic. This requires **Mocking** (faking Supabase and Timers).
+
+#### PR #24: Supabase Mocking & Auth Hooks — 🚧 PLANNED
+
+**Focus:** Testing the `useAuth` hook with backend mocking.
+**Scope:** Establish the pattern for mocking Supabase throughout the test suite.
+
+**Planned Tasks:**
+
+- [ ] Create a reusable Mock for the Supabase Client
+  - [ ] Intercept `auth.getSession()` calls
+  - [ ] Mock `onAuthStateChange()` listener pattern
+- [ ] **Test:** `useAuth` hook initialization
+  - [ ] Verify it calls `getSession()` on mount
+  - [ ] Verify it sets up `onAuthStateChange` listener
+- [ ] **Test:** State updates via session changes
+  - [ ] Mock session change event
+  - [ ] Verify `setSession()` is called with new session data
+
+**Why:** This establishes the mocking foundation for all future integration tests. Every hook that depends on Supabase will follow this pattern.
+
+#### PR #25: Logic & Timers (Save/Load) — 🚧 PLANNED
+
+**Focus:** Testing business logic with fake timers and data transformation.
+**Scope:** Validate debouncing, retries, and data normalization.
+
+**Planned Tasks:**
+
+- [ ] **Test:** `useSaveBeat` hook (debounce behavior)
+  - [ ] Use `vi.useFakeTimers()` to control time
+  - [ ] Trigger a save -> Fast forward 1s -> Verify save **didn't** happen (debounce window)
+  - [ ] Fast forward 2s more (total 3s) -> Verify save **did** happen (debounce triggered)
+  - [ ] Test retry logic: Mock DB failure -> Verify exponential backoff (max 3x)
+- [ ] **Test:** `useLoadBeat` hook (data normalization)
+  - [ ] Mock Supabase response with v1.0 beat (missing new fields)
+  - [ ] Verify `normalizeBeatData()` injects defaults for missing fields
+  - [ ] Verify React state is correctly hydrated from manifest
+- [ ] **Test:** Error handling in both hooks
+  - [ ] Verify failed saves don't crash the app
+  - [ ] Verify load errors show appropriate UI feedback
+
+**Why:** This validates critical features: debounce prevents data loss, normalization handles schema evolution, error handling is graceful.
+
+---
+
+### Part 3: E2E Tests (The "Run") 🚧 PLANNED
+
+**Goal:** Simulate a real user clicking buttons in a real Chrome browser.
+
+**Dependencies:** `@playwright/test`
+
+#### PR #26: Playwright Setup & Smoke Test — 🚧 PLANNED
+
+**Focus:** Getting Playwright infrastructure running and verifying basic sanity.
+**Scope:** Install, configure, and validate Playwright can access the app.
+
+**Planned Tasks:**
+
+- [ ] Run `bun init playwright` (installs Playwright and browser binaries)
+- [ ] Configure `playwright.config.ts`
+  - [ ] Set `baseURL` to `http://localhost:5173` (Vite dev server)
+  - [ ] Configure browsers: Chromium, Firefox, WebKit
+  - [ ] Set `timeout: 30000` (30s per test)
+- [ ] **Test:** "The Smoke Test" (most basic sanity check)
+  - [ ] Navigate to `/` (home page)
+  - [ ] Verify page title is "TR-08"
+  - [ ] Verify "Sign In" button is visible (guest mode)
+  - [ ] Verify "Start" button is visible (playback control)
+
+**Why:** Playwright installation is tricky (browser binary downloads). This PR isolates the setup so you know the test runner itself works before writing complex tests.
+
+#### PR #27: Critical User Flows (The Guest Experience) — 🚧 PLANNED
+
+**Focus:** Test the "Graffiti Wall" remix loop: load → modify → play.
+**Scope:** Verify the core user experience end-to-end.
+
+**Planned Tasks:**
+
+- [ ] **Test:** "Guest Loads & Plays Latest Beat"
+  - [ ] Navigate to `/`
+  - [ ] Wait for Skeleton to disappear (data loads)
+  - [ ] Verify grid is populated with pads (beat loaded)
+  - [ ] Click "Start" button
+  - [ ] Wait for button text to change to "Stop"
+  - [ ] Verify playhead is advancing (check `currentStep` indicator)
+  - [ ] Click "Stop" button
+  - [ ] Verify playhead resets to 0
+- [ ] **Test:** "Guest Modifies & Saves"
+  - [ ] Navigate to `/`
+  - [ ] Wait for beat to load
+  - [ ] Click 5 random pads to toggle them
+  - [ ] Wait for "Save" button to be enabled
+  - [ ] Click "Save" button
+  - [ ] Verify save succeeds (toast/loading state)
+- [ ] **Challenge:** Testing audio playback itself is not practical in E2E
+  - [ ] Instead: Verify visual side effects (playhead movement, button state changes)
+  - [ ] Audio testing belongs in integration tests (mock Tone.js) or manual testing
+
+**Why:** This replaces the manual checklist: "Guest loads app → presses play → hears sound → saves beat → reloads → sees saved beat." Now automated and repeatable.
+
+---
 
 ## Summary Table
 

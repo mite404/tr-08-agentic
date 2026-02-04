@@ -87,7 +87,7 @@ describe("ErrorBoundary component:", () => {
 
     // Simulate the user clicking the button
     fireEvent.click(reloadButton);
-    expect(window.location.reload).toHaveBeenCalledTimes(1);
+    expect(window.location.reload as any).toHaveBeenCalledTimes(1);
   });
 
   it("logs error to console when error is caught", () => {

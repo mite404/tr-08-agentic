@@ -8,7 +8,16 @@ import reactX from "eslint-plugin-react-x";
 import reactDom from "eslint-plugin-react-dom";
 
 export default defineConfig([
-  globalIgnores(["dist"]),
+  globalIgnores([
+    "dist",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "scripts/**",
+    "src/db/**",
+    "drizzle.config.ts",
+    "test-supabase.ts",
+  ]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [

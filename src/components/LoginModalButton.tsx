@@ -66,7 +66,7 @@ export function LoginModalButton({
   if (session?.user) {
     return (
       <button
-        onClick={handleSignOut}
+        onClick={() => void handleSignOut()}
         className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
       >
         Sign Out
@@ -87,7 +87,7 @@ export function LoginModalButton({
       {/* Modal Overlay */}
       {isModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75"
+          className="bg-opacity-75 fixed inset-0 z-50 flex items-center justify-center bg-black"
           onClick={() => setIsModalOpen(false)}
         >
           <div
@@ -97,7 +97,7 @@ export function LoginModalButton({
             {/* Close Button */}
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute right-4 top-4 text-gray-400 transition-colors hover:text-white"
+              className="absolute top-4 right-4 text-gray-400 transition-colors hover:text-white"
               aria-label="Close modal"
             >
               <svg
@@ -124,7 +124,7 @@ export function LoginModalButton({
 
               {/* Google Sign In */}
               <button
-                onClick={() => handleSignIn("google")}
+                onClick={() => void handleSignIn("google")}
                 className="flex items-center justify-center gap-2 rounded bg-white px-4 py-3 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-100"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -150,7 +150,7 @@ export function LoginModalButton({
 
               {/* GitHub Sign In */}
               <button
-                onClick={() => handleSignIn("github")}
+                onClick={() => void handleSignIn("github")}
                 className="flex items-center justify-center gap-2 rounded bg-gray-800 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-700"
               >
                 <svg
