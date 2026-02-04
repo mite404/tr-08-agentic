@@ -949,6 +949,37 @@ it("should [behavior]", () => {
 2. **ACT:** Roll camera, action (perform the scene)
 3. **ASSERT:** Check the footage (does it look right?)
 
+### Assertion Methods: `toBe` vs `toEqual`
+
+When asserting in tests, the method you choose depends on what you're comparing:
+
+**`toBe()` — For Primitives (Reference Equality)**
+
+Use when comparing simple values:
+
+- Booleans: `expect(result.current.loading).toBe(false)`
+- Numbers: `expect(count).toBe(5)`
+- Strings: `expect(name).toBe("John")`
+- `null` or `undefined`: `expect(value).toBe(null)`
+
+`toBe` uses `===` (strict equality), checking if two variables point to the exact same thing in memory.
+
+**`toEqual()` — For Objects & Arrays (Deep Comparison)**
+
+Use when comparing complex values:
+
+- Objects: `expect(result.current.session).toEqual(mockSession)`
+- Arrays: `expect(list).toEqual([1, 2, 3])`
+- Nested structures: `expect(result.current.user).toEqual({ id: "123", email: "test@example.com" })`
+
+`toEqual` does a **deep comparison**, checking if the contents and structure match, even if they're different objects in memory.
+
+**Why This Matters:**
+
+In your hook tests, the `session` returned by the hook might be a different object reference than `mockSession` (React state might clone it), but it contains the same data. Using `toEqual` says "I don't care if it's the same object, just that it has the same values."
+
+If you used `toBe(mockSession)`, the test would fail even though the hook is working correctly, because they're different objects.
+
 ---
 
 ## 13. Reading Function Definitions in Documentation

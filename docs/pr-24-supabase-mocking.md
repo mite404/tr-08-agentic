@@ -252,17 +252,25 @@ describe("useAuth hook", () => {
     vi.clearAllMocks();
     mockSupabaseClient = createMockSupabaseClient();
     authStateCallback = null;
+
+    // Set default mocks for all tests
+    mockSupabaseClient.auth.getSession.mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+
+    mockSupabaseClient.auth.onAuthStateChange = createAuthListenerMock();
   });
 
   // ========================================================================
   // PHASE 1: INITIALIZATION
   // ========================================================================
 
-  it("should initialize with loading=true", () => {
+  it("should initialize with loading=true", async () => {
     // TODO 1: Render the hook using renderHook()
     // Hint: const { propertyName } = renderHook(() => yourHookCall());
-    // TODO 2: Assert that loading is initially true
-    // Hint: expect(result.current.loading).toBe(???);
+    // TODO 2: Assert that loading is initially true wrapped in waitFor()
+    // Hint: await waitFor(() => { expect(result.current.loading).toBe(???); });
   });
 
   // ========================================================================
@@ -270,49 +278,16 @@ describe("useAuth hook", () => {
   // ========================================================================
 
   it("should call getSession on mount", async () => {
-    // Mock getSession to return null session
-    mockSupabaseClient.auth.getSession.mockResolvedValue({
-      data: { session: null },
-      error: null,
-    });
-
-    // Mock the listener
-    mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-      data: {
-        subscription: {
-          unsubscribe: vi.fn(),
-        },
-      },
-    });
-
-    // Render the hook
+    // Render the hook (mocks are set up in beforeEach)
     renderHook(() => useAuth());
 
-    // TODO: Assert that getSession was called
-    // Hint: expect(mockSupabaseClient.auth.getSession).toHaveBeenCalledTimes(???);
+    // TODO: Assert that getSession was called, wrapped in waitFor()
+    // Hint: await waitFor(() => { expect(mockSupabaseClient.auth.getSession).toHaveBeenCalledTimes(???); });
   });
 
   it("should set loading to false after getSession resolves", async () => {
-    // Mock getSession to return null session
-    mockSupabaseClient.auth.getSession.mockResolvedValue({
-      data: { session: null },
-      error: null,
-    });
-
-    // Mock the listener
-    mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-      data: {
-        subscription: {
-          unsubscribe: vi.fn(),
-        },
-      },
-    });
-
-    // Render the hook
+    // Render the hook (mocks are set up in beforeEach)
     const { result } = renderHook(() => useAuth());
-
-    // Initially loading is true
-    expect(result.current.loading).toBe(true);
 
     // TODO: Wait for loading to become false
     // Hint: await waitFor(() => { expect(result.current.loading).toBe(???); });
@@ -328,19 +303,10 @@ describe("useAuth hook", () => {
       } as User,
     };
 
-    // Mock getSession to return our mock session
+    // Override the default mock to return our mock session
     mockSupabaseClient.auth.getSession.mockResolvedValue({
       data: { session: mockSession as Session },
       error: null,
-    });
-
-    // Mock the listener
-    mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-      data: {
-        subscription: {
-          unsubscribe: vi.fn(),
-        },
-      },
     });
 
     // Render the hook
@@ -363,13 +329,7 @@ describe("useAuth hook", () => {
   // ========================================================================
 
   it("should register auth state listener on mount", () => {
-    // Mock getSession
-    mockSupabaseClient.auth.getSession.mockResolvedValue({
-      data: { session: null },
-      error: null,
-    });
-
-    // Use our callback capture mock
+    // Use our callback capture mock (default getSession from beforeEach)
     mockSupabaseClient.auth.onAuthStateChange = createAuthListenerMock();
 
     // Render the hook
@@ -384,13 +344,7 @@ describe("useAuth hook", () => {
   });
 
   it("should update session when auth state changes", async () => {
-    // Mock getSession to return null initially
-    mockSupabaseClient.auth.getSession.mockResolvedValue({
-      data: { session: null },
-      error: null,
-    });
-
-    // Use callback capture mock
+    // Use callback capture mock (default getSession from beforeEach)
     mockSupabaseClient.auth.onAuthStateChange = createAuthListenerMock();
 
     // Render the hook
@@ -428,22 +382,19 @@ describe("useAuth hook", () => {
   });
 
   it("should unsubscribe from listener on unmount", () => {
-    // Mock getSession
-    mockSupabaseClient.auth.getSession.mockResolvedValue({
-      data: { session: null },
-      error: null,
-    });
-
-    // Create mock unsubscribe function
+    // Create mock unsubscribe function to verify it's called
     const mockUnsubscribe = vi.fn();
 
-    // Mock onAuthStateChange to return our mock unsubscribe
-    mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-      data: {
-        subscription: {
-          unsubscribe: mockUnsubscribe,
+    // Override onAuthStateChange to track unsubscribe
+    mockSupabaseClient.auth.onAuthStateChange = vi.fn((callback) => {
+      authStateCallback = callback;
+      return {
+        data: {
+          subscription: {
+            unsubscribe: mockUnsubscribe,
+          },
         },
-      },
+      };
     });
 
     // Render the hook
@@ -466,26 +417,13 @@ describe("useAuth hook", () => {
   // ========================================================================
 
   it("should call signInWithOAuth with google provider", async () => {
-    // Mock getSession
-    mockSupabaseClient.auth.getSession.mockResolvedValue({
-      data: { session: null },
-      error: null,
-    });
-
-    // Mock listener
-    mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-      data: {
-        subscription: { unsubscribe: vi.fn() },
-      },
-    });
-
     // Mock signInWithOAuth to succeed
     mockSupabaseClient.auth.signInWithOAuth.mockResolvedValue({
       error: null,
       data: {} as any,
     });
 
-    // Render the hook
+    // Render the hook (default mocks from beforeEach handle getSession and listener)
     const { result } = renderHook(() => useAuth());
 
     // Wait for initial load
@@ -505,26 +443,13 @@ describe("useAuth hook", () => {
   });
 
   it("should call signInWithOAuth with github provider", async () => {
-    // Mock getSession
-    mockSupabaseClient.auth.getSession.mockResolvedValue({
-      data: { session: null },
-      error: null,
-    });
-
-    // Mock listener
-    mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-      data: {
-        subscription: { unsubscribe: vi.fn() },
-      },
-    });
-
     // Mock signInWithOAuth to succeed
     mockSupabaseClient.auth.signInWithOAuth.mockResolvedValue({
       error: null,
       data: {} as any,
     });
 
-    // Render the hook
+    // Render the hook (default mocks from beforeEach handle getSession and listener)
     const { result } = renderHook(() => useAuth());
 
     // Wait for initial load
@@ -540,19 +465,6 @@ describe("useAuth hook", () => {
   });
 
   it("should throw error when signInWithOAuth fails", async () => {
-    // Mock getSession
-    mockSupabaseClient.auth.getSession.mockResolvedValue({
-      data: { session: null },
-      error: null,
-    });
-
-    // Mock listener
-    mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-      data: {
-        subscription: { unsubscribe: vi.fn() },
-      },
-    });
-
     // Mock signInWithOAuth to return error
     const mockError = new Error("OAuth failed");
     mockSupabaseClient.auth.signInWithOAuth.mockResolvedValue({
@@ -560,7 +472,7 @@ describe("useAuth hook", () => {
       data: {} as any,
     });
 
-    // Render the hook
+    // Render the hook (default mocks from beforeEach handle getSession and listener)
     const { result } = renderHook(() => useAuth());
 
     // Wait for initial load
@@ -579,25 +491,12 @@ describe("useAuth hook", () => {
   // ========================================================================
 
   it("should call signOut on Supabase client", async () => {
-    // Mock getSession
-    mockSupabaseClient.auth.getSession.mockResolvedValue({
-      data: { session: null },
-      error: null,
-    });
-
-    // Mock listener
-    mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-      data: {
-        subscription: { unsubscribe: vi.fn() },
-      },
-    });
-
     // Mock signOut to succeed
     mockSupabaseClient.auth.signOut.mockResolvedValue({
       error: null,
     });
 
-    // Render the hook
+    // Render the hook (default mocks from beforeEach handle getSession and listener)
     const { result } = renderHook(() => useAuth());
 
     // Wait for initial load
@@ -613,26 +512,13 @@ describe("useAuth hook", () => {
   });
 
   it("should throw error when signOut fails", async () => {
-    // Mock getSession
-    mockSupabaseClient.auth.getSession.mockResolvedValue({
-      data: { session: null },
-      error: null,
-    });
-
-    // Mock listener
-    mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-      data: {
-        subscription: { unsubscribe: vi.fn() },
-      },
-    });
-
     // Mock signOut to fail
     const mockError = new Error("Sign out failed");
     mockSupabaseClient.auth.signOut.mockResolvedValue({
       error: mockError,
     });
 
-    // Render the hook
+    // Render the hook (default mocks from beforeEach handle getSession and listener)
     const { result } = renderHook(() => useAuth());
 
     // Wait for initial load
