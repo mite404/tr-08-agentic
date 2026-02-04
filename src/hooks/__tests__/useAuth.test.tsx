@@ -31,7 +31,7 @@ vi.mock("../../lib/supabase", () => ({
  * Captures the callback passed to onAuthStateChange.
  * This lets us manually trigger auth events in tests.
  */
-let authStateCallback:
+let capturedCallback:
   | ((event: string, session: Session | null) => void)
   | null = null;
 
@@ -40,7 +40,7 @@ let authStateCallback:
  */
 function createAuthListenerMock() {
   return vi.fn((callback) => {
-    authStateCallback = callback;
+    capturedCallback = callback;
     return {
       data: {
         subscription: {
@@ -56,7 +56,7 @@ describe("useAuth hook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSupabaseClient = createMockSupabaseClient();
-    authStateCallback = null;
+    capturedCallback = null;
 
     // Default mocks for all tests
     mockSupabaseClient.auth.getSession.mockResolvedValue({
@@ -135,7 +135,7 @@ describe("useAuth hook", () => {
       expect(mockSupabaseClient.auth.getSession).toHaveBeenCalledTimes(1);
     });
 
-    expect(authStateCallback).not.toBeNull();
+    expect(capturedCallback).not.toBeNull();
   });
 
   it("should update session when auth state changes", async () => {
@@ -161,7 +161,7 @@ describe("useAuth hook", () => {
 
     await waitFor(() => {
       // Trigger the auth state callback
-      authStateCallback?.("SIGNED_IN", mockSession as Session);
+      capturedCallback?.("SIGNED_IN", mockSession as Session);
 
       // Wait for session to update
       expect(result.current.session).toEqual(mockSession);
@@ -177,7 +177,7 @@ describe("useAuth hook", () => {
 
     // Override onAuthStateChange to track unsubscribe
     mockSupabaseClient.auth.onAuthStateChange = vi.fn((callback) => {
-      authStateCallback = callback;
+      capturedCallback = callback;
       return {
         data: {
           subscription: {
@@ -196,6 +196,83 @@ describe("useAuth hook", () => {
     // Unmount the hook
     unmount();
 
+    // Assert unsubscribe was called
     expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("should call signInWithOAuth with google provider", async () => {
+    mockSupabaseClient.auth.onAuthStateChange = createAuthListenerMock();
+
+    // Mock signInWithOAuth to succeed
+    mockSupabaseClient.auth.signInWithOAuth.mockResolvedValue({
+      error: null,
+      data: {} as any,
+    });
+
+    const { result } = renderHook(() => useAuth());
+
+    // Wait for initial load
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    // TODO: call signInWithGoogle
+    await result.current.signInWithGoogle();
+
+    // TODO: assert signInWithOAuthwas called with correct provider
+    expect(mockSupabaseClient.auth.signInWithOAuth).toHaveBeenCalledWith({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+  });
+
+  it("should call signInWithOAuth with github provider", async () => {
+    mockSupabaseClient.auth.onAuthStateChange = createAuthListenerMock();
+
+    // Mock signInWithOAuth to succeed
+    mockSupabaseClient.auth.signInWithOAuth.mockResolvedValue({
+      error: null,
+      data: {} as any,
+    });
+
+    const { result } = renderHook(() => useAuth());
+
+    // Wait for initial load
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    // TODO: call signInWithGoogle
+    await result.current.signInWithGithub();
+
+    // TODO: assert signInWithOAuthwas called with correct provider
+    expect(mockSupabaseClient.auth.signInWithOAuth).toHaveBeenCalledWith({
+      provider: "github",
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+  });
+
+  it("should throw error when signInWithOAuth fails", async () => {
+    mockSupabaseClient.auth.onAuthStateChange = createAuthListenerMock();
+
+    const mockError = new Error("OAuth failed");
+    mockSupabaseClient.auth.signInWithOAuth.mockResolvedValue({
+      error: mockError,
+      data: {} as any,
+    });
+
+    const { result } = renderHook(() => useAuth());
+
+    // Wait for inital load
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    // TODO: Assert that calling signInWithGoogle throws error
+    await expect(result.current.signInWithGoogle()).rejects.toThrow(mockError);
   });
 });

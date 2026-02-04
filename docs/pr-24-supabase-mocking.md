@@ -673,21 +673,6 @@ Add these tests after your first test:
 
 ```typescript
 it("should call getSession on mount", async () => {
-  // Mock getSession to return null session
-  mockSupabaseClient.auth.getSession.mockResolvedValue({
-    data: { session: null },
-    error: null,
-  });
-
-  // Mock the listener
-  mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-    data: {
-      subscription: {
-        unsubscribe: vi.fn(),
-      },
-    },
-  });
-
   // Render the hook
   renderHook(() => useAuth());
 
@@ -696,21 +681,6 @@ it("should call getSession on mount", async () => {
 });
 
 it("should set loading to false after getSession resolves", async () => {
-  // Mock getSession to return null session
-  mockSupabaseClient.auth.getSession.mockResolvedValue({
-    data: { session: null },
-    error: null,
-  });
-
-  // Mock the listener
-  mockSupabaseClient.auth.onAuthStateChange.mockReturnValue({
-    data: {
-      subscription: {
-        unsubscribe: vi.fn(),
-      },
-    },
-  });
-
   // Render the hook
   const { result } = renderHook(() => useAuth());
 
@@ -1039,12 +1009,6 @@ Just add: `authStateCallback = null;` in the `beforeEach` hook so each test star
 
 ```typescript
 it("should register auth state listener on mount", () => {
-  // Mock getSession
-  mockSupabaseClient.auth.getSession.mockResolvedValue({
-    data: { session: null },
-    error: null,
-  });
-
   // Use our callback capture mock
   mockSupabaseClient.auth.onAuthStateChange = createAuthListenerMock();
 
