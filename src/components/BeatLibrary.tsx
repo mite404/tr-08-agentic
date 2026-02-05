@@ -7,7 +7,6 @@
 
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { Library } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -15,33 +14,39 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "./ui/sheet";
-import { Button } from "./ui/button";
 import type { BeatSummary } from "../hooks/useLoadBeat";
+import metalSquareBtn from "../assets/images/METAL_SQUARE_BTN.png";
 
 interface BeatLibraryProps {
   beats: BeatSummary[];
   onLoadBeat: (beatId: string) => Promise<void>;
+  style?: React.CSSProperties;
 }
 
-export function BeatLibrary({ beats, onLoadBeat }: BeatLibraryProps) {
+export function BeatLibrary({ beats, onLoadBeat, style }: BeatLibraryProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleBeatClick = async (beatId: string) => {
     await onLoadBeat(beatId);
-    setIsOpen(false); // Close sheet after loading
+    setIsOpen(false);
   };
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="beat-library-theme text-white"
+        <button
+          style={style}
+          className="cursor-pointer border-none bg-transparent p-0 transition-all hover:brightness-110"
+          aria-label="Load beat"
         >
-          <Library className="mr-2 h-4 w-4" />
-          Load
-        </Button>
+          <img
+            src={metalSquareBtn}
+            alt="Load"
+            width={54}
+            height={54}
+            draggable={false}
+          />
+        </button>
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>

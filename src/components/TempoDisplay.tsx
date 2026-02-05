@@ -1,3 +1,6 @@
+import tempoLedScreen from "../assets/images/TEMPO_LED_SCREEN.png";
+import tempoBtns from "../assets/images/TEMPO_BTNS.png";
+
 type TempoBtnProps = {
   bpmValue: number;
   onIncrementClick: () => void;
@@ -10,28 +13,43 @@ export function TempoDisplay({
   onDecrementClick,
 }: TempoBtnProps) {
   return (
-    // BPM Display
-    <div className="flex w-full">
+    <div className="flex">
+      {/* LED Screen with BPM overlay */}
       <div
-        className={`flex h-14 grow flex-col items-center justify-center rounded-tl-lg rounded-bl-lg bg-red-950 px-4`}
+        className="relative flex h-14 items-center justify-center"
+        style={{
+          backgroundImage: `url(${tempoLedScreen})`,
+          backgroundSize: "100% 100%",
+          backgroundRepeat: "no-repeat",
+          aspectRatio: "2.2 / 1",
+        }}
       >
-        <div className="">
-          <span className="text-sm text-red-600">TEMPO</span>
-          <span className="text-5xl font-bold text-red-600">{bpmValue}</span>
-        </div>
+        <span className="text-5xl font-bold text-red-600 drop-shadow-[0_0_6px_rgba(220,38,38,0.6)]">
+          {bpmValue}
+        </span>
       </div>
 
-      {/* arrow container */}
-      <div className="flex h-14 flex-col">
+      {/* Arrow buttons with image background */}
+      <div
+        className="flex h-14 flex-col"
+        style={{
+          backgroundImage: `url(${tempoBtns})`,
+          backgroundSize: "100% 100%",
+          backgroundRepeat: "no-repeat",
+          width: "28px",
+        }}
+      >
         <button
-          className="flex h-1/2 w-10 cursor-pointer items-center justify-center rounded-tr-lg border-b bg-gray-500 p-0 text-sm select-none hover:opacity-80"
+          className="flex h-1/2 w-full cursor-pointer items-center justify-center p-0 text-sm opacity-0 select-none hover:opacity-20"
           onClick={onIncrementClick}
+          aria-label="Increase tempo"
         >
           ▲
         </button>
         <button
-          className="flex h-1/2 w-10 cursor-pointer items-center justify-center rounded-br-lg bg-gray-500 p-0 text-sm select-none hover:opacity-80"
+          className="flex h-1/2 w-full cursor-pointer items-center justify-center p-0 text-sm opacity-0 select-none hover:opacity-20"
           onClick={onDecrementClick}
+          aria-label="Decrease tempo"
         >
           ▼
         </button>
