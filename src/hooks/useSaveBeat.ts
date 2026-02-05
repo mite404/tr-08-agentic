@@ -108,6 +108,7 @@ export function useSaveBeat(session: Session | null): UseSaveBeatReturn {
         const { error: dbError } = await supabase.from("beats").insert({
           user_id: session.user.id,
           beat_name: trimmedName,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
           data: validationResult.data as any, // Type assertion needed due to JSONB
         });
 
@@ -116,7 +117,9 @@ export function useSaveBeat(session: Session | null): UseSaveBeatReturn {
           console.error("[Save] Database error:", {
             code: dbError.code,
             message: dbError.message,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
             details: (dbError as any).details,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
             hint: (dbError as any).hint,
           });
           setError(`Failed to save: ${dbError.message}`);
