@@ -1,6 +1,6 @@
 # TR-08 v1.0: System Specification
 
-**Status:** ✅ v1.2 COMPLETE + Test Infrastructure (PR #22-23) | **Version:** 1.2 | **Last Updated:** 2026-01-31 (PR #23: ErrorBoundary Testing & React Lifecycle Patterns)
+**Status:** ✅ v1.2 COMPLETE + Test Infrastructure (PR #22-24) | **Version:** 1.2 | **Last Updated:** 2026-02-04 (PR #24: Supabase Mocking & Auth Hook Testing)
 
 ---
 
@@ -1848,28 +1848,78 @@ Replace circular pads with photorealistic chiclet buttons using prerendered PNG 
 
 ---
 
-### Part 2: Integration Tests (The "Jog") 🚧 PLANNED
+### Part 2: Integration Tests (The "Jog") ✅ PR #24 COMPLETE
 
-**Goal:** Test hooks and state logic. This requires **Mocking** (faking Supabase and Timers).
+**Goal:** Test hooks and state logic with comprehensive Supabase mocking.
 
-#### PR #24: Supabase Mocking & Auth Hooks — 🚧 PLANNED
+#### PR #24: Supabase Mocking & Auth Hooks ✅ COMPLETE
 
-**Focus:** Testing the `useAuth` hook with backend mocking.
-**Scope:** Establish the pattern for mocking Supabase throughout the test suite.
+**Scope:** Testing the `useAuth` hook with full Supabase client mocking architecture.
+**Delivered:** 2026-02-04 | **Effort:** 4-5 hours | **Complexity:** Medium-High
 
-**Planned Tasks:**
+**Deliverables:**
 
-- [ ] Create a reusable Mock for the Supabase Client
-  - [ ] Intercept `auth.getSession()` calls
-  - [ ] Mock `onAuthStateChange()` listener pattern
-- [ ] **Test:** `useAuth` hook initialization
-  - [ ] Verify it calls `getSession()` on mount
-  - [ ] Verify it sets up `onAuthStateChange` listener
-- [ ] **Test:** State updates via session changes
-  - [ ] Mock session change event
-  - [ ] Verify `setSession()` is called with new session data
+- [x] **Supabase Client Mocking Architecture**
+  - Created `createMockSupabaseClient()` factory function
+  - Used Vitest's `vi.mock()` to intercept module imports
+  - Implemented dynamic mock recreation pattern for test isolation
+  - Captured `onAuthStateChange` callback for manual event triggering
 
-**Why:** This establishes the mocking foundation for all future integration tests. Every hook that depends on Supabase will follow this pattern.
+- [x] **Test File:** `src/hooks/__tests__/useAuth.test.tsx` (313 lines, 12 tests passing)
+  - **Phase 1: Initialization**
+    - ✅ Hook initializes with `loading=true`
+  - **Phase 2: Session Management**
+    - ✅ `getSession()` called on mount
+    - ✅ Loading state transitions to `false` after session fetch
+    - ✅ Session and user state populated from `getSession()` response
+  - **Phase 3: Auth State Listener**
+    - ✅ `onAuthStateChange` listener registered on mount
+    - ✅ Session state updates when auth event fires
+    - ✅ Listener unsubscribes on component unmount
+  - **Phase 4: OAuth Sign-In**
+    - ✅ `signInWithGoogle()` calls `signInWithOAuth` with `provider: "google"`
+    - ✅ `signInWithGithub()` calls `signInWithOAuth` with `provider: "github"`
+    - ✅ OAuth errors thrown when `signInWithOAuth` fails
+  - **Phase 5: Sign-Out**
+    - ✅ `signOut()` calls Supabase client method
+    - ✅ Sign-out errors thrown when operation fails
+
+**Key Patterns Established:**
+
+```typescript
+// Module Interception Pattern
+vi.mock("../../lib/supabase", () => ({
+  get supabase() {
+    return mockSupabaseClient;
+  },
+}));
+
+// Callback Capture Pattern
+let capturedCallback:
+  | ((event: string, session: Session | null) => void)
+  | null = null;
+
+function createAuthListenerMock() {
+  return vi.fn((callback) => {
+    capturedCallback = callback;
+    return {
+      data: {
+        subscription: {
+          unsubscribe: vi.fn(),
+        },
+      },
+    };
+  });
+}
+
+// Manual Event Triggering
+capturedCallback?.("SIGNED_IN", mockSession as Session);
+await waitFor(() => {
+  expect(result.current.session).toEqual(mockSession);
+});
+```
+
+**Why This Matters:** Establishes the Supabase mocking foundation for all future integration tests (`useSaveBeat`, `useLoadBeat`).
 
 #### PR #25: Logic & Timers (Save/Load) — 🚧 PLANNED
 

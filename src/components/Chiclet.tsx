@@ -66,11 +66,13 @@ export function Chiclet({
 
   return (
     <button
-      className={`aspect-2/1 h-[70px] w-full cursor-pointer hover:opacity-80 ${opacityClass} ${brightnessModifiers}`}
+      className={`aspect-2/1 h-[60px] w-full cursor-pointer hover:opacity-80 ${opacityClass} ${brightnessModifiers}`}
       style={{
         backgroundImage: `url(${chicletImage})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
+        filter: "drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4))",
+        transition: "filter 0.15s ease",
       }}
       onClick={onClick}
     />

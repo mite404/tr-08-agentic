@@ -10,6 +10,7 @@ type KnobProps = {
   onChange: (newValue: number) => void; // Callback with new value
   variant?: "level" | "tone" | "swing"; // Knob type: "level" (volume), "tone" (pitch), or "swing" (shuffle)
   disabled?: boolean; // Visual feedback for failed tracks
+  label?: string; // Optional tooltip label for the knob
 };
 
 // Internal visual constants (Physical limits of the knob graphic)
@@ -24,6 +25,7 @@ export function Knob({
   onChange,
   variant = "level",
   disabled = false,
+  label,
 }: KnobProps) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -35,7 +37,7 @@ export function Knob({
     knobImage = pitchKnob;
   } else if (variant === "swing") {
     knobImage = swingKnob;
-    knobSize = "h-[60px] w-[60px]"; // Larger for global swing control
+    knobSize = "h-[100px] w-[100px]"; // Larger for global swing control
   }
 
   // 1. Calculate visual angle based on percentage
@@ -90,7 +92,7 @@ export function Knob({
   return (
     <div
       className={disabled ? "pointer-events-none opacity-40 grayscale" : ""}
-      title={disabled ? "This track failed to load" : undefined}
+      title={disabled ? "This track failed to load" : label}
     >
       <img
         src={knobImage}
@@ -104,7 +106,11 @@ export function Knob({
         width={variant === "swing" ? 60 : 28}
         height={variant === "swing" ? 60 : 28}
         className={`drag-none cursor-pointer select-none ${knobSize}`}
-        style={{ transform: `rotate(${renderKnob}deg)` }}
+        style={{
+          transform: `rotate(${renderKnob}deg)`,
+          filter: "drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5))",
+          transition: "filter 0.15s ease",
+        }}
         onMouseDown={handleMouseDown}
         onDragStart={(e) => e.preventDefault()}
       />

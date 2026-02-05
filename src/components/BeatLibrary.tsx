@@ -40,7 +40,7 @@ export function BeatLibrary({ beats, onLoadBeat }: BeatLibraryProps) {
           className="beat-library-theme text-white"
         >
           <Library className="mr-2 h-4 w-4" />
-          My Beats
+          Load
         </Button>
       </SheetTrigger>
       <SheetContent>

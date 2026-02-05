@@ -1,6 +1,6 @@
 # TR-08 v1.0 Implementation Checklist
 
-**Status:** ✅ **v1.2 RELEASED + Testing Infrastructure Complete (PR #22-23)** | **Last Updated:** 2026-01-31
+**Status:** ✅ **v1.2 RELEASED + Testing Infrastructure Complete (PR #22-24)** | **Last Updated:** 2026-02-04
 
 ---
 
@@ -511,29 +511,78 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 #### PR #24: Supabase Mocking & Auth Hooks ✅ COMPLETE
 
 **Completed:** 2026-02-04  
-**Test File:** `src/hooks/__tests__/useAuth.test.tsx` (12 tests passing)
+**Test File:** `src/hooks/__tests__/useAuth.test.tsx` (313 lines, 12 tests passing)
 
-- **Focus:** Testing the `useAuth` hook with backend mocking.
+- **Focus:** Testing the `useAuth` hook with comprehensive Supabase client mocking.
 - **Scope:** Establish the pattern for mocking Supabase throughout the test suite.
-- **Tasks:**
+- **Completed Tasks:**
   - [x] Create a reusable Mock for the Supabase Client
     - [x] Intercept `auth.getSession()` calls
     - [x] Mock `onAuthStateChange()` listener pattern
+    - [x] Implement dynamic mock recreation for test isolation
   - [x] **Test:** `useAuth` hook initialization
     - [x] Verify it calls `getSession()` on mount
     - [x] Verify it sets up `onAuthStateChange` listener
+    - [x] Verify initial loading state is `true`
   - [x] **Test:** State updates via session changes
-    - [x] Mock session change event
+    - [x] Mock session change event via callback capture
     - [x] Verify `setSession()` is called with new session data
+    - [x] Verify user state updates when session changes
   - [x] **Test:** Sign-in methods (Google, GitHub)
     - [x] Verify `signInWithOAuth` is called with correct provider
+    - [x] Verify `redirectTo` parameter is set to `window.location.origin`
     - [x] Verify errors are thrown when OAuth fails
   - [x] **Test:** Sign-out functionality
     - [x] Verify `signOut()` is called on Supabase client
     - [x] Verify errors are thrown when sign-out fails
   - [x] **Test:** Cleanup on unmount
     - [x] Verify `unsubscribe()` is called when component unmounts
-- **Why:** This establishes the mocking foundation for all future integration tests. Every hook that depends on Supabase will follow this pattern.
+
+**Key Testing Patterns Established:**
+
+```typescript
+// 1. Module Interception with Getter Pattern (allows dynamic mock swapping)
+vi.mock("../../lib/supabase", () => ({
+  get supabase() {
+    return mockSupabaseClient;
+  },
+}));
+
+// 2. Callback Capture Pattern (manual auth event triggering)
+let capturedCallback:
+  | ((event: string, session: Session | null) => void)
+  | null = null;
+
+function createAuthListenerMock() {
+  return vi.fn((callback) => {
+    capturedCallback = callback;
+    return {
+      data: {
+        subscription: {
+          unsubscribe: vi.fn(),
+        },
+      },
+    };
+  });
+}
+
+// 3. Type-Safe Mock Creation (prevents circular deps)
+import type { Session, User } from "@supabase/supabase-js";
+
+// 4. Async Hook Testing Pattern
+const { result } = renderHook(() => useAuth());
+await waitFor(() => {
+  expect(result.current.loading).toBe(false);
+});
+
+// 5. Manual Event Triggering for Listener Tests
+capturedCallback?.("SIGNED_IN", mockSession as Session);
+await waitFor(() => {
+  expect(result.current.session).toEqual(mockSession);
+});
+```
+
+**Why This Matters:** Establishes the Supabase mocking foundation for all future integration tests. Every hook that depends on Supabase (`useSaveBeat`, `useLoadBeat`) will follow this pattern.
 
 #### PR #25: Logic & Timers (Save/Load) — 🚧 PLANNED
 
@@ -722,17 +771,17 @@ if (createSequencerRef.current) {
 
 ❌ **Not Implemented** - No test infrastructure
 
-- [ ] Auth hook state management
+- [x] Auth hook state management
 - [ ] Save beat with debounce
 - [ ] Load beat with normalization
 
 ### Component Tests
 
-❌ **Not Implemented** - No React Testing Library configured
+✅ **React Testing Library configured**
 
-- [ ] ErrorBoundary catches and displays errors
-- [ ] SkeletonGrid renders 10 rows of skeleton pads
-- [ ] PortraitBlocker shows overlay on portrait
+- [x] ErrorBoundary catches and displays errors
+- [x] SkeletonGrid renders 10 rows of skeleton pads
+- [x] PortraitBlocker shows overlay on portrait
 
 ### E2E Tests (Manual) — ✅ VERIFIED
 

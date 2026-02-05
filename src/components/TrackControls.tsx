@@ -48,7 +48,7 @@ export function TrackControls({
   const INACTIVE = "#504F4F"; // Dark gray
 
   return (
-    <div className="flex h-[25px] items-center gap-1">
+    <div className="flex items-center" style={{ gap: "12px" }}>
       {/* Track Label */}
       <div className="w-16 truncate text-left text-xs font-semibold text-white">
         {label}
@@ -77,7 +77,10 @@ export function TrackControls({
       {/* Mute Button */}
       <button
         className="h-[25px] w-[30px] rounded-md text-xs font-bold text-white transition-colors"
-        style={{ backgroundColor: isMuted ? MUTE_ACTIVE : INACTIVE }}
+        style={{
+          backgroundColor: isMuted ? MUTE_ACTIVE : INACTIVE,
+          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.3)",
+        }}
         onClick={() => onMuteToggle(trackId)}
         title={isMuted ? "Unmute" : "Mute"}
         data-node-id="28:4"
@@ -88,7 +91,10 @@ export function TrackControls({
       {/* Solo Button */}
       <button
         className="h-[25px] w-[30px] rounded-md text-xs font-bold text-white transition-colors"
-        style={{ backgroundColor: isSoloed ? SOLO_ACTIVE : INACTIVE }}
+        style={{
+          backgroundColor: isSoloed ? SOLO_ACTIVE : INACTIVE,
+          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.3)",
+        }}
         onClick={() => onSoloToggle(trackId)}
         title={isSoloed ? "Unsolo" : "Solo"}
         data-node-id="28:3"
@@ -102,6 +108,7 @@ export function TrackControls({
         style={{
           backgroundColor: INACTIVE,
           color: "#A3A3A3",
+          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.3)",
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.backgroundColor = "#8B0000";

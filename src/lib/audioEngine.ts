@@ -381,3 +381,23 @@ export function setMasterSwing(percent: number): void {
 
   console.log(`[Master Swing] Set to ${percent}% (swing: ${swingValue})`);
 }
+
+/**
+ * PR #29: Set master output volume
+ * Controls the master channel volume (final output level)
+ * Range: -60 to +6 dB
+ *
+ * @param volumeDb - Volume in decibels (-60 to +6)
+ */
+export function setMasterOutputVolume(volumeDb: number): void {
+  const channel = getMasterChannel();
+  if (!channel) {
+    console.warn("[setMasterOutputVolume] Master channel not initialized");
+    return;
+  }
+
+  const clampedVolume = Math.max(-60, Math.min(6, volumeDb));
+  channel.volume.value = clampedVolume;
+
+  console.log(`[Master Output Volume] Set to ${clampedVolume.toFixed(1)} dB`);
+}
