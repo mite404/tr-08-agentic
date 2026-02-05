@@ -8,7 +8,7 @@ import { TrackControls } from "./components/TrackControls";
 import { Knob } from "./components/Knob"; // PR #14: Global Swing Knob
 import { createSequencer } from "./sequencer";
 
-import mpcMark from "./assets/images/MPC_mark.png";
+import chassisBackground from "./assets/images/CHASSIS 07_TEST_1.png";
 
 // PR #2: Import new audio engine and track registry
 import { TRACK_REGISTRY } from "./config/trackConfig";
@@ -18,6 +18,7 @@ import {
   resumeAudioContext,
   setMasterDrive,
   setMasterSwing,
+  setMasterOutputVolume, // PR #29: Master output volume control
 } from "./lib/audioEngine";
 import { calculateEffectiveVolume } from "./lib/beatUtils";
 import type { BeatManifest, TrackID } from "./types/beat";
@@ -242,6 +243,7 @@ function App() {
   const [currentStep, setCurrentStep] = useState(0);
   const [swing, setSwing] = useState<number>(0); // PR #14: Global swing (0-100%)
   const [drive, setDrive] = useState<number>(0); // PR #14: Master drive/distortion (0-100%)
+  const [masterVolume, setMasterVolume] = useState<number>(0); // PR #29: Master output volume (-60 to +6 dB)
   const [loadedCount, setLoadedCount] = useState(0);
   const [allPlayersReady, setAllPlayersReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -966,6 +968,16 @@ function App() {
     console.log(`[App] Drive updated to ${newDrivePercent}%`);
   }
 
+  // PR #29: Master output volume control
+  function handleMasterVolumeChange(newVolumeDb: number) {
+    setMasterVolume(newVolumeDb);
+    setMasterOutputVolume(newVolumeDb);
+
+    console.log(
+      `[App] Master output volume updated to ${newVolumeDb.toFixed(1)} dB`,
+    );
+  }
+
   // PR #15: Clear track (steps and accents)
   function handleClearTrack(trackId: TrackID) {
     // Clear steps for this track
@@ -1007,27 +1019,33 @@ function App() {
       {/* whole page container */}
       <div className="flex min-h-screen items-center justify-center bg-gray-950">
         {/* device container */}
-        <div className="rounded-xl bg-gray-600 p-4 pt-12 pr-8 pb-8 pl-8">
+        {/* Background image is 3050x2550 (aspect ratio ~1.196:1) */}
+        {/* Container scales to fit viewport while maintaining aspect ratio */}
+        <div
+          className="rounded-xl p-4 pt-12 pr-8 pb-8 pl-8"
+          style={{
+            backgroundImage: `url(${chassisBackground})`,
+            backgroundSize: "100% 100%",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            aspectRatio: "3050 / 2550",
+            width: "min(95vw, calc(95vh * 3050 / 2550))",
+            height: "auto",
+          }}
+        >
           {/* HEADER container */}
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center">
-              <img
-                className="w-[200px] p-6"
-                src={mpcMark}
-                alt="TR-08 Mark"
-              ></img>
-              {getDisplayTitle()}
-            </div>
+            <div className="flex items-center">{getDisplayTitle()}</div>
 
-            {/* PR #5: Auth Controls - Conditional on session with loading state */}
+            {/* PR #5: Auth Controls - Only show LoginModal in header */}
             <div className="flex items-center gap-3">
               {authLoading ? (
                 // Loading: Show visible text while checking auth state
                 <div className="px-4 py-2 text-sm font-medium text-gray-200">
                   Loading...
                 </div>
-              ) : !session ? (
-                // Guest: Show only Sign In button
+              ) : (
+                // Show LoginModal button (Sign In or Sign Out)
                 <LoginModalButton
                   session={session}
                   signInWithGoogle={signInWithGoogle}
@@ -1035,77 +1053,79 @@ function App() {
                   signOut={signOut}
                   loading={authLoading}
                 />
-              ) : (
-                // Authenticated: Show Save, Load, and Sign Out
-                <>
-                  <SaveButton onClick={handleSaveBeat} isSaving={isSaving} />
-                  <BeatLibrary beats={beats} onLoadBeat={handleLoadBeatById} />
-                  <LoginModalButton
-                    session={session}
-                    signInWithGoogle={signInWithGoogle}
-                    signInWithGithub={signInWithGithub}
-                    signOut={signOut}
-                    loading={authLoading}
-                  />
-                </>
               )}
             </div>
           </div>
-          {/* PR #14: Master Section (Swing + Drive) + Analyzer */}
-          <div className="flex flex-row items-start gap-8">
-            {/* Master Controls (Swing + Drive) */}
-            <div className="flex flex-row items-end gap-4">
-              {/* Swing Knob */}
-              <div className="flex flex-col items-center gap-2">
-                <label className="text-xs font-semibold text-white">
-                  SHUFFLE
-                </label>
+          {/* TOP ROW: Beat name is in header, Analyzer in LCD bezel area (top-right) */}
+          <div className="flex justify-end">
+            {/* Analyzer - placeholder for LCD screen bezel (top-right) */}
+            <Analyzer />
+          </div>
+
+          {/* PR #29: Main content - 3 column layout */}
+          {/* LEFT: Big Knobs + Transport | MIDDLE: Track Controls | RIGHT: Grid */}
+          <div className="flex w-full flex-row gap-4">
+            {/* LEFT COLUMN: Global Knobs + Transport Controls */}
+            <div className="flex flex-none flex-col justify-between">
+              {/* Global Knobs Section (OUTPUT, DRIVE, SWING) */}
+              <div className="flex flex-col items-center gap-4">
+                {/* OUTPUT Knob - labels are on background image */}
                 <Knob
                   variant="swing"
-                  min={0}
-                  max={100}
-                  value={swing}
-                  onChange={handleSwingChange}
+                  min={-60}
+                  max={6}
+                  value={masterVolume}
+                  onChange={handleMasterVolumeChange}
+                  label="Output Volume"
                 />
-              </div>
 
-              {/* Drive Knob */}
-              <div className="flex flex-col items-center gap-2">
-                <label className="text-xs font-semibold text-white">
-                  DRIVE
-                </label>
+                {/* DRIVE Knob */}
                 <Knob
                   variant="swing"
                   min={0}
                   max={100}
                   value={drive}
                   onChange={handleDriveChange}
+                  label="Drive / Saturation"
                 />
+
+                {/* SWING Knob */}
+                <Knob
+                  variant="swing"
+                  min={0}
+                  max={100}
+                  value={swing}
+                  onChange={handleSwingChange}
+                  label="Swing / Shuffle"
+                />
+              </div>
+
+              {/* Transport Controls Section */}
+              <div className="flex flex-col gap-2">
+                {/* TEMPO Display */}
+                <TempoDisplay
+                  bpmValue={bpm}
+                  onIncrementClick={handleIncrementBpm}
+                  onDecrementClick={handleDecrementBpm}
+                />
+
+                {/* START/STOP Button */}
+                <PlayStopBtn
+                  customStyles=""
+                  onClick={() => void handleStartStopClick()}
+                  disabled={isLoading}
+                />
+
+                {/* SAVE Button */}
+                <SaveButton onClick={handleSaveBeat} isSaving={isSaving} />
+
+                {/* LOAD Button (Beat Library / My Beats) */}
+                <BeatLibrary beats={beats} onLoadBeat={handleLoadBeatById} />
               </div>
             </div>
 
-            {/* Analyzer (to the right) */}
-            <Analyzer />
-          </div>
-          <div>
-            {/* Column headers for knobs */}
-            <div className="flex h-[25px] items-center gap-1">
-              <div className="w-14"></div> {/* Spacer for label */}
-              <div className="flex h-6 w-12 items-center justify-center text-xs font-bold text-white">
-                TONE
-              </div>
-              <div className="flex h-6 w-12 items-center justify-center text-xs font-bold text-white">
-                LEVEL
-              </div>
-              <div className="w-[30px]"></div> {/* Spacer for M */}
-              <div className="w-[30px]"></div> {/* Spacer for S */}
-              <div className="w-[30px]"></div> {/* Spacer for C */}
-            </div>
-          </div>
-          {/* container for TRACK CONTROLS & GRID divs */}
-          <div className="flex w-full flex-row">
-            {/* PR #11: Track Controls column (channel strip per track) */}
-            <div className="flex flex-none flex-col gap-1 p-3 pr-1.5">
+            {/* MIDDLE COLUMN: Track Controls (TONE + LEVEL knobs + M/S/CLR per track) */}
+            <div className="flex flex-none flex-col" style={{ gap: "4px" }}>
               {tracks.map((_track, trackIndex) => {
                 const trackId = trackIdsByRowRef.current[trackIndex];
                 const trackConfig = TRACK_REGISTRY.find(
@@ -1139,8 +1159,9 @@ function App() {
                 );
               })}
             </div>
-            {/* beat grid container */}
-            <div className="flex-1 rounded-md border-10 border-gray-900">
+
+            {/* RIGHT COLUMN: Chiclet Grid (10 rows × 16 columns) */}
+            <div className="flex-1">
               {/* PR #5: Wrap grid in ErrorBoundary for crash protection */}
               <ErrorBoundary>
                 {/* PR #4: Show skeleton while loading initial data */}
@@ -1181,27 +1202,6 @@ function App() {
                   </div>
                 )}
               </ErrorBoundary>
-            </div>
-          </div>
-
-          {/* control buttons container */}
-          <div className="mx-auto grid max-w-3/4 grid-cols-2 justify-center gap-2 p-6 pt-6">
-            <div>
-              <PlayStopBtn
-                customStyles=""
-                onClick={() => void handleStartStopClick()}
-                disabled={isLoading}
-              />
-            </div>
-
-            {/* set tempo controls container */}
-            <div className="flex flex-col items-center gap-4">
-              {/* Tempo */}
-              <TempoDisplay
-                bpmValue={bpm}
-                onIncrementClick={handleIncrementBpm}
-                onDecrementClick={handleDecrementBpm}
-              />
             </div>
           </div>
         </div>

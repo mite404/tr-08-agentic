@@ -1,6 +1,12 @@
 @import url("https://fonts.googleapis.com/css2?family=Stack+Sans+Notch:wght@200..700&display=swap");
 @import "tailwindcss";
 
+@layer utilities {
+  .grid-cols-16 {
+    grid-template-columns: repeat(16, minmax(0, 1fr));
+  }
+}
+
 .kick-pad1 {
   background-color: #9b2c2c;
 }
