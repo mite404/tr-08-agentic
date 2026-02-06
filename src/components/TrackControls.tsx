@@ -14,6 +14,8 @@ type TrackControlsProps = {
   onPitchChange: (newValue: number) => void;
   onVolumeChange: (newValue: number) => void;
   disabled?: boolean;
+  showLabel?: boolean;
+  showButtons?: boolean;
 };
 
 /**
@@ -41,6 +43,8 @@ export function TrackControls({
   onPitchChange,
   onVolumeChange,
   disabled = false,
+  showLabel = true,
+  showButtons = true,
 }: TrackControlsProps) {
   // Colors from Figma design
   const MUTE_ACTIVE = "#B43131"; // Red
@@ -48,11 +52,16 @@ export function TrackControls({
   const INACTIVE = "#504F4F"; // Dark gray
 
   return (
-    <div className="flex items-center" style={{ gap: "12px" }}>
+    <div
+      className="flex h-[50px] items-center pr-5 pl-2.5"
+      style={{ gap: "12px" }}
+    >
       {/* Track Label */}
-      <div className="w-16 truncate text-left text-xs font-semibold text-white">
-        {label}
-      </div>
+      {showLabel && (
+        <div className="eurostile w-16 truncate text-left text-xs font-normal text-white">
+          {label}
+        </div>
+      )}
 
       {/* Pitch Knob */}
       <Knob
@@ -74,56 +83,58 @@ export function TrackControls({
         disabled={disabled}
       />
 
-      {/* Mute Button */}
-      <button
-        className="h-[25px] w-[30px] rounded-md text-xs font-bold text-white transition-colors"
-        style={{
-          backgroundColor: isMuted ? MUTE_ACTIVE : INACTIVE,
-          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.3)",
-        }}
-        onClick={() => onMuteToggle(trackId)}
-        title={isMuted ? "Unmute" : "Mute"}
-        data-node-id="28:4"
-      >
-        M
-      </button>
+      {/* Mute / Solo / Clear Buttons */}
+      {showButtons && (
+        <>
+          <button
+            className="h-[25px] w-[30px] rounded-md text-xs font-bold text-white transition-colors"
+            style={{
+              backgroundColor: isMuted ? MUTE_ACTIVE : INACTIVE,
+              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.3)",
+            }}
+            onClick={() => onMuteToggle(trackId)}
+            title={isMuted ? "Unmute" : "Mute"}
+            data-node-id="28:4"
+          >
+            M
+          </button>
 
-      {/* Solo Button */}
-      <button
-        className="h-[25px] w-[30px] rounded-md text-xs font-bold text-white transition-colors"
-        style={{
-          backgroundColor: isSoloed ? SOLO_ACTIVE : INACTIVE,
-          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.3)",
-        }}
-        onClick={() => onSoloToggle(trackId)}
-        title={isSoloed ? "Unsolo" : "Solo"}
-        data-node-id="28:3"
-      >
-        S
-      </button>
+          <button
+            className="h-[25px] w-[30px] rounded-md text-xs font-bold text-white transition-colors"
+            style={{
+              backgroundColor: isSoloed ? SOLO_ACTIVE : INACTIVE,
+              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.3)",
+            }}
+            onClick={() => onSoloToggle(trackId)}
+            title={isSoloed ? "Unsolo" : "Solo"}
+            data-node-id="28:3"
+          >
+            S
+          </button>
 
-      {/* Clear Button (PR #15) - closest to grid */}
-      <button
-        className="h-[25px] w-[30px] rounded-md text-xs font-bold transition-colors"
-        style={{
-          backgroundColor: INACTIVE,
-          color: "#A3A3A3",
-          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.3)",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = "#8B0000";
-          e.currentTarget.style.color = "white";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = INACTIVE;
-          e.currentTarget.style.color = "#A3A3A3";
-        }}
-        onClick={() => onClear(trackId)}
-        title="Clear track (steps and accents)"
-        data-node-id="28:5"
-      >
-        CLR
-      </button>
+          <button
+            className="h-[25px] w-[30px] rounded-md text-xs font-bold transition-colors"
+            style={{
+              backgroundColor: INACTIVE,
+              color: "#A3A3A3",
+              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.3)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "#8B0000";
+              e.currentTarget.style.color = "white";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = INACTIVE;
+              e.currentTarget.style.color = "#A3A3A3";
+            }}
+            onClick={() => onClear(trackId)}
+            title="Clear track (steps and accents)"
+            data-node-id="28:5"
+          >
+            CLR
+          </button>
+        </>
+      )}
     </div>
   );
 }

@@ -1713,6 +1713,69 @@ This shows ESLint's decision-making for that specific file.
 
 ---
 
+## 17. Tailwind CSS `@layer` Tiers (CSS Specificity Hierarchy) [Quick Reference]
+
+In Tailwind, "layers" are **CSS specificity tiers**, not visual layers. They define a cascade of importance:
+
+```css
+@layer base       ← Most general (lowest specificity) - resets, fonts
+@layer components ← Medium specificity - reusable patterns (.eurostile, .button, .card)
+@layer utilities  ← Most specific (highest specificity) - single-purpose helpers (.text-xs, .font-bold);
+```
+
+### Rule: Higher layers override lower layers
+
+```css
+@layer base {
+  .text {
+    color: black;
+  }
+}
+@layer utilities {
+  .text-red {
+    color: red;
+  }
+}
+/* utilities wins: .text-red applies */
+```
+
+### When to Use Each Layer
+
+| Layer               | Use For                                                  | Example                                   |
+| ------------------- | -------------------------------------------------------- | ----------------------------------------- |
+| `@layer base`       | Global resets, HTML element defaults                     | `body { margin: 0; }`                     |
+| `@layer components` | Reusable semantic classes (font families, button styles) | `.eurostile`, `.button`, `.card`          |
+| `@layer utilities`  | Single-purpose, highly specific helpers                  | `.text-xs`, `.font-bold`, `.grid-cols-16` |
+
+### Why `.eurostile` is a Component, Not a Utility
+
+Font classes like `.eurostile` are reusable **patterns** (medium complexity), not:
+
+- Base resets (too specific)
+- Utilities (too semantic/reusable)
+
+This ensures `class="eurostile text-xs font-bold"` will never have the font-family overridden by utilities.
+
+### Your TR-08 Example
+
+```css
+@layer components {
+  .eurostile {
+    font-family: "Eurostile", sans-serif;
+    font-optical-sizing: auto;
+    font-style: normal;
+  }
+}
+
+@layer utilities {
+  .grid-cols-16 {
+    grid-template-columns: repeat(16, minmax(0, 1fr));
+  }
+}
+```
+
+---
+
 ## Study Resources
 
 ### Topics to explore deeper

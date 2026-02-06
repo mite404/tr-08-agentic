@@ -56,7 +56,7 @@ export function Chiclet({
 
   // map brightness to playhead & 16th note
   const brightnessModifiers = [
-    isCurrentStep && "brightness-175",
+    isCurrentStep && "brightness-200",
     is16thNote && "brightness-135",
   ]
     .filter(Boolean)
@@ -66,15 +66,21 @@ export function Chiclet({
 
   return (
     <button
-      className={`aspect-2/1 h-[60px] w-full cursor-pointer hover:opacity-80 ${opacityClass} ${brightnessModifiers}`}
+      className={`cursor-pointer border-none bg-transparent p-0 hover:opacity-80 ${opacityClass} ${brightnessModifiers}`}
       style={{
-        backgroundImage: `url(${chicletImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        filter: "drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4))",
+        filter: isCurrentStep
+          ? "drop-shadow(0 0 8px rgba(255, 200, 0, 0.8))"
+          : "drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4))",
         transition: "filter 0.15s ease",
       }}
       onClick={onClick}
-    />
+    >
+      <img
+        src={chicletImage}
+        alt=""
+        className="h-auto w-full"
+        draggable={false}
+      />
+    </button>
   );
 }

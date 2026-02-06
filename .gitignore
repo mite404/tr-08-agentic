@@ -42,3 +42,9 @@ supabase/.temp/
 
 # Test files (optional - remove from gitignore to commit)
 test-supabase.ts
+
+# rumdl Markdown Linter cache
+.rumdl_cache
+
+# Playwright cache, logs & screenshots
+.playwright-mcp
