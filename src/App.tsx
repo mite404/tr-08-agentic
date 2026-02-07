@@ -34,7 +34,7 @@ import { useSaveBeat } from "./hooks/useSaveBeat";
 
 // PR #4: Import UI components for loading states and auth
 import { BeatLibrary } from "./components/BeatLibrary"; // PR #12: Beat Library Panel
-import { LoginModalButton } from "./components/LoginModalButton";
+import { NavBar } from "./components/NavBar";
 import { PortraitBlocker } from "./components/PortraitBlocker";
 import { SaveButton } from "./components/SaveButton";
 import { SkeletonGrid } from "./components/SkeletonGrid";
@@ -531,64 +531,6 @@ function App() {
     }
   }
 
-  // PR #8: Console Harness for manual testing of pitch and accent
-  useEffect(() => {
-    // Expose debug API to window for manual testing
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-    (window as any).tr08 = {
-      play: async (
-        trackId: TrackID,
-        pitch: number = 0,
-        accent: boolean = false,
-      ) => {
-        // Ensure audio context is running
-        await resumeAudioContext();
-
-        // Get player from map
-        const player = playersMapRef.current.get(trackId);
-        if (!player) {
-          console.error(`[Console Harness] Player not found for ${trackId}`);
-          return;
-        }
-
-        // Calculate volume with accent
-        const effectiveVolume = calculateEffectiveVolume(
-          manifestRef.current,
-          trackId,
-          accent,
-        );
-
-        // Play immediately
-        playTrack(player, effectiveVolume, Tone.now(), pitch);
-        console.log(
-          `[Console Harness] Playing ${trackId} | pitch: ${pitch} semitones | accent: ${accent} | volume: ${effectiveVolume}dB`,
-        );
-      },
-
-      // Helper to list available tracks
-      tracks: () => {
-        console.log(
-          "Available tracks:",
-          Array.from(playersMapRef.current.keys()),
-        );
-      },
-
-      // Helper to show current manifest
-      manifest: () => {
-        console.log("Current manifest:", manifestRef.current);
-      },
-    };
-
-    console.log("🎹 TR-08 Console Harness Ready!");
-    console.log("Try: window.tr08.play('kick_01', 0, false)");
-    console.log("     window.tr08.play('kick_01', 12, false)  // +1 octave");
-    console.log("     window.tr08.play('kick_01', -12, false) // -1 octave");
-    console.log("     window.tr08.play('kick_01', 0, true)    // ghost note");
-    console.log(
-      "     window.tr08.tracks()                    // list all tracks",
-    );
-  }, []);
-
   // PR #10: 3-State Pad Interaction (OFF → ON Normal → ON Ghost → OFF)
   function handlePadClick(rowIndex: number, colIndex: number) {
     const trackId = trackIdsByRowRef.current[rowIndex];
@@ -1016,12 +958,21 @@ function App() {
 
   return (
     <>
+      {/* PR #31: Top-level Navigation with auth */}
+      <NavBar
+        session={session}
+        signInWithGoogle={signInWithGoogle}
+        signInWithGithub={signInWithGithub}
+        signOut={signOut}
+        authLoading={authLoading}
+      />
+
       {/* PR #4: Portrait blocker for mobile devices */}
       <PortraitBlocker />
 
       {/* whole page container */}
       <div
-        className="flex min-h-screen items-center justify-center"
+        className="flex min-h-screen items-center justify-center pt-20"
         style={{
           backgroundImage: `url(${pageBackground})`,
           backgroundSize: "100% 100%",
@@ -1054,26 +1005,8 @@ function App() {
             style={{ paddingTop: "3%" }}
           >
             <div className="flex items-center">{getDisplayTitle()}</div>
-
-            {/* PR #5: Auth Controls - Only show LoginModal in header */}
-            <div className="flex items-center gap-3">
-              {authLoading ? (
-                // Loading: Show visible text while checking auth state
-                <div className="px-4 py-2 text-sm font-medium text-gray-200">
-                  Loading...
-                </div>
-              ) : (
-                // Show LoginModal button (Sign In or Sign Out)
-                <LoginModalButton
-                  session={session}
-                  signInWithGoogle={signInWithGoogle}
-                  signInWithGithub={signInWithGithub}
-                  signOut={signOut}
-                  loading={authLoading}
-                />
-              )}
-            </div>
           </div>
+
           {/* TOP ROW: Beat name is in header, Analyzer in LCD bezel area (top-right) */}
           <div className="flex justify-end">
             {/* Analyzer - placeholder for LCD screen bezel (top-right) */}
