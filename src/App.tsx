@@ -1,17 +1,9 @@
 import { useEffect, useRef, useState, type JSX } from "react";
 import * as Tone from "tone";
 import "./App.css";
-import { Analyzer } from "./components/Analyzer";
-import { PlayStopBtn } from "./components/PlayStopBtn";
-import { TempoDisplay } from "./components/TempoDisplay";
-import { TrackControls } from "./components/TrackControls";
-import { Knob } from "./components/Knob"; // PR #14: Global Swing Knob
 import { createSequencer } from "./sequencer";
 
-import chassisBackground from "./assets/images/CHASSIS 07_TEST_1.png";
 import pageBackground from "./assets/images/BACKGROUND_01.jpeg";
-import transportOutline from "./assets/images/TRANSPORT_OUTLINE.png";
-import stepNoteCountStrip from "./assets/images/STEP_NOTE_COUNT_STRIP.png";
 
 // PR #2: Import new audio engine and track registry
 import { TRACK_REGISTRY } from "./config/trackConfig";
@@ -30,23 +22,12 @@ import { useAuth } from "./hooks/useAuth";
 import { useLoadBeat, type BeatSummary } from "./hooks/useLoadBeat";
 import { useSaveBeat } from "./hooks/useSaveBeat";
 
-// PR #4: Import UI components for loading states and auth
-import { BeatLibrary } from "./components/BeatLibrary"; // PR #12: Beat Library Panel
+// PR #31: Top-level navigation
 import { NavBar } from "./components/NavBar";
 import { PortraitBlocker } from "./components/PortraitBlocker";
-import { SaveButton } from "./components/SaveButton";
-import { SkeletonGrid } from "./components/SkeletonGrid";
 
-// PR #5: Import error boundary for crash protection
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { Chiclet } from "./components/Chiclet";
-
-export type TrackObject = {
-  name: string;
-  sound: string;
-  color: string;
-  player?: Tone.Player; // LEGACY: kept for compatibility, will be removed in later PR
-};
+// PR #32: Extracted chassis component
+import { SequencerChassis } from "./components/SequencerChassis";
 
 const initialGrid = [
   [
@@ -230,13 +211,6 @@ const initialGrid = [
     false,
   ], // track 9
 ];
-
-// PR #2: Use TRACK_REGISTRY as source of truth, build legacy tracks array for UI compatibility
-const tracks: Array<TrackObject> = TRACK_REGISTRY.map((config) => ({
-  name: config.label,
-  sound: "", // LEGACY: no longer used, samples loaded via audioEngine
-  color: config.color,
-}));
 
 function App() {
   const [bpm, setBpm] = useState(140);
@@ -947,12 +921,70 @@ function App() {
     }
   }
 
-  function getChicletVariant(stepIndex: number) {
-    if (stepIndex < 4) return "red";
-    if (stepIndex < 8) return "orange";
-    if (stepIndex < 12) return "yellow";
-    return "cream";
-  }
+  // =========================================================================
+  // PR #32: Build props for SequencerChassis
+  // =========================================================================
+  const accentsByRow: boolean[][] = trackIdsByRowRef.current.map((trackId) =>
+    Array.from(
+      { length: 16 },
+      (_, col) => manifestRef.current.tracks[trackId]?.accents?.[col] ?? false,
+    ),
+  );
+
+  const chassisProps = {
+    // Display: Title
+    displayTitle: getDisplayTitle(),
+
+    // Display: Grid State
+    grid,
+    currentStep,
+    accentsByRow,
+    failedTrackIds,
+    isInitialDataLoaded,
+
+    // Display: Global Knobs
+    masterVolume,
+    drive,
+    swing,
+
+    // Display: Per-Track State
+    trackVolumes,
+    trackPitches,
+    trackMutes,
+    trackSolos,
+
+    // Display: Tempo & Transport
+    bpm,
+    isLoading,
+
+    // Display: Save & Load
+    isSaving,
+    beats,
+
+    // Callbacks: Grid
+    onPadClick: handlePadClick,
+
+    // Callbacks: Global Knobs
+    onMasterVolumeChange: handleMasterVolumeChange,
+    onDriveChange: handleDriveChange,
+    onSwingChange: handleSwingChange,
+
+    // Callbacks: Per-Track Controls
+    onVolumeChange: handleDbChange,
+    onPitchChange: handlePitchChange,
+    onMuteToggle: handleMuteToggle,
+    onSoloToggle: handleSoloToggle,
+    onClearTrack: handleClearTrack,
+
+    // Callbacks: Tempo & Transport
+    onIncrementBpm: handleIncrementBpm,
+    onDecrementBpm: handleDecrementBpm,
+    onStartStop: () => void handleStartStopClick(),
+
+    // Callbacks: Save & Load
+    onSave: handleSaveBeat,
+    onLoadBeat: handleLoadBeatById,
+  };
 
   return (
     <>
@@ -979,245 +1011,8 @@ function App() {
           backgroundRepeat: "no-repeat",
         }}
       >
-        {/* device container */}
-        {/* Background image is 3050x2550 (aspect ratio ~1.196:1) */}
-        {/* Container scales to fit viewport while maintaining aspect ratio */}
-        <div
-          className="flex flex-col rounded-xl"
-          style={{
-            backgroundImage: `url(${chassisBackground})`,
-            backgroundSize: "100% 100%",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-            aspectRatio: "3050 / 2550",
-            maxWidth: "min(100vw, calc(95vh * 3050 / 2550))",
-            maxHeight: "min(100vh, calc(100vw * 2550 / 3050))",
-            width: "auto",
-            height: "auto",
-            padding: "3% 3% 3% 3%",
-          }}
-        >
-          {/* HEADER container */}
-          <div
-            className="flex items-center justify-between gap-4"
-            style={{ paddingTop: "3%" }}
-          >
-            <div className="flex items-center">{getDisplayTitle()}</div>
-          </div>
-
-          {/* TOP ROW: Beat name is in header, Analyzer in LCD bezel area (top-right) */}
-          <div className="flex justify-end">
-            {/* Analyzer - placeholder for LCD screen bezel (top-right) */}
-            <Analyzer />
-          </div>
-
-          {/* PR #30: Main content - 2 column layout (global knobs | knobs+grid) */}
-          <div className="relative z-10 flex w-full flex-col gap-2">
-            {/* MAIN AREA: LEFT global knobs + RIGHT per-row knobs & grid */}
-            <div className="w-full origin-top-left" style={{ zoom: 0.8 }}>
-              <div className="flex w-full flex-row gap-4">
-                {/* LEFT COLUMN: Global Knobs (OUTPUT, DRIVE, SWING) */}
-                <div className="flex flex-none flex-col items-center justify-start gap-4">
-                  <Knob
-                    variant="swing"
-                    min={-60}
-                    max={6}
-                    value={masterVolume}
-                    onChange={handleMasterVolumeChange}
-                    label="Output Volume"
-                  />
-                  <Knob
-                    variant="swing"
-                    min={0}
-                    max={100}
-                    value={drive}
-                    onChange={handleDriveChange}
-                    label="Drive / Saturation"
-                  />
-                  <Knob
-                    variant="swing"
-                    min={0}
-                    max={100}
-                    value={swing}
-                    onChange={handleSwingChange}
-                    label="Swing / Shuffle"
-                  />
-                </div>
-
-                {/* RIGHT AREA: Per-row knobs + Chiclet Grid */}
-                <div className="flex flex-1 flex-col gap-1">
-                  {/* Header row with TONE and LEVEL labels (aligned with TrackControls) */}
-                  <div
-                    className="flex h-[50px] items-center"
-                    style={{ gap: "12px" }}
-                  >
-                    {/* Space for track label */}
-                    <div className="w-16" />
-
-                    {/* TONE label */}
-                    <div className="flex flex-col items-center justify-center">
-                      <div className="eurostile text-xs font-normal text-white">
-                        TONE
-                      </div>
-                    </div>
-
-                    {/* LEVEL label */}
-                    <div className="flex flex-col items-center justify-center">
-                      <div className="eurostile text-xs font-normal text-white">
-                        LEVEL
-                      </div>
-                    </div>
-
-                    {/* Space for M/S/CLR buttons */}
-                    <div className="flex gap-1">
-                      <div className="w-[30px]" />
-                      <div className="w-[30px]" />
-                      <div className="w-[30px]" />
-                    </div>
-                  </div>
-
-                  {/* PR #5: Wrap grid in ErrorBoundary for crash protection */}
-                  <ErrorBoundary>
-                    {/* PR #4: Show skeleton while loading initial data */}
-                    {!isInitialDataLoaded ? (
-                      <div className="p-0.5">
-                        <SkeletonGrid />
-                      </div>
-                    ) : (
-                      /* 10 rows: each row = [TONE knob] [LEVEL knob] [16 chiclets] */
-                      <div className="flex flex-col gap-1">
-                        {tracks.map((_track, rowIndex) => {
-                          const trackId = trackIdsByRowRef.current[rowIndex];
-                          const trackConfig = TRACK_REGISTRY.find(
-                            (c) => c.trackId === trackId,
-                          );
-                          const isTrackDisabled =
-                            failedTrackIds.includes(trackId);
-
-                          if (!trackConfig) return null;
-
-                          return (
-                            <div
-                              // eslint-disable-next-line react-x/no-array-index-key
-                              key={`row-${rowIndex}`}
-                              className="flex items-center gap-1"
-                            >
-                              {/* Per-track controls: label + TONE + LEVEL + M/S/CLR */}
-                              <TrackControls
-                                trackId={trackId}
-                                label={trackConfig.label}
-                                isMuted={trackMutes[rowIndex]}
-                                isSoloed={trackSolos[rowIndex]}
-                                onMuteToggle={handleMuteToggle}
-                                onSoloToggle={handleSoloToggle}
-                                onClear={handleClearTrack}
-                                pitchValue={trackPitches[rowIndex]}
-                                volumeValue={trackVolumes[rowIndex]}
-                                onPitchChange={(newValue) =>
-                                  handlePitchChange(rowIndex, newValue)
-                                }
-                                onVolumeChange={(newValue) =>
-                                  handleDbChange(rowIndex, newValue)
-                                }
-                                disabled={isTrackDisabled}
-                              />
-
-                              {/* 16 chiclets for this row */}
-                              <div className="grid flex-1 grid-cols-16 gap-1">
-                                {grid[rowIndex].map((_, colIndex) => {
-                                  const isAccented =
-                                    manifestRef.current.tracks[trackId]
-                                      ?.accents?.[colIndex] ?? false;
-
-                                  return (
-                                    <Chiclet
-                                      // eslint-disable-next-line react-x/no-array-index-key
-                                      key={`${rowIndex}-${colIndex}`}
-                                      variant={getChicletVariant(colIndex)}
-                                      isActive={grid[rowIndex][colIndex]}
-                                      isAccented={isAccented}
-                                      isCurrentStep={colIndex === currentStep}
-                                      is16thNote={colIndex % 4 !== 0}
-                                      onClick={() =>
-                                        handlePadClick(rowIndex, colIndex)
-                                      }
-                                      disabled={isTrackDisabled}
-                                    />
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </ErrorBoundary>
-                </div>
-              </div>
-            </div>
-
-            {/* BOTTOM SECTION: Tempo/Save row + Transport outline bar */}
-            <div className="flex w-full flex-col gap-2">
-              {/* Row 1: Tempo + Save */}
-              <div className="flex items-center gap-2">
-                <TempoDisplay
-                  bpmValue={bpm}
-                  onIncrementClick={handleIncrementBpm}
-                  onDecrementClick={handleDecrementBpm}
-                />
-                <SaveButton
-                  onClick={handleSaveBeat}
-                  isSaving={isSaving}
-                  style={{ width: "48px" }}
-                />
-              </div>
-
-              {/* Row 2: Transport outline (left) overlapping with Step Strip (right) */}
-              <div className="relative flex w-full items-end">
-                {/* Transport outline as a proper image with buttons overlaid */}
-                <div className="relative flex-none" style={{ width: "40%" }}>
-                  <img
-                    src={transportOutline}
-                    alt=""
-                    className="block h-auto w-full"
-                    draggable={false}
-                  />
-                  {/* Buttons positioned on top of the transport outline */}
-                  <div
-                    className="absolute inset-0 flex items-center p-3"
-                    style={{ gap: "58px" }}
-                  >
-                    <PlayStopBtn
-                      onClick={() => void handleStartStopClick()}
-                      disabled={isLoading}
-                      style={{ position: "relative", top: "-10px" }}
-                    />
-                    <div className="flex flex-col items-center gap-1">
-                      <BeatLibrary
-                        beats={beats}
-                        onLoadBeat={handleLoadBeatById}
-                      />
-                      <span className="text-[10px] font-semibold tracking-wide text-neutral-500"></span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Step Number Strip — overlaps the transport outline slightly via negative margin */}
-                <div
-                  className="flex flex-1 items-end"
-                  style={{ marginLeft: "-1rem" }}
-                >
-                  <img
-                    src={stepNoteCountStrip}
-                    alt="Step numbers 1-16"
-                    className="h-auto w-full"
-                    draggable={false}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* PR #32: Extracted chassis component */}
+        <SequencerChassis {...chassisProps} />
       </div>
     </>
   );
