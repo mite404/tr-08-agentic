@@ -14,6 +14,8 @@
 
 import { useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import loginToggle from "../assets/images/LOGGED_OUT_316x168.png";
+import logoutToggle from "../assets/images/LOGGED_IN_316x168.png";
 
 export interface LoginModalButtonProps {
   session: Session | null;
@@ -67,9 +69,14 @@ export function LoginModalButton({
     return (
       <button
         onClick={() => void handleSignOut()}
-        className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+        className="px-4 py-2 text-sm font-medium text-white transition-colors"
       >
-        Sign Out
+        <img
+          src={logoutToggle}
+          alt="Sign Out Toggle"
+          className="h-[42px] w-[84px]"
+          draggable={false}
+        />
       </button>
     );
   }
@@ -79,9 +86,14 @@ export function LoginModalButton({
     <>
       <button
         onClick={() => setIsModalOpen(true)}
-        className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+        className="px-4 py-2 text-sm font-medium text-white transition-colors"
       >
-        Sign In
+        <img
+          src={loginToggle}
+          alt="Sign In Toggle"
+          className="h-[42px] w-[84px]"
+          draggable={false}
+        />
       </button>
 
       {/* Modal Overlay */}

@@ -1912,6 +1912,87 @@ Understanding the difference between "what the function returns" and "what the P
 
 ---
 
+## 19. Brief Animation Delay Pattern: State Flips Before Side Effects [Quick Reference]
+
+**Pattern:** Use a temporary state to show UI feedback _before_ triggering async operations.
+
+### The Problem
+
+Without delay:
+
+```tsx
+<button onClick={() => setIsModalOpen(true)}>Sign In</button>
+```
+
+User clicks → Modal pops up _immediately_. No visual feedback that button was actually clicked.
+
+### The Solution: Pending State + setTimeout
+
+```tsx
+const [isPending, setIsPending] = useState(false);
+
+<button
+  onClick={async () => {
+    setIsPending(true); // Visual feedback: toggle switches to "signed in"
+
+    // Wait for CSS animation to play (300ms)
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    setIsPending(false); // Reset state
+    setIsModalOpen(true); // Now open modal
+  }}
+>
+  <img
+    src={isPending ? toggleIn : toggleOut}
+    className="h-[84px] w-[158px] transition-all duration-300"
+  />
+</button>;
+```
+
+### How It Works (Timeline)
+
+1. **t=0ms** → User clicks toggle
+2. **t=0ms** → `setIsPending(true)` → Image switches to "signed in" (knob right)
+3. **t=0-300ms** → CSS `transition-all duration-300` animates the swap
+4. **t=300ms** → `setTimeout` resolves
+5. **t=300ms** → `setIsPending(false)` → Resets pending state
+6. **t=300ms** → `setIsModalOpen(true)` → Modal appears
+
+**Result:** User sees toggle flip, _then_ modal appears. Feels responsive.
+
+### Why This Matters
+
+- **Tactile feedback** — Shows the app responded to the click
+- **Perceived performance** — Breaks up the "modal pop" with animation
+- **Hardware feel** — Mimics physical toggle switches that move before things happen
+- **Less jarring** — Smooth transition instead of sudden modal overlay
+
+### When to Use
+
+- Image-based UI toggles (buttons with visual state)
+- Brief animations before navigation
+- "Confirm your action" feedback before async operations
+- Hardware-style interfaces (TR-08 aesthetic)
+
+### Edge Case: Prevent Multiple Clicks
+
+```tsx
+<button
+  onClick={async () => {
+    if (isPending) return; // Ignore clicks during animation
+
+    setIsPending(true);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    setIsPending(false);
+    setIsModalOpen(true);
+  }}
+  disabled={isPending}
+  className="disabled:cursor-not-allowed"
+>
+```
+
+---
+
 ## Study Resources
 
 ### Topics to explore deeper
