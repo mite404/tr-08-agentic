@@ -17,13 +17,11 @@ import stepNoteCountStrip from "./assets/images/STEP_NOTE_COUNT_STRIP.png";
 import { TRACK_REGISTRY } from "./config/trackConfig";
 import {
   loadAudioSamples,
-  playTrack,
   resumeAudioContext,
   setMasterDrive,
   setMasterSwing,
   setMasterOutputVolume, // PR #29: Master output volume control
 } from "./lib/audioEngine";
-import { calculateEffectiveVolume } from "./lib/beatUtils";
 import type { BeatManifest, TrackID } from "./types/beat";
 import { getDefaultBeatManifest } from "./types/beat";
 
