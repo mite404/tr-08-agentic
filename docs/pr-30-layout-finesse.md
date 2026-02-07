@@ -159,7 +159,7 @@ This lets App.tsx control visibility without removing functionality. The M/S/CLR
 
 **File:** `src/App.tsx` (lines 1015–1277)
 
-#### Current structure:
+#### Current structure
 
 ```
 HEADER: [BeatName] .................. [LoginBtn]
@@ -168,7 +168,7 @@ MIDDLE: [3 GlobalKnobs] | [TrackControls ×10] | [ChicletGrid 10×16]
 BOTTOM: [Tempo][Play][Save][Load] (vertical stack, width:200px)
 ```
 
-#### New structure:
+#### New structure
 
 ```
 HEADER:  [BeatName] .......................... [LoginBtn]
@@ -191,7 +191,7 @@ BOTTOM BAR (full width, flex-row):
   RIGHT SIDE: [STEP_NOTE_COUNT_STRIP.png]
 ```
 
-#### Detailed layout changes:
+#### Detailed layout changes
 
 **A. Keep HEADER as-is** (lines 1049–1074) — beat name left, login right.
 

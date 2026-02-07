@@ -1776,6 +1776,142 @@ This ensures `class="eurostile text-xs font-bold"` will never have the font-fami
 
 ---
 
+## 18. Promise Return Types: What `() => Promise<void>` Actually Means
+
+### The Confusion
+
+When you see a function signature like `signInWithGoogle: () => Promise<void>`, it's easy to think:
+
+> "The function returns void, so it returns nothing."
+
+But that's only **half** the story. There are actually **two different return types** happening at different times:
+
+```typescript
+// IMMEDIATELY (synchronously):      () => Promise<void>
+//                                            ↑
+//                                   Returns a Promise object
+//
+// LATER (asynchronously):            Promise<void>
+//                                              ↑
+//                                   The Promise resolves to undefined
+```
+
+### The Timeline
+
+Think of it like ordering food:
+
+```
+[T=0ms]   You click button → onClick() fires → signInWithGoogle() called
+          ↓
+          signInWithGoogle IMMEDIATELY returns a Promise
+          (you get it right now — it's a ticket)
+          ↓
+          BUT the auth work hasn't finished yet!
+
+[T=2500ms] Google OAuth completes
+          ↓
+          The Promise resolves
+          ↓
+          You get: undefined (void)
+          ↓
+          Auth is done
+```
+
+### Three Similar-Looking Functions
+
+```typescript
+// Type 1: Synchronous, returns nothing
+const handleClick = () => {
+  console.log("clicked");
+};
+// Type: () => void
+// Returns: undefined (right now)
+
+// Type 2: Async function
+const handleSignIn = async () => {
+  await supabase.auth.signInWithOAuth({...});
+};
+// Type: () => Promise<void>
+// Returns: Promise (right now)
+// Promise resolves to: undefined (later)
+
+// Type 3: Explicitly returns a Promise
+const handleSignIn2 = () => {
+  return supabase.auth.signInWithOAuth({...});
+};
+// Type: () => Promise<void>
+// Returns: Promise (right now) — same as Type 2
+// Promise resolves to: undefined (later)
+```
+
+**Key difference:** Type 1 is done immediately. Types 2 and 3 give you a Promise to wait for.
+
+### What `<void>` Means
+
+The `<void>` part says: "When this Promise finishes, it gives you nothing useful."
+
+```typescript
+// ✅ Promise<void> — side effect, no data back
+async function signOut(): Promise<void> {
+  await supabase.auth.signOut();
+  // Side effect: you're logged out
+  // Data back: undefined (void)
+}
+
+// ✅ Promise<string> — data back
+async function fetchTitle(): Promise<string> {
+  const response = await fetch("/api/title");
+  return response.text(); // Returns a string eventually
+}
+
+// ✅ Promise<BeatSummary[]> — structured data back
+async function loadBeats(): Promise<BeatSummary[]> {
+  return (await fetch("/api/beats")).json(); // Returns an array eventually
+}
+```
+
+### In Your NavBar Code
+
+```typescript
+export interface NavBarProps {
+  signInWithGoogle: () => Promise<void>; // ← Returns Promise immediately
+  // ← Promise resolves to undefined later
+  signOut: () => Promise<void>; // ← Same pattern
+  authLoading: boolean;
+}
+```
+
+When you use it:
+
+```typescript
+// In LoginModalButton.tsx
+const handleClick = async () => {
+  await signInWithGoogle(); // ← Call, get Promise back
+  // ← Await it to wait for OAuth to finish
+  // After this line, OAuth is complete (no data back, just side effects)
+};
+```
+
+### The TL;DR Table
+
+| Question                                | Answer                                         |
+| --------------------------------------- | ---------------------------------------------- |
+| What does `() => Promise<void>` return? | A `Promise` object (immediately)               |
+| What does the Promise resolve to?       | `undefined` (void)                             |
+| Do we get data back?                    | No — `void` means "intentionally nothing"      |
+| Can we `await` it?                      | Yes — to wait for the async work to finish     |
+| Why use it?                             | When you're waiting for side effects, not data |
+
+### Why This Matters
+
+Understanding the difference between "what the function returns" and "what the Promise resolves to" prevents:
+
+- Trying to use data that doesn't exist (because `void`)
+- Forgetting to `await` (because you think it's done immediately)
+- Confusion about whether something is synchronous or asynchronous
+
+---
+
 ## Study Resources
 
 ### Topics to explore deeper

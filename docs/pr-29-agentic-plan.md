@@ -1,6 +1,7 @@
 # PR #29: The Faceplate Alignment (Grid & Layout Tuning)
 
 ## Objective
+
 Align React components (Knobs, Chiclets, Controls) to fit perfectly into the visual "slots" of the photorealistic metal chassis background image.
 
 ## Background Image Layout (Confirmed)
@@ -8,6 +9,7 @@ Align React components (Knobs, Chiclets, Controls) to fit perfectly into the vis
 Based on the actual background image:
 
 **Left Column (Transport & Global Controls)**:
+
 - Top: 3 large knobs (OUTPUT, DRIVE, SWING) - 60px diameter
 - Below: TEMPO display (LCD-style)
 - Below: SAVE button
@@ -15,6 +17,7 @@ Based on the actual background image:
 - Below: LOAD button
 
 **Main Grid Area**:
+
 - 10 rows × 16 columns of chiclet button slots
 - Each row has: TONE knob (cream) + LEVEL knob (orange) + 16 chiclet slots
 - Color banding: Red (cols 1-4), Orange (5-8), Yellow (9-12), Cream (13-16)
@@ -22,11 +25,12 @@ Based on the actual background image:
 - "TONE" and "LEVEL" labels printed at top
 
 **Top Right**:
+
 - LCD screen bezel (dark display area)
 
 ## Current State vs. Target Layout
 
-### What Needs to Move:
+### What Needs to Move
 
 1. **Transport Controls** (currently bottom-center) → Move to left column
    - PlayStopBtn → Below TEMPO display
@@ -52,6 +56,7 @@ Based on the actual background image:
 ### File: `src/App.tsx`
 
 #### Change 1: Apply Background Image
+
 ```tsx
 import chassisBackground from "./assets/images/CHASSIS 07_TEST_1.png";
 
@@ -70,6 +75,7 @@ import chassisBackground from "./assets/images/CHASSIS 07_TEST_1.png";
 #### Change 2: Restructure Main Layout
 
 **Current structure** (simplified):
+
 ```
 <div> {/* device container */}
   <div> {/* header */}
@@ -82,27 +88,29 @@ import chassisBackground from "./assets/images/CHASSIS 07_TEST_1.png";
 ```
 
 **Target structure**:
+
 ```
 <div> {/* device container with background */}
   <div> {/* header - keep as is */}
-  
+
   <div> {/* NEW: main content flex row */}
     <div> {/* LEFT COLUMN */}
       <div> {/* Global knobs: OUTPUT, DRIVE, SWING */}
       <div> {/* Transport controls: TEMPO, SAVE, PLAY, LOAD */}
     </div>
-    
+
     <div> {/* RIGHT SECTION: Grid area */}
       <div> {/* 10 rows of: TONE knob + LEVEL knob + 16 chiclets */}
     </div>
   </div>
-  
+
   <div> {/* LCD Screen - absolute positioned top-right */}
 ```
 
 #### Change 3: Remove Duplicate Labels (lines 1089-1101)
 
 **DELETE** this entire block:
+
 ```tsx
 <div>
   {/* Column headers for knobs */}
@@ -124,6 +132,7 @@ Reason: "TONE" and "LEVEL" are printed on the background image.
 #### Change 4: Create Left Column (Global Controls + Transport)
 
 **NEW section** (add before grid):
+
 ```tsx
 {/* LEFT COLUMN: Global Knobs + Transport Controls */}
 <div className="flex flex-col gap-6">
@@ -139,7 +148,7 @@ Reason: "TONE" and "LEVEL" are printed on the background image.
         onChange={handleMasterVolumeChange}
       />
     </div>
-    
+
     {/* DRIVE Knob */}
     <div className="flex flex-col items-center gap-1">
       <Knob
@@ -150,7 +159,7 @@ Reason: "TONE" and "LEVEL" are printed on the background image.
         onChange={handleDriveChange}
       />
     </div>
-    
+
     {/* SWING Knob */}
     <div className="flex flex-col items-center gap-1">
       <Knob
@@ -162,7 +171,7 @@ Reason: "TONE" and "LEVEL" are printed on the background image.
       />
     </div>
   </div>
-  
+
   {/* Transport Controls Section */}
   <div className="flex flex-col gap-2">
     {/* TEMPO Display */}
@@ -171,17 +180,17 @@ Reason: "TONE" and "LEVEL" are printed on the background image.
       onIncrementClick={handleIncrementBpm}
       onDecrementClick={handleDecrementBpm}
     />
-    
+
     {/* SAVE Button */}
     <SaveButton onClick={handleSaveBeat} isSaving={isSaving} />
-    
+
     {/* START/STOP Button */}
     <PlayStopBtn
       isPlaying={isPlaying}
       onPlayClick={handlePlay}
       onStopClick={handleStop}
     />
-    
+
     {/* LOAD Button */}
     <BeatLibrary beats={beats} onLoadBeat={handleLoadBeatById} />
   </div>
@@ -217,12 +226,12 @@ Keep the current grid structure but adjust spacing:
           onVolumeChange={(newValue) => handleDbChange(trackIndex, newValue)}
           disabled={isDisabled}
         />
-        
+
         {/* 16 Chiclets for this row */}
         <div className="flex gap-1">
           {track.map((_, colIndex) => {
             const isAccented = manifestRef.current.tracks[trackId]?.accents?.[colIndex] ?? false;
-            
+
             return (
               <Chiclet
                 key={`${rowIndex}-${colIndex}`}
@@ -246,11 +255,13 @@ Keep the current grid structure but adjust spacing:
 ### File: `src/components/Chiclet.tsx`
 
 **Keep current sizing** (per user request):
+
 ```tsx
 className={`aspect-2/1 h-[70px] w-full cursor-pointer hover:opacity-80 ${opacityClass} ${brightnessModifiers}`}
 ```
 
 **Add drop shadow** for depth:
+
 ```tsx
 style={{
   backgroundImage: `url(${chicletImage})`,
@@ -266,11 +277,12 @@ style={{
 **Current layout**: Label + Pitch Knob + Volume Knob + M + S + CLR
 
 **Adjust spacing** between knobs to match background:
+
 ```tsx
 <div className="flex h-[25px] items-center" style={{ gap: "12px" }}>
   {/* Optionally hide label if background has track names */}
   {/* <div className="w-16 truncate text-left text-xs font-semibold text-white">{label}</div> */}
-  
+
   {/* TONE Knob (Pitch) */}
   <Knob
     variant="tone"
@@ -280,7 +292,7 @@ style={{
     onChange={onPitchChange}
     disabled={disabled}
   />
-  
+
   {/* LEVEL Knob (Volume) */}
   <Knob
     variant="level"
@@ -290,7 +302,7 @@ style={{
     onChange={onVolumeChange}
     disabled={disabled}
   />
-  
+
   {/* Mute/Solo/Clear buttons - KEEP CURRENT CSS IMPLEMENTATION */}
   <button
     className="h-[25px] w-[30px] rounded-md text-xs font-bold text-white transition-colors"
@@ -302,7 +314,7 @@ style={{
   >
     M
   </button>
-  
+
   <button
     className="h-[25px] w-[30px] rounded-md text-xs font-bold text-white transition-colors"
     style={{
@@ -313,7 +325,7 @@ style={{
   >
     S
   </button>
-  
+
   <button
     className="h-[25px] w-[30px] rounded-md text-xs font-bold text-white transition-colors hover:bg-[#8B0000]"
     style={{
@@ -332,6 +344,7 @@ style={{
 ### File: `src/components/Knob.tsx`
 
 **Add drop shadow** to all knobs:
+
 ```tsx
 <img
   className="h-[28px] w-[28px] cursor-grab select-none active:cursor-grabbing"  // Small knobs
@@ -352,6 +365,7 @@ style={{
 ### File: `src/index.css`
 
 **Add missing grid-cols-16**:
+
 ```css
 @import "tailwindcss";
 
@@ -367,14 +381,17 @@ style={{
 ## Spacing Adjustments (Fine-Tuning Values)
 
 ### Grid Chiclet Spacing
+
 - **Between chiclets**: `gap: "4px"` (current `gap-1`)
 - **Row height**: Auto-calculated based on chiclet h-[70px]
 
 ### TrackControls Spacing
+
 - **Between knobs**: Increase from `gap-1` (4px) to `gap: "12px"` or `gap: "16px"`
 - **Reason**: Background image shows wider spacing between TONE and LEVEL columns
 
 ### Left Column Spacing
+
 - **Between global knobs**: `gap-4` (16px)
 - **Between transport buttons**: `gap-2` (8px)
 - **Between sections**: `gap-6` (24px)
@@ -384,6 +401,7 @@ style={{
 ### File: `src/App.tsx`
 
 **Add master volume state** (for OUTPUT knob):
+
 ```tsx
 const [masterVolume, setMasterVolume] = useState<number>(0); // -60 to +6 dB
 
@@ -403,6 +421,7 @@ function handleMasterVolumeChange(newValue: number) {
 **Strategy**: Position LCD screen absolutely in top-right corner to match background bezel.
 
 **Option 1** - Absolute positioning of existing TempoDisplay:
+
 ```tsx
 <div 
   style={{
@@ -481,6 +500,7 @@ function handleMasterVolumeChange(newValue: number) {
 ## Expected Outcome
 
 A photorealistic TR-08 drum machine interface where:
+
 - Background image provides the metal chassis, labels, and visual slots
 - React components fit perfectly into their designated slots
 - Left column contains global controls and transport
