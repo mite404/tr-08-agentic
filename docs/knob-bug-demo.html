@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knob Bug Demos: Before & After</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #111;
+      color: #ddd;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2.5rem 1rem 4rem;
+      gap: 1.5rem;
+    }
+
+    .header { text-align: center; margin-bottom: 0.5rem; }
+    .header h1 { font-size: 1.3rem; font-weight: 600; color: #fff; letter-spacing: -0.01em; }
+    .header p  { font-size: 0.8rem; color: #555; margin-top: 0.4rem; }
+
+    /* ── Section headers ── */
+    .section-header {
+      width: 100%;
+      max-width: 580px;
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px solid #222;
+    }
+
+    .section-num {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: #444;
+    }
+
+    .section-header h2 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #ccc;
+    }
+
+    .section-header p {
+      font-size: 0.72rem;
+      color: #555;
+      margin-top: 2px;
+    }
+
+    .section-divider {
+      width: 100%;
+      max-width: 580px;
+      height: 1px;
+      background: #1e1e1e;
+      margin: 0.5rem 0;
+    }
+
+    /* ── Two-panel grid ── */
+    .demo {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px;
+      width: 100%;
+      max-width: 580px;
+      background: #2a2a2a;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    .panel {
+      background: #181818;
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 100px;
+    }
+
+    .panel-before .badge { background: #2d1515; color: #f87171; border: 1px solid #3d1f1f; }
+    .panel-after  .badge { background: #152d1e; color: #4ade80; border: 1px solid #1f3d29; }
+
+    .panel-desc {
+      font-size: 0.75rem;
+      color: #555;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* ── Knob ── */
+    .knob-outer {
+      position: relative;
+      width: 84px;
+      height: 84px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Arc ring showing valid rotation range */
+    .knob-arc {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2px solid #2a2a2a;
+      pointer-events: none;
+      transition: border-color 0.2s;
+    }
+
+    .knob-arc.at-limit {
+      border-color: #4ade80;
+      box-shadow: 0 0 6px rgba(74,222,128,0.25);
+      animation: pulse-limit 0.25s ease-out;
+    }
+
+    .knob-arc.overshot {
+      border-color: #f87171;
+      box-shadow: 0 0 8px rgba(248,113,113,0.3);
+    }
+
+    @keyframes pulse-limit {
+      0%   { box-shadow: 0 0 0   rgba(74,222,128,0); }
+      50%  { box-shadow: 0 0 12px rgba(74,222,128,0.5); }
+      100% { box-shadow: 0 0 6px rgba(74,222,128,0.2); }
+    }
+
+    .knob {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 38% 35%, rgba(255,255,255,0.13) 0%, transparent 55%),
+        radial-gradient(circle, #3c3c3c, #1a1a1a);
+      box-shadow:
+        0 6px 14px rgba(0,0,0,0.7),
+        inset 0 1px 0 rgba(255,255,255,0.1),
+        inset 0 -2px 0 rgba(0,0,0,0.4);
+      position: relative;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .knob:active { cursor: grabbing; }
+
+    .knob-pip {
+      position: absolute;
+      top: 7px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px;
+      height: 18px;
+      background: linear-gradient(to bottom, #fff, rgba(255,255,255,0.25));
+      border-radius: 2px;
+      pointer-events: none;
+    }
+
+    /* ── Data table ── */
+    .data-table {
+      width: 100%;
+      background: #0f0f0f;
+      border-radius: 8px;
+      overflow: hidden;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.7rem;
+    }
+
+    .data-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 12px;
+      border-bottom: 1px solid #1c1c1c;
+      transition: background 0.25s;
+    }
+    .data-row:last-child { border-bottom: none; }
+    .data-row.row-corrupt { background: rgba(248,113,113,0.06); }
+
+    .data-key { color: #484848; }
+    .data-val { font-weight: 600; color: #bbb; transition: color 0.2s; }
+    .data-val.corrupt { color: #f87171; }
+    .data-val.safe    { color: #4ade80; }
+    .data-val.muted   { color: #444; }
+    .data-val.neutral { color: #888; }
+
+    /* deadzone bar */
+    .deadzone-bar {
+      width: 100%;
+      height: 6px;
+      background: #1a1a1a;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .deadzone-fill {
+      height: 100%;
+      background: #f87171;
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.05s linear;
+    }
+
+    .deadzone-label {
+      font-size: 0.65rem;
+      color: #f87171;
+      text-align: center;
+      min-height: 1em;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .deadzone-label.visible { opacity: 1; }
+
+    /* ── Buttons ── */
+    .controls { display: flex; gap: 0.5rem; width: 100%; }
+
+    button {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 7px;
+      border: 1px solid #2e2e2e;
+      background: #1e1e1e;
+      color: #888;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    button:hover { background: #252525; border-color: #444; color: #ddd; }
+
+    button.is-muted {
+      border-color: #f87171;
+      background: #2d1515;
+      color: #f87171;
+    }
+
+    .panel-after button.is-muted {
+      border-color: #4ade80;
+      background: #152d1e;
+      color: #4ade80;
+    }
+
+    .btn-load {
+      background: #16162a;
+      border-color: #2a2a50;
+      color: #818cf8;
+    }
+    .btn-load:hover { background: #1e1e38; border-color: #4a4a90; color: #a5b4fc; }
+
+    /* ── Corruption warning ── */
+    .corrupt-msg {
+      font-size: 0.67rem;
+      color: #f87171;
+      text-align: center;
+      min-height: 1.1em;
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .corrupt-msg.visible { opacity: 1; }
+
+    /* ── Instructions ── */
+    .instructions {
+      width: 100%;
+      max-width: 580px;
+      background: #13131f;
+      border: 1px solid #232340;
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+    }
+
+    .instructions h2 {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #818cf8;
+      margin-bottom: 0.75rem;
+    }
+
+    .step {
+      display: flex;
+      gap: 0.75rem;
+      padding: 4px 0;
+      font-size: 0.77rem;
+      color: #666;
+      line-height: 1.5;
+    }
+
+    .step-n  { color: #818cf8; font-weight: 700; flex-shrink: 0; }
+    .step em { color: #bbb; font-style: normal; }
+    .step strong { color: #f87171; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Knob Component — Bug Demos</h1>
+    <p>Two real bugs from the same component, made interactive</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECTION 1 — THE DRAG DEADZONE (Clamping Bug)
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section-header">
+    <span class="section-num">01</span>
+    <div>
+      <h2>The Drag Deadzone</h2>
+      <p>Checking the old angle before computing the new one</p>
+    </div>
+  </div>
+
+  <div class="demo">
+
+    <!-- BEFORE: Buggy clamping -->
+    <div class="panel panel-before">
+      <span class="badge">Before — Bug</span>
+      <p class="panel-desc">
+        Checks current angle against bounds<br>
+        then computes new angle — too late
+      </p>
+
+      <div class="knob-outer">
+        <div class="knob-arc" id="clamp-before-arc"></div>
+        <div class="knob" id="clamp-knob-before">
+          <div class="knob-pip"></div>
+        </div>
+      </div>
+
+      <div class="data-table">
+        <div class="data-row" id="clamp-before-angle-row">
+          <span class="data-key">stored angle</span>
+          <span class="data-val" id="clamp-before-angle">—</span>
+        </div>
+        <div class="data-row">
+          <span class="data-key">valid range</span>
+          <span class="data-val neutral">10° — 256°</span>
+        </div>
+        <div class="data-row" id="clamp-before-excess-row">
+          <span class="data-key">excess ← deadzone</span>
+          <span class="data-val" id="clamp-before-excess">—</span>
+        </div>
+      </div>
+
+      <div class="deadzone-bar"><div class="deadzone-fill" id="clamp-before-bar"></div></div>
+      <div class="deadzone-label" id="clamp-before-label">drag back to recover</div>
+    </div>
+
+    <!-- AFTER: Fixed clamping -->
+    <div class="panel panel-after">
+      <span class="badge">After — Fixed</span>
+      <p class="panel-desc">
+        Computes new angle first<br>
+        then clamps — hard stop, no deadzone
+      </p>
+
+      <div class="knob-outer">
+        <div class="knob-arc" id="clamp-after-arc"></div>
+        <div class="knob" id="clamp-knob-after">
+          <div class="knob-pip"></div>
+        </div>
+      </div>
+
+      <div class="data-table">
+        <div class="data-row">
+          <span class="data-key">stored angle</span>
+          <span class="data-val safe" id="clamp-after-angle">—</span>
+        </div>
+        <div class="data-row">
+          <span class="data-key">valid range</span>
+          <span class="data-val neutral">10° — 256°</span>
+        </div>
+        <div class="data-row">
+          <span class="data-key">excess</span>
+          <span class="data-val safe">0° — always</span>
+        </div>
+      </div>
+
+      <div class="deadzone-bar"><div class="deadzone-fill" style="width:0;background:#4ade80"></div></div>
+      <!-- spacer to match height -->
+      <div style="min-height:1em"></div>
+    </div>
+
+  </div>
+
+  <div class="instructions">
+    <h2>Try This</h2>
+    <div class="step"><span class="step-n">1</span>On <em>either</em> knob, drag all the way to the top (max).</div>
+    <div class="step"><span class="step-n">2</span>On the Before knob, <em>keep dragging fast past the top</em>. The stored angle goes red — you've overshot.</div>
+    <div class="step"><span class="step-n">3</span>Now drag back down. <strong>Notice the knob doesn't move</strong> until you've eaten through the deadzone.</div>
+    <div class="step"><span class="step-n">4</span>On the After knob: drag past max — the arc flashes green and the pip stops dead. Reverse instantly.</div>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECTION 2 — VOLUME PERSISTENCE (toGridArray Bug)
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section-header">
+    <span class="section-num">02</span>
+    <div>
+      <h2>The Volume Persistence Bug</h2>
+      <p>Serializing effective volume instead of raw volume</p>
+    </div>
+  </div>
+
+  <div class="demo">
+
+    <!-- BEFORE (Buggy) -->
+    <div class="panel panel-before">
+      <span class="badge">Before — Bug</span>
+      <p class="panel-desc">
+        Serializes <em style="color:#aaa">effective</em> volume<br>
+        Mute writes −∞ into stored value
+      </p>
+
+      <div class="knob-outer">
+        <div class="knob-arc" id="before-ring"></div>
+        <div class="knob" id="knob-before">
+          <div class="knob-pip"></div>
+        </div>
+      </div>
+
+      <div class="data-table">
+        <div class="data-row">
+          <span class="data-key">raw (dragged to)</span>
+          <span class="data-val" id="before-raw">—</span>
+        </div>
+        <div class="data-row" id="before-stored-row">
+          <span class="data-key">stored ← bug here</span>
+          <span class="data-val" id="before-stored">—</span>
+        </div>
+        <div class="data-row">
+          <span class="data-key">played</span>
+          <span class="data-val" id="before-played">—</span>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btn-before-mute">Mute</button>
+        <button class="btn-load" id="btn-before-load">Load Beat</button>
+      </div>
+
+      <div class="corrupt-msg" id="before-msg">⚠ Stored value is −∞ — original lost</div>
+    </div>
+
+    <!-- AFTER (Fixed) -->
+    <div class="panel panel-after">
+      <span class="badge">After — Fixed</span>
+      <p class="panel-desc">
+        Serializes <em style="color:#aaa">raw</em> volume only<br>
+        Mute is playback-only, never stored
+      </p>
+
+      <div class="knob-outer">
+        <div class="knob-arc"></div>
+        <div class="knob" id="knob-after">
+          <div class="knob-pip"></div>
+        </div>
+      </div>
+
+      <div class="data-table">
+        <div class="data-row">
+          <span class="data-key">raw (dragged to)</span>
+          <span class="data-val" id="after-raw">—</span>
+        </div>
+        <div class="data-row">
+          <span class="data-key">stored ← safe</span>
+          <span class="data-val safe" id="after-stored">—</span>
+        </div>
+        <div class="data-row">
+          <span class="data-key">played</span>
+          <span class="data-val" id="after-played">—</span>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="btn-after-mute">Mute</button>
+        <button class="btn-load" id="btn-after-load">Load Beat</button>
+      </div>
+
+      <div style="min-height:1.1em"></div>
+    </div>
+
+  </div>
+
+  <div class="instructions">
+    <h2>Try This</h2>
+    <div class="step"><span class="step-n">1</span>Drag either knob to a mid or high value.</div>
+    <div class="step"><span class="step-n">2</span>Click <em>Mute</em> on the Before side. Watch <strong>stored</strong> flip to −∞.</div>
+    <div class="step"><span class="step-n">3</span>Click <em>Load Beat</em> — simulates deserializing the saved beat. The knob snaps to minimum.</div>
+    <div class="step"><span class="step-n">4</span>The original volume is gone. Un-muting can't recover it.</div>
+    <div class="step"><span class="step-n">5</span>Repeat on the After side. Load Beat always restores the exact position.</div>
+  </div>
+
+  <script>
+    // ── Shared constants ─────────────────────────────────────────
+    const MIN_ANGLE =  10;
+    const MAX_ANGLE = 256;
+    const OFFSET    = -130;
+
+    const MIN_DB = -25;
+    const MAX_DB =   5;
+
+    function dbToAngle(db) {
+      if (!isFinite(db)) return MIN_ANGLE;
+      return ((db - MIN_DB) / (MAX_DB - MIN_DB)) * (MAX_ANGLE - MIN_ANGLE) + MIN_ANGLE;
+    }
+    function angleToDb(angle) {
+      return ((angle - MIN_ANGLE) / (MAX_ANGLE - MIN_ANGLE)) * (MAX_DB - MIN_DB) + MIN_DB;
+    }
+    function fmtDb(v)  { return isFinite(v) ? v.toFixed(1) + ' dB' : '−∞'; }
+    function fmtDeg(v) { return v.toFixed(1) + '°'; }
+
+    function rotateKnobByAngle(el, angle) {
+      el.style.transform = `rotate(${angle + OFFSET}deg)`;
+    }
+    function rotateKnobByDb(el, db) {
+      rotateKnobByAngle(el, dbToAngle(db));
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // SECTION 1 — CLAMPING BUG
+    // ════════════════════════════════════════════════════════════
+
+    const clampBefore = { angle: 133 }; // start at midpoint
+    const clampAfter  = { angle: 133 };
+
+    // THE BUG: checks old angle against bounds, THEN computes new angle.
+    // If a fast drag overshoots the limit, the unclamped value is stored.
+    // Coming back from an overshoot requires traversing the entire excess
+    // before the knob responds — the "deadzone."
+    function buggyClamper(currentAngle, movementY) {
+      const delta = -movementY; // invert: drag up = increase
+      if (currentAngle >= MAX_ANGLE && delta > 0) {
+        return MAX_ANGLE; // at/past max, going further → clamp
+      } else if (currentAngle <= MIN_ANGLE && delta < 0) {
+        return MIN_ANGLE; // at/past min, going further → clamp
+      } else {
+        // BUG: if currentAngle > MAX_ANGLE and delta < 0 (coming back),
+        // neither condition fires — unclamped value is returned.
+        return currentAngle + delta;
+      }
+    }
+
+    // THE FIX: compute new angle first, then clamp — always in range.
+    function fixedClamper(currentAngle, movementY) {
+      const delta    = -movementY;
+      const newAngle = currentAngle + delta;
+      return Math.max(MIN_ANGLE, Math.min(MAX_ANGLE, newAngle));
+    }
+
+    let clampAfterAtLimit = false;
+
+    function renderClampBefore() {
+      const angle   = clampBefore.angle;
+      const excess  = Math.max(0, angle - MAX_ANGLE);
+      const overshot = angle > MAX_ANGLE;
+
+      rotateKnobByAngle(document.getElementById('clamp-knob-before'), angle);
+
+      const angleEl = document.getElementById('clamp-before-angle');
+      angleEl.textContent = fmtDeg(angle);
+      angleEl.className   = 'data-val ' + (overshot ? 'corrupt' : '');
+
+      document.getElementById('clamp-before-angle-row').classList.toggle('row-corrupt', overshot);
+
+      const excessEl = document.getElementById('clamp-before-excess');
+      excessEl.textContent = overshot ? '+' + fmtDeg(excess) : '—';
+      excessEl.className   = 'data-val ' + (overshot ? 'corrupt' : 'neutral');
+
+      // Deadzone progress bar (max visual = 30° overshoot)
+      const pct = Math.min(100, (excess / 30) * 100);
+      document.getElementById('clamp-before-bar').style.width = pct + '%';
+
+      const arc = document.getElementById('clamp-before-arc');
+      arc.className = 'knob-arc ' + (overshot ? 'overshot' : '');
+
+      const label = document.getElementById('clamp-before-label');
+      label.textContent = overshot ? `drag back ${fmtDeg(excess)} to recover` : '';
+      label.classList.toggle('visible', overshot);
+    }
+
+    function renderClampAfter() {
+      rotateKnobByAngle(document.getElementById('clamp-knob-after'), clampAfter.angle);
+      document.getElementById('clamp-after-angle').textContent = fmtDeg(clampAfter.angle);
+    }
+
+    // ── Drag for clamping section ────────────────────────────────
+    function makeClampDraggable(knobId, state, clamperFn, renderFn, onLimitHit) {
+      const el = document.getElementById(knobId);
+      let dragging   = false;
+      let lastTouchY = null;
+
+      function applyMove(movementY) {
+        const prev  = state.angle;
+        state.angle = clamperFn(state.angle, movementY);
+        const hitLimit = (state.angle === MAX_ANGLE || state.angle === MIN_ANGLE)
+                          && prev !== state.angle;
+        if (hitLimit && onLimitHit) onLimitHit();
+        renderFn();
+      }
+
+      el.addEventListener('mousedown', (e) => { dragging = true; e.preventDefault(); });
+      window.addEventListener('mousemove', (e) => { if (dragging) applyMove(e.movementY); });
+      window.addEventListener('mouseup',   ()  => { dragging = false; });
+
+      el.addEventListener('touchstart', (e) => {
+        dragging = true; lastTouchY = e.touches[0].clientY; e.preventDefault();
+      }, { passive: false });
+
+      window.addEventListener('touchmove', (e) => {
+        if (!dragging || lastTouchY === null) return;
+        const y    = e.touches[0].clientY;
+        applyMove(y - lastTouchY);
+        lastTouchY = y;
+      });
+      window.addEventListener('touchend', () => { dragging = false; lastTouchY = null; });
+    }
+
+    makeClampDraggable('clamp-knob-before', clampBefore, buggyClamper, renderClampBefore, null);
+    makeClampDraggable('clamp-knob-after',  clampAfter,  fixedClamper,  renderClampAfter, () => {
+      // Flash the arc ring to show the hard stop
+      const arc = document.getElementById('clamp-after-arc');
+      arc.className = 'knob-arc at-limit';
+      setTimeout(() => { arc.className = 'knob-arc'; }, 300);
+    });
+
+    // ════════════════════════════════════════════════════════════
+    // SECTION 2 — VOLUME PERSISTENCE BUG
+    // ════════════════════════════════════════════════════════════
+
+    const volBefore = { rawDb: -5, isMuted: false };
+    const volAfter  = { rawDb: -5, isMuted: false };
+
+    // BUG: returns effective volume — mute collapses stored value to -Infinity
+    function beforeGetStored() { return volBefore.isMuted ? -Infinity : volBefore.rawDb; }
+    // FIX: always returns rawDb — mute is invisible to storage
+    function afterGetStored()  { return volAfter.rawDb; }
+
+    function renderVolBefore() {
+      const stored  = beforeGetStored();
+      const played  = volBefore.isMuted ? -Infinity : volBefore.rawDb;
+      const corrupt = !isFinite(stored);
+
+      rotateKnobByDb(document.getElementById('knob-before'), volBefore.rawDb);
+
+      document.getElementById('before-raw').textContent = fmtDb(volBefore.rawDb);
+
+      const storedEl = document.getElementById('before-stored');
+      storedEl.textContent = fmtDb(stored);
+      storedEl.className   = 'data-val ' + (corrupt ? 'corrupt' : '');
+
+      document.getElementById('before-stored-row').classList.toggle('row-corrupt', corrupt);
+      document.getElementById('before-ring').classList.toggle('overshot', corrupt);
+
+      const playedEl = document.getElementById('before-played');
+      playedEl.textContent = fmtDb(played);
+      playedEl.className   = 'data-val ' + (volBefore.isMuted ? 'muted' : '');
+
+      const muteBtn = document.getElementById('btn-before-mute');
+      muteBtn.textContent = volBefore.isMuted ? 'Unmute' : 'Mute';
+      muteBtn.classList.toggle('is-muted', volBefore.isMuted);
+
+      document.getElementById('before-msg').classList.toggle('visible', corrupt);
+    }
+
+    function renderVolAfter() {
+      const played = volAfter.isMuted ? -Infinity : volAfter.rawDb;
+
+      rotateKnobByDb(document.getElementById('knob-after'), volAfter.rawDb);
+
+      document.getElementById('after-raw').textContent    = fmtDb(volAfter.rawDb);
+      document.getElementById('after-stored').textContent = fmtDb(afterGetStored());
+
+      const playedEl = document.getElementById('after-played');
+      playedEl.textContent = fmtDb(played);
+      playedEl.className   = 'data-val ' + (volAfter.isMuted ? 'muted' : 'safe');
+
+      const muteBtn = document.getElementById('btn-after-mute');
+      muteBtn.textContent = volAfter.isMuted ? 'Unmute' : 'Mute';
+      muteBtn.classList.toggle('is-muted', volAfter.isMuted);
+    }
+
+    // ── Drag for volume section ───────────────────────────────────
+    function makeVolDraggable(knobId, state, renderFn) {
+      const el = document.getElementById(knobId);
+      let dragging   = false;
+      let lastTouchY = null;
+
+      function applyMove(movementY) {
+        const currentAngle = dbToAngle(state.rawDb);
+        const newAngle     = Math.max(MIN_ANGLE, Math.min(MAX_ANGLE, currentAngle - movementY));
+        state.rawDb = angleToDb(newAngle);
+        renderFn();
+      }
+
+      el.addEventListener('mousedown', (e) => { dragging = true; e.preventDefault(); });
+      window.addEventListener('mousemove', (e) => { if (dragging) applyMove(e.movementY); });
+      window.addEventListener('mouseup',   ()  => { dragging = false; });
+
+      el.addEventListener('touchstart', (e) => {
+        dragging = true; lastTouchY = e.touches[0].clientY; e.preventDefault();
+      }, { passive: false });
+
+      window.addEventListener('touchmove', (e) => {
+        if (!dragging || lastTouchY === null) return;
+        const y = e.touches[0].clientY;
+        applyMove(y - lastTouchY);
+        lastTouchY = y;
+      });
+      window.addEventListener('touchend', () => { dragging = false; lastTouchY = null; });
+    }
+
+    makeVolDraggable('knob-before', volBefore, renderVolBefore);
+    makeVolDraggable('knob-after',  volAfter,  renderVolAfter);
+
+    // ── Mute ──────────────────────────────────────────────────────
+    document.getElementById('btn-before-mute').addEventListener('click', () => {
+      volBefore.isMuted = !volBefore.isMuted; renderVolBefore();
+    });
+    document.getElementById('btn-after-mute').addEventListener('click', () => {
+      volAfter.isMuted = !volAfter.isMuted; renderVolAfter();
+    });
+
+    // ── Load Beat ─────────────────────────────────────────────────
+    document.getElementById('btn-before-load').addEventListener('click', () => {
+      volBefore.rawDb   = beforeGetStored(); // BUG: could be -Infinity
+      volBefore.isMuted = false;
+      renderVolBefore();
+    });
+    document.getElementById('btn-after-load').addEventListener('click', () => {
+      volAfter.rawDb   = afterGetStored(); // FIX: always rawDb
+      volAfter.isMuted = false;
+      renderVolAfter();
+    });
+
+    // ── Init ──────────────────────────────────────────────────────
+    renderClampBefore();
+    renderClampAfter();
+    renderVolBefore();
+    renderVolAfter();
+  </script>
+
+</body>
+</html>
