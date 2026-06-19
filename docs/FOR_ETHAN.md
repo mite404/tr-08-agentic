@@ -1993,6 +1993,83 @@ const [isPending, setIsPending] = useState(false);
 
 ---
 
+## 30. CSS `zoom` and the Coordinate Space Paradox
+
+This is a wild one that bit us hard during the chiclet-clipping debug session. File: `src/components/SequencerChassis.tsx`.
+
+### The Setup
+
+The sequencer chassis uses CSS `zoom` to scale its entire contents (all 10 track rows + transport) so they fit inside the chassis rectangle at any viewport size. A `ResizeObserver` watches the chassis, measures available space, and sets a zoom value like `0.75` or `1.14`.
+
+### The Paradox
+
+Imagine you're a CSS element INSIDE a `zoom: 0.5` container. From **your** perspective, the container looks **twice as wide** as it appears to the user. This is because `zoom` shrinks things visually without telling the children — they still compute their layout using the pre-zoom coordinate space.
+
+**Film analogy:** Think of the camera zooming out on a film set. The set itself hasn't changed — the actors still see the same stage. It's only the audience's view that shrank. If you designed a set piece to fit the "audience view" instead of the stage, it would look wrong from the actor's perspective.
+
+```
+Real chassis width:     1000px
+zoom applied:           0.5
+Children see it as:     1000 / 0.5 = 2000px wide
+Visual result:          500px (1000px × 0.5 = 500px on screen)
+```
+
+### Why Chiclets Were Getting Clipped
+
+The 16 chiclet columns span the full width of the right section. At lower zoom, children think the container is WIDER → wider columns → portrait images (180×250 ratio) grow taller → images overflow their 50px row height.
+
+The clipping was WORST at large viewports because the old code capped zoom at 0.92 — even when there was plenty of space for zoom > 1.0. At zoom=0.92, each column appeared wider in child space (1000/0.92 = 1087px) than at zoom=1.0 (1000/1.0 = 1000px), making images taller.
+
+### The Fix: Raise the Zoom Cap
+
+The counter-intuitive realization: **higher zoom = less clipping**, for TWO compounding reasons:
+
+1. **Rows get taller** — row visual height = `50px × zoom`, so higher zoom = taller rows
+2. **Images get shorter** — higher zoom means narrower child columns, so portrait images need less height
+
+We changed the cap from `0.92` to `1.2`. At a 1548×1180 viewport, zoom jumped from `0.92` to `1.14` and bottom clipping dropped from **24px to 4px** — an 83% improvement.
+
+```typescript
+// Before: artificially limited even when space was available
+const zoom = Math.min(0.92, Math.max(0.5, available / naturalH));
+
+// After: available/naturalH is already bounded by chassis height, cap can be higher
+const zoom = Math.min(1.2, Math.max(0.5, available / naturalH));
+```
+
+### The `scrollHeight` Trap
+
+`scrollHeight` inside a CSS-zoomed parent is measured in the **zoomed coordinate space**. At zoom=0.5, a 710px-tall element reports `scrollHeight = 1420`. This broke our zoom calculation until we temporarily set zoom to 1, measured, then restored:
+
+```typescript
+const savedZoom = zoomWrapper.style.zoom;
+zoomWrapper.style.zoom = "1";
+const naturalH = content.scrollHeight; // Now gives true natural height
+zoomWrapper.style.zoom = savedZoom;
+```
+
+### The `ResizeObserver` Re-entrancy Trap
+
+When you change `zoom` during a `ResizeObserver` callback, the zoom change triggers another `ResizeObserver` callback → infinite loop. Fix: disconnect the observer BEFORE the measurement, reconnect AFTER:
+
+```typescript
+observer.disconnect();           // ← stops re-entrancy
+zoomWrapper.style.zoom = "1";   // ← triggers a resize, but no observer listening
+const naturalH = content.scrollHeight;
+zoomWrapper.style.zoom = savedZoom;
+observer.observe(chassisRef.current!); // ← now safe to reconnect
+```
+
+### The `items-start` Alignment Choice
+
+With `items-center` (old): both top and bottom of each portrait image were clipped equally (12px each side). The button's most visually striking feature — the **glossy top highlight** — was cut off.
+
+With `items-start` (new): the image starts at the top of the row. Only the bottom shadow can clip. The gloss and rounded top edge are always visible, which is far less visually offensive.
+
+Think of it like a film slate that's slightly too tall for the frame — you'd rather crop the bottom (which the audience reads as "off screen") than the top (which shows the identifying info).
+
+---
+
 ## Study Resources
 
 ### Topics to explore deeper

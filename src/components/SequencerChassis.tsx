@@ -12,7 +12,7 @@
 //   - Callbacks: What to do when user interacts (pad clicks, knob turns, etc.)
 // =============================================================================
 
-import type { JSX } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import type { TrackID } from "../types/beat";
 import type { BeatSummary } from "../hooks/useLoadBeat";
 
@@ -155,9 +155,64 @@ export function SequencerChassis({
   onSave,
   onLoadBeat,
 }: SequencerChassisProps) {
+  const chassisRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const zoomWrapperRef = useRef<HTMLDivElement>(null);
+  const [contentZoom, setContentZoom] = useState(0.7);
+
+  useEffect(() => {
+    // 'let' so recalculate() can call observer.disconnect() before it's assigned.
+    // By the time recalculate() first executes, observer is initialized below.
+    let observer!: ResizeObserver;
+
+    const recalculate = () => {
+      const chassis = chassisRef.current;
+      const content = contentRef.current;
+      const zoomWrapper = zoomWrapperRef.current;
+      if (!chassis || !content || !zoomWrapper) return;
+
+      // Disconnect before the temporary zoom change so the measurement itself
+      // doesn't queue a re-entrant ResizeObserver callback.
+      observer.disconnect();
+
+      // scrollHeight inside a CSS-zoomed parent is in the ZOOMED coordinate space.
+      // Temporarily resetting to zoom=1 gives the true natural height.
+      const savedZoom = zoomWrapper.style.zoom;
+      zoomWrapper.style.zoom = "1";
+      const naturalH = content.scrollHeight;
+      zoomWrapper.style.zoom = savedZoom;
+
+      // Re-observe before setContentZoom so any resize during React's update is caught.
+      observer.observe(chassisRef.current!);
+      observer.observe(contentRef.current!);
+
+      if (naturalH === 0) return;
+
+      const chassisRect = chassis.getBoundingClientRect();
+      const zoomRect = zoomWrapper.getBoundingClientRect();
+      const chassisH = chassisRect.height;
+      const paddingPx = chassisH * 0.03;
+      // Measure actual space above the zoom wrapper (header + analyzer) dynamically
+      // so the zoom is calibrated to what's truly available, not a hardcoded guess.
+      const aboveZoomWrapper = zoomRect.top - chassisRect.top - paddingPx;
+      const available = chassisH - paddingPx * 2 - Math.max(0, aboveZoomWrapper);
+      // Cap at 1.2 rather than 0.92: higher zoom = taller rows = less chiclet clipping.
+      // The chassis aspect-ratio constraint already prevents overflow at very wide viewports.
+      const zoom = Math.min(1.2, Math.max(0.5, available / naturalH));
+      setContentZoom(zoom);
+    };
+
+    observer = new ResizeObserver(recalculate);
+    observer.observe(chassisRef.current!);
+    observer.observe(contentRef.current!);
+    recalculate();
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div
-      className="flex flex-col rounded-xl"
+      ref={chassisRef}
+      className="flex flex-col overflow-hidden rounded-xl"
       style={{
         backgroundImage: `url(${chassisBackground})`,
         backgroundSize: "100% 100%",
@@ -186,206 +241,197 @@ export function SequencerChassis({
       </div>
 
       {/* PR #30: Main content - 2 column layout (global knobs | knobs+grid) */}
-      <div className="relative z-10 flex w-full flex-col gap-2">
-        {/* MAIN AREA: LEFT global knobs + RIGHT per-row knobs & grid */}
-        <div className="w-full origin-top-left" style={{ zoom: 0.8 }}>
-          <div className="flex w-full flex-row gap-4">
-            {/* LEFT COLUMN: Global Knobs (OUTPUT, DRIVE, SWING) */}
-            <div className="flex flex-none flex-col items-center justify-start gap-4">
-              <Knob
-                variant="swing"
-                min={-60}
-                max={6}
-                value={masterVolume}
-                onChange={onMasterVolumeChange}
-                label="Output Volume"
-              />
-              <Knob
-                variant="swing"
-                min={0}
-                max={100}
-                value={drive}
-                onChange={onDriveChange}
-                label="Drive / Saturation"
-              />
-              <Knob
-                variant="swing"
-                min={0}
-                max={100}
-                value={swing}
-                onChange={onSwingChange}
-                label="Swing / Shuffle"
-              />
-            </div>
-
-            {/* RIGHT AREA: Per-row knobs + Chiclet Grid */}
-            <div className="flex flex-1 flex-col gap-1">
-              {/* Header row with TONE and LEVEL labels (aligned with TrackControls) */}
-              <div
-                className="flex h-[50px] items-center"
-                style={{ gap: "12px" }}
-              >
-                {/* Space for track label */}
-                <div className="w-16" />
-
-                {/* TONE label */}
-                <div className="flex flex-col items-center justify-center">
-                  <div className="eurostile text-xs font-normal text-white">
-                    TONE
-                  </div>
-                </div>
-
-                {/* LEVEL label */}
-                <div className="flex flex-col items-center justify-center">
-                  <div className="eurostile text-xs font-normal text-white">
-                    LEVEL
-                  </div>
-                </div>
-
-                {/* Space for M/S/CLR buttons */}
-                <div className="flex gap-1">
-                  <div className="w-[30px]" />
-                  <div className="w-[30px]" />
-                  <div className="w-[30px]" />
-                </div>
-              </div>
-
-              {/* PR #5: Wrap grid in ErrorBoundary for crash protection */}
-              <ErrorBoundary>
-                {/* PR #4: Show skeleton while loading initial data */}
-                {!isInitialDataLoaded ? (
-                  <div className="p-0.5">
-                    <SkeletonGrid />
-                  </div>
-                ) : (
-                  /* 10 rows: each row = [TrackControls] [16 chiclets] */
-                  <div className="flex flex-col gap-1">
-                    {grid.map((_row, rowIndex) => {
-                      const trackId = trackIdsByRow[rowIndex];
-                      const trackConfig = TRACK_REGISTRY.find(
-                        (c) => c.trackId === trackId,
-                      );
-                      const isTrackDisabled =
-                        failedTrackIds.includes(trackId);
-
-                      if (!trackConfig) return null;
-
-                      return (
-                        <div
-                          // eslint-disable-next-line react-x/no-array-index-key
-                          key={`row-${rowIndex}`}
-                          className="flex items-center gap-1"
-                        >
-                          {/* Per-track controls: label + TONE + LEVEL + M/S/CLR */}
-                          <TrackControls
-                            trackId={trackId}
-                            label={trackConfig.label}
-                            isMuted={trackMutes[rowIndex]}
-                            isSoloed={trackSolos[rowIndex]}
-                            onMuteToggle={onMuteToggle}
-                            onSoloToggle={onSoloToggle}
-                            onClear={onClearTrack}
-                            pitchValue={trackPitches[rowIndex]}
-                            volumeValue={trackVolumes[rowIndex]}
-                            onPitchChange={(newValue) =>
-                              onPitchChange(rowIndex, newValue)
-                            }
-                            onVolumeChange={(newValue) =>
-                              onVolumeChange(rowIndex, newValue)
-                            }
-                            disabled={isTrackDisabled}
-                          />
-
-                          {/* 16 chiclets for this row */}
-                          <div className="grid flex-1 grid-cols-16 gap-1">
-                            {grid[rowIndex].map((_, colIndex) => {
-                              const isAccented =
-                                accentsByRow[rowIndex]?.[colIndex] ?? false;
-
-                              return (
-                                <Chiclet
-                                  // eslint-disable-next-line react-x/no-array-index-key
-                                  key={`${rowIndex}-${colIndex}`}
-                                  variant={getChicletVariant(colIndex)}
-                                  isActive={grid[rowIndex][colIndex]}
-                                  isAccented={isAccented}
-                                  isCurrentStep={colIndex === currentStep}
-                                  is16thNote={colIndex % 4 !== 0}
-                                  onClick={() =>
-                                    onPadClick(rowIndex, colIndex)
-                                  }
-                                  disabled={isTrackDisabled}
-                                />
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </ErrorBoundary>
-            </div>
-          </div>
-        </div>
-
-        {/* BOTTOM SECTION: Tempo/Save row + Transport outline bar */}
-        <div className="flex w-full flex-col gap-2">
-          {/* Row 1: Tempo + Save */}
-          <div className="flex items-center gap-2">
-            <TempoDisplay
-              bpmValue={bpm}
-              onIncrementClick={onIncrementBpm}
-              onDecrementClick={onDecrementBpm}
+      {/* Everything inside one zoom wrapper so transport scales with the grid */}
+      <div ref={zoomWrapperRef} className="relative z-10 w-full origin-top-left" style={{ zoom: contentZoom }}>
+        <div ref={contentRef} className="flex w-full flex-row gap-4">
+          {/* LEFT COLUMN: Global Knobs (OUTPUT, DRIVE, SWING) */}
+          <div className="flex flex-none flex-col items-center justify-start gap-4">
+            <Knob
+              variant="swing"
+              min={-60}
+              max={6}
+              value={masterVolume}
+              onChange={onMasterVolumeChange}
+              label="Output Volume"
             />
-            <SaveButton
-              onClick={onSave}
-              isSaving={isSaving}
-              style={{ width: "48px" }}
+            <Knob
+              variant="swing"
+              min={0}
+              max={100}
+              value={drive}
+              onChange={onDriveChange}
+              label="Drive / Saturation"
+            />
+            <Knob
+              variant="swing"
+              min={0}
+              max={100}
+              value={swing}
+              onChange={onSwingChange}
+              label="Swing / Shuffle"
             />
           </div>
 
-          {/* Row 2: Transport outline (left) overlapping with Step Strip (right) */}
-          <div className="relative flex w-full items-end">
-            {/* Transport outline as a proper image with buttons overlaid */}
-            <div className="relative flex-none" style={{ width: "40%" }}>
-              <img
-                src={transportOutline}
-                alt=""
-                className="block h-auto w-full"
-                draggable={false}
-              />
-              {/* Buttons positioned on top of the transport outline */}
-              <div
-                className="absolute inset-0 flex items-center p-3"
-                style={{ gap: "58px" }}
-              >
-                <PlayStopBtn
-                  onClick={onStartStop}
-                  disabled={isLoading}
-                  style={{ position: "relative", top: "-10px" }}
-                />
-                <div className="flex flex-col items-center gap-1">
-                  <BeatLibrary
-                    beats={beats}
-                    onLoadBeat={onLoadBeat}
-                  />
-                  <span className="text-[10px] font-semibold tracking-wide text-neutral-500"></span>
-                </div>
-              </div>
-            </div>
-
-            {/* Step Number Strip — overlaps the transport outline slightly via negative margin */}
+          {/* RIGHT AREA: Per-row knobs + Chiclet Grid + Transport */}
+          <div className="flex flex-1 flex-col gap-1">
+            {/* Header row with TONE and LEVEL labels (aligned with TrackControls) */}
             <div
-              className="flex flex-1 items-end"
-              style={{ marginLeft: "-1rem" }}
+              className="flex h-[50px] items-center"
+              style={{ gap: "12px" }}
             >
-              <img
-                src={stepNoteCountStrip}
-                alt="Step numbers 1-16"
-                className="h-auto w-full"
-                draggable={false}
-              />
+              {/* Space for track label */}
+              <div className="w-16" />
+
+              {/* TONE label */}
+              <div className="flex flex-col items-center justify-center">
+                <div className="eurostile text-xs font-normal text-white">
+                  TONE
+                </div>
+              </div>
+
+              {/* LEVEL label */}
+              <div className="flex flex-col items-center justify-center">
+                <div className="eurostile text-xs font-normal text-white">
+                  LEVEL
+                </div>
+              </div>
+
+              {/* Space for M/S/CLR buttons */}
+              <div className="flex gap-1">
+                <div className="w-[30px]" />
+                <div className="w-[30px]" />
+                <div className="w-[30px]" />
+              </div>
+            </div>
+
+            {/* PR #5: Wrap grid in ErrorBoundary for crash protection */}
+            <ErrorBoundary>
+              {/* PR #4: Show skeleton while loading initial data */}
+              {!isInitialDataLoaded ? (
+                <div className="p-0.5">
+                  <SkeletonGrid />
+                </div>
+              ) : (
+                /* 10 rows: each row = [TrackControls] [16 chiclets] */
+                <div className="flex flex-col gap-1">
+                  {grid.map((_row, rowIndex) => {
+                    const trackId = trackIdsByRow[rowIndex];
+                    const trackConfig = TRACK_REGISTRY.find(
+                      (c) => c.trackId === trackId,
+                    );
+                    const isTrackDisabled =
+                      failedTrackIds.includes(trackId);
+
+                    if (!trackConfig) return null;
+
+                    return (
+                      <div
+                        // eslint-disable-next-line react-x/no-array-index-key
+                        key={`row-${rowIndex}`}
+                        className="flex h-[50px] items-start gap-1 overflow-hidden"
+                      >
+                        {/* Per-track controls: label + TONE + LEVEL + M/S/CLR */}
+                        <TrackControls
+                          trackId={trackId}
+                          label={trackConfig.label}
+                          isMuted={trackMutes[rowIndex]}
+                          isSoloed={trackSolos[rowIndex]}
+                          onMuteToggle={onMuteToggle}
+                          onSoloToggle={onSoloToggle}
+                          onClear={onClearTrack}
+                          pitchValue={trackPitches[rowIndex]}
+                          volumeValue={trackVolumes[rowIndex]}
+                          onPitchChange={(newValue) =>
+                            onPitchChange(rowIndex, newValue)
+                          }
+                          onVolumeChange={(newValue) =>
+                            onVolumeChange(rowIndex, newValue)
+                          }
+                          disabled={isTrackDisabled}
+                        />
+
+                        {/* 16 chiclets for this row */}
+                        <div className="grid flex-1 grid-cols-16 gap-1">
+                          {grid[rowIndex].map((_, colIndex) => {
+                            const isAccented =
+                              accentsByRow[rowIndex]?.[colIndex] ?? false;
+
+                            return (
+                              <Chiclet
+                                // eslint-disable-next-line react-x/no-array-index-key
+                                key={`${rowIndex}-${colIndex}`}
+                                variant={getChicletVariant(colIndex)}
+                                isActive={grid[rowIndex][colIndex]}
+                                isAccented={isAccented}
+                                isCurrentStep={colIndex === currentStep}
+                                is16thNote={colIndex % 4 !== 0}
+                                onClick={() =>
+                                  onPadClick(rowIndex, colIndex)
+                                }
+                                disabled={isTrackDisabled}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </ErrorBoundary>
+
+            {/* TRANSPORT ROW: mirrors track-row flex structure so step strip aligns with chiclets */}
+            <div className="mt-1 flex w-full items-end gap-1">
+              {/* Left: Tempo + Save stacked above transport outline (matches TrackControls width) */}
+              <div className="flex flex-none flex-col gap-1">
+                <div className="flex items-center gap-2 pl-2.5">
+                  <TempoDisplay
+                    bpmValue={bpm}
+                    onIncrementClick={onIncrementBpm}
+                    onDecrementClick={onDecrementBpm}
+                  />
+                  <SaveButton
+                    onClick={onSave}
+                    isSaving={isSaving}
+                    style={{ width: "48px" }}
+                  />
+                </div>
+                {/* Transport outline with buttons overlaid */}
+                <div className="relative" style={{ width: "300px" }}>
+                  <img
+                    src={transportOutline}
+                    alt=""
+                    className="block h-auto w-full"
+                    draggable={false}
+                  />
+                  <div
+                    className="absolute inset-0 flex items-center p-3"
+                    style={{ gap: "58px" }}
+                  >
+                    <PlayStopBtn
+                      onClick={onStartStop}
+                      disabled={isLoading}
+                      style={{ position: "relative", top: "-10px" }}
+                    />
+                    <div className="flex flex-col items-center gap-1">
+                      <BeatLibrary
+                        beats={beats}
+                        onLoadBeat={onLoadBeat}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Step Number Strip — aligns with chiclet grid (flex-1) */}
+              <div className="flex flex-1 items-end">
+                <img
+                  src={stepNoteCountStrip}
+                  alt="Step numbers 1-16"
+                  className="h-auto w-full"
+                  draggable={false}
+                />
+              </div>
             </div>
           </div>
         </div>
