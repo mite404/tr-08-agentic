@@ -1,0 +1,65 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "react",
+    "typescript",
+    "unicorn",
+    "oxc"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "options": {
+    "typeAware": true
+  },
+  "env": {
+    "builtin": true,
+    "browser": true,
+    "node": true,
+    "es2023": true
+  },
+  "globals": {
+    "console": "readonly",
+    "process": "readonly",
+    "fetch": "readonly",
+    "Buffer": "readonly"
+  },
+  "rules": {
+    "typescript/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ],
+    "typescript/no-explicit-any": "warn",
+    "typescript/no-non-null-assertion": "warn",
+    "react/jsx-no-target-blank": "warn",
+    "react/jsx-uses-vars": "warn",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "eslint/prefer-const": "warn",
+    "eslint/eqeqeq": [
+      "error",
+      "always"
+    ],
+    "eslint/prefer-template": "warn",
+    "eslint/no-implicit-coercion": "error",
+    "eslint/no-var": "error",
+    "eslint/no-param-reassign": [
+      "warn",
+      {
+        "props": true
+      }
+    ],
+    "eslint/no-console": "off",
+  },
+  "ignorePatterns": [
+    "node_modules",
+    "dist",
+    ".venv",
+    "build",
+    "drizzle"
+  ]
+}
