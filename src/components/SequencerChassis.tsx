@@ -32,7 +32,7 @@ import { TrackControls } from "./TrackControls";
 import { TRACK_REGISTRY } from "../config/trackConfig";
 
 // ── Image assets ──────────────────────────────────────────
-import chassisBackground from "../assets/images/CHASSIS 07_TEST_1.png";
+import chassisBackground from "../assets/images/CHASSIS_07_TEST_1.jpg";
 import stepNoteCountStrip from "../assets/images/STEP_NOTE_COUNT_STRIP.png";
 
 // =============================================================================
@@ -396,7 +396,7 @@ export function SequencerChassis({
                     onClick={onSave}
                     isSaving={isSaving}
                     style={{ width: "54px" }}
-
+                  />
                   <span className="eurostile text-[10px] font-normal text-white">SAVE</span>
                 </div>
               </div>
@@ -424,7 +424,7 @@ export function SequencerChassis({
                     <PlayStopBtn
                       onClick={onStartStop}
                       disabled={isLoading}
-
+                    />
                     <BeatLibrary
                       beats={beats}
                       onLoadBeat={onLoadBeat}
