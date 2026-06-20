@@ -33,7 +33,6 @@ import { TRACK_REGISTRY } from "../config/trackConfig";
 
 // ── Image assets ──────────────────────────────────────────
 import chassisBackground from "../assets/images/CHASSIS 07_TEST_1.png";
-import transportOutline from "../assets/images/TRANSPORT_OUTLINE.png";
 import stepNoteCountStrip from "../assets/images/STEP_NOTE_COUNT_STRIP.png";
 
 // =============================================================================
@@ -196,9 +195,9 @@ export function SequencerChassis({
       // so the zoom is calibrated to what's truly available, not a hardcoded guess.
       const aboveZoomWrapper = zoomRect.top - chassisRect.top - paddingPx;
       const available = chassisH - paddingPx * 2 - Math.max(0, aboveZoomWrapper);
-      // Cap at 1.2 rather than 0.92: higher zoom = taller rows = less chiclet clipping.
-      // The chassis aspect-ratio constraint already prevents overflow at very wide viewports.
-      const zoom = Math.min(1.2, Math.max(0.5, available / naturalH));
+      // Subtract 6px safety buffer so rounding never lets the last pixel overflow overflow-hidden.
+      // Cap at 1.2: higher zoom = taller rows = less chiclet clipping.
+      const zoom = Math.min(1.2, Math.max(0.5, (available - 6) / naturalH));
       setContentZoom(zoom);
     };
 
@@ -380,67 +379,119 @@ export function SequencerChassis({
               )}
             </ErrorBoundary>
 
-            {/* TRANSPORT ROW: transport controls left, step strip right */}
-            <div className="mt-1 flex w-full items-end gap-1">
-              {/* Left: TEMPO+SAVE above, START/STOP+LOAD inside tape strip */}
-              <div className="flex flex-none flex-col gap-1">
-                {/* Top row: paddingLeft and gap mirror the tape strip overlay exactly
-                    so TEMPO sits above START/STOP and SAVE sits above LOAD */}
-                <div className="flex items-end" style={{ paddingLeft: "12px", gap: "58px" }}>
-                  {/* TEMPO label + display stacked */}
-                  <div className="flex flex-col gap-0.5">
-                    <span className="eurostile text-xs font-normal text-white">TEMPO</span>
-                    <TempoDisplay
-                      bpmValue={bpm}
-                      onIncrementClick={onIncrementBpm}
-                      onDecrementClick={onDecrementBpm}
-                    />
-                  </div>
-                  {/* SAVE button + label stacked — label fills the gap above the tape strip */}
-                  <div className="flex flex-col items-center gap-0.5">
-                    <SaveButton
-                      onClick={onSave}
-                      isSaving={isSaving}
-                      style={{ width: "54px" }}
-                    />
-                    <span className="eurostile text-[10px] font-normal text-white">SAVE</span>
-                  </div>
-                </div>
-                {/* Tape strip: transport outline image with START/STOP + LOAD overlaid */}
-                <div className="relative" style={{ width: "300px" }}>
-                  <img
-                    src={transportOutline}
-                    alt=""
-                    className="block h-auto w-full"
-                    draggable={false}
+            {/* TRANSPORT ROW */}
+            <div className="mt-1 flex w-full flex-col gap-1">
+              {/* Row 1: TEMPO label+display | SAVE button+label */}
+              <div className="flex items-end" style={{ paddingLeft: "12px", gap: "58px" }}>
+                <div className="flex flex-col gap-0.5">
+                  <span className="eurostile text-xs font-normal text-white">TEMPO</span>
+                  <TempoDisplay
+                    bpmValue={bpm}
+                    onIncrementClick={onIncrementBpm}
+                    onDecrementClick={onDecrementBpm}
                   />
+                </div>
+                <div className="flex flex-col items-center gap-0.5">
+                  <SaveButton
+                    onClick={onSave}
+                    isSaving={isSaving}
+                    style={{ width: "54px" }}
+
+                  <span className="eurostile text-[10px] font-normal text-white">SAVE</span>
+                </div>
+              </div>
+
+              {/* Row 2: transport + step numbers — unified gray surface */}
+              <div className="flex w-full items-end">
+                {/* LEFT: Transport column — button bg stacked above label strip, gap:0 for unified shape */}
+                <div className="flex flex-none flex-col" style={{ width: "300px", gap: 0 }}>
+                  {/* Button background — rounded top, flat bottom (flows into label strip) */}
                   <div
-                    className="absolute inset-0 flex items-center"
-                    style={{ paddingLeft: "12px", paddingRight: "12px", gap: "58px" }}
+                    className="flex items-center"
+                    style={{
+                      backgroundColor: "#cacaca",
+                      borderTopLeftRadius: "8px",
+                      borderTopRightRadius: "8px",
+                      borderBottomLeftRadius: 0,
+                      borderBottomRightRadius: 0,
+                      paddingLeft: "12px",
+                      paddingRight: "12px",
+                      paddingTop: "4px",
+                      paddingBottom: "4px",
+                      gap: "58px",
+                    }}
                   >
                     <PlayStopBtn
                       onClick={onStartStop}
                       disabled={isLoading}
+
+                    <BeatLibrary
+                      beats={beats}
+                      onLoadBeat={onLoadBeat}
                     />
-                    <div className="flex flex-col items-center gap-0">
-                      <BeatLibrary
-                        beats={beats}
-                        onLoadBeat={onLoadBeat}
-                      />
-                      <span className="eurostile text-[9px] font-normal text-white leading-none">LOAD</span>
-                    </div>
+                  </div>
+                  {/* Label strip — rounded bottom-left only; flat right connects to step numbers */}
+                  <div
+                    className="flex items-center"
+                    style={{
+                      backgroundColor: "#cacaca",
+                      borderTopLeftRadius: 0,
+                      borderTopRightRadius: 0,
+                      borderBottomLeftRadius: "8px",
+                      borderBottomRightRadius: 0,
+                      paddingLeft: "12px",
+                      paddingRight: "12px",
+                      paddingTop: "2px",
+                      paddingBottom: "2px",
+                      gap: "58px",
+                    }}
+                  >
+                    <span
+                      className="eurostile text-[10px] font-normal"
+                      style={{ width: "150px", textAlign: "center", color: "#111" }}
+                    >
+                      START / STOP
+                    </span>
+                    <span
+                      className="eurostile text-[10px] font-normal"
+                      style={{ width: "54px", textAlign: "center", color: "#111" }}
+                    >
+                      LOAD
+                    </span>
                   </div>
                 </div>
-              </div>
 
-              {/* Right: Step Number Strip — aligns with chiclet grid (flex-1) */}
-              <div className="flex flex-1 items-end">
-                <img
-                  src={stepNoteCountStrip}
-                  alt="Step numbers 1-16"
-                  className="h-auto w-full"
-                  draggable={false}
-                />
+                {/* RIGHT: Step numbers — image at natural w-full sizing, backgrounds behind it.
+                    paddingLeft:4px matches the gap-1 in chiclet rows so step numbers align under chiclets. */}
+                <div className="relative flex flex-1 items-end" style={{ paddingLeft: "4px" }}>
+                  {/* Two-tone background layers (sit behind the image) */}
+                  <div
+                    className="pointer-events-none absolute inset-0 flex"
+                    style={{ gap: "3px" }}
+                  >
+                    {/* Steps 1–12 background: flat left (joins label strip), rounded top/bottom-right */}
+                    <div
+                      style={{
+                        flex: 12,
+                        backgroundColor: "#cacaca",
+                        borderTopLeftRadius: 0,
+                        borderBottomLeftRadius: 0,
+                        borderTopRightRadius: "8px",
+                        borderBottomRightRadius: "8px",
+                      }}
+                    />
+                    {/* Steps 13–16 background: fully rounded */}
+                    <div style={{ flex: 4, borderRadius: "8px" }} />
+                  </div>
+                  {/* Step number image — original full-width sizing preserved for chiclet alignment */}
+                  <img
+                    src={stepNoteCountStrip}
+                    alt="Step numbers 1-16"
+                    className="relative h-auto w-full"
+                    style={{ zIndex: 1 }}
+                    draggable={false}
+                  />
+                </div>
               </div>
             </div>
           </div>
