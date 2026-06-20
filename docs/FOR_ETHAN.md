@@ -1993,6 +1993,189 @@ const [isPending, setIsPending] = useState(false);
 
 ---
 
+## 30. CSS `zoom` and the Coordinate Space Paradox
+
+This is a wild one that bit us hard during the chiclet-clipping debug session. File: `src/components/SequencerChassis.tsx`.
+
+### The Setup
+
+The sequencer chassis uses CSS `zoom` to scale its entire contents (all 10 track rows + transport) so they fit inside the chassis rectangle at any viewport size. A `ResizeObserver` watches the chassis, measures available space, and sets a zoom value like `0.75` or `1.14`.
+
+### The Paradox
+
+Imagine you're a CSS element INSIDE a `zoom: 0.5` container. From **your** perspective, the container looks **twice as wide** as it appears to the user. This is because `zoom` shrinks things visually without telling the children — they still compute their layout using the pre-zoom coordinate space.
+
+**Film analogy:** Think of the camera zooming out on a film set. The set itself hasn't changed — the actors still see the same stage. It's only the audience's view that shrank. If you designed a set piece to fit the "audience view" instead of the stage, it would look wrong from the actor's perspective.
+
+```
+Real chassis width:     1000px
+zoom applied:           0.5
+Children see it as:     1000 / 0.5 = 2000px wide
+Visual result:          500px (1000px × 0.5 = 500px on screen)
+```
+
+### Why Chiclets Were Getting Clipped
+
+The 16 chiclet columns span the full width of the right section. At lower zoom, children think the container is WIDER → wider columns → portrait images (180×250 ratio) grow taller → images overflow their 50px row height.
+
+The clipping was WORST at large viewports because the old code capped zoom at 0.92 — even when there was plenty of space for zoom > 1.0. At zoom=0.92, each column appeared wider in child space (1000/0.92 = 1087px) than at zoom=1.0 (1000/1.0 = 1000px), making images taller.
+
+### The Fix: Raise the Zoom Cap
+
+The counter-intuitive realization: **higher zoom = less clipping**, for TWO compounding reasons:
+
+1. **Rows get taller** — row visual height = `50px × zoom`, so higher zoom = taller rows
+2. **Images get shorter** — higher zoom means narrower child columns, so portrait images need less height
+
+We changed the cap from `0.92` to `1.2`. At a 1548×1180 viewport, zoom jumped from `0.92` to `1.14` and bottom clipping dropped from **24px to 4px** — an 83% improvement.
+
+```typescript
+// Before: artificially limited even when space was available
+const zoom = Math.min(0.92, Math.max(0.5, available / naturalH));
+
+// After: available/naturalH is already bounded by chassis height, cap can be higher
+const zoom = Math.min(1.2, Math.max(0.5, available / naturalH));
+```
+
+### The `scrollHeight` Trap
+
+`scrollHeight` inside a CSS-zoomed parent is measured in the **zoomed coordinate space**. At zoom=0.5, a 710px-tall element reports `scrollHeight = 1420`. This broke our zoom calculation until we temporarily set zoom to 1, measured, then restored:
+
+```typescript
+const savedZoom = zoomWrapper.style.zoom;
+zoomWrapper.style.zoom = "1";
+const naturalH = content.scrollHeight; // Now gives true natural height
+zoomWrapper.style.zoom = savedZoom;
+```
+
+### The `ResizeObserver` Re-entrancy Trap
+
+When you change `zoom` during a `ResizeObserver` callback, the zoom change triggers another `ResizeObserver` callback → infinite loop. Fix: disconnect the observer BEFORE the measurement, reconnect AFTER:
+
+```typescript
+observer.disconnect();           // ← stops re-entrancy
+zoomWrapper.style.zoom = "1";   // ← triggers a resize, but no observer listening
+const naturalH = content.scrollHeight;
+zoomWrapper.style.zoom = savedZoom;
+observer.observe(chassisRef.current!); // ← now safe to reconnect
+```
+
+### The `items-start` Alignment Choice
+
+With `items-center` (old): both top and bottom of each portrait image were clipped equally (12px each side). The button's most visually striking feature — the **glossy top highlight** — was cut off.
+
+With `items-start` (new): the image starts at the top of the row. Only the bottom shadow can clip. The gloss and rounded top edge are always visible, which is far less visually offensive.
+
+Think of it like a film slate that's slightly too tall for the frame — you'd rather crop the bottom (which the audience reads as "off screen") than the top (which shows the identifying info).
+
+---
+
+## 31. Three Layout Traps That Broke the Transport Strip Alignment
+
+This session was all about getting the step numbers **1–16** to sit directly under the 16 chiclet columns, while also styling a unified gray rounded rectangle around the transport controls. Three separate bugs stacked on each other and each one looked like it was the same symptom. File: `src/components/SequencerChassis.tsx`.
+
+---
+
+### Trap 1: Image Cropping vs. The Flex Algorithm
+
+The first attempt to show steps 1–12 and 13–16 separately was to split the `STEP_NOTE_COUNT_STRIP.png` into two containers and "crop" each portion using `overflow: hidden` + percentage widths:
+
+```jsx
+{/* "Should" show steps 1–12 */}
+<div style={{ flex: 3, overflow: "hidden" }}>
+  <img style={{ width: "133.33%" }} />   {/* 133% of container = full image width */}
+</div>
+
+{/* "Should" show steps 13–16 */}
+<div style={{ flex: 1, overflow: "hidden" }}>
+  <img style={{ width: "400%", marginLeft: "-300%" }} />
+</div>
+```
+
+Looks clever on paper. But the browser measured it and returned **step 1–12 container = 41px** instead of the expected ~540px. The `flex: 3` wasn't growing.
+
+**Why?** When a flex item contains an image with `width` set as a percentage, the browser tries to resolve that percentage against the flex item's content width — but the content width depends on the image width, which depends on the content width. This circular reference causes the flex algorithm to fall back to intrinsic sizing instead of distributing free space. The `overflow: hidden` that was supposed to clip the image actually masked the problem by making it *look* contained while the layout numbers were completely wrong.
+
+**Film analogy:** It's like trying to frame a widescreen shot by telling the camera operator "zoom until the image fills the left 75% of the frame" — but the camera's zoom changes the frame size, which changes what 75% means, which changes the zoom. The instruction collapses.
+
+**The fix:** Don't fight the flex algorithm. Keep the image as a **single `w-full` element** and put cosmetic backgrounds *behind* it using `position: absolute`:
+
+```jsx
+<div className="relative flex flex-1 items-end" style={{ paddingLeft: "4px" }}>
+  {/* Cosmetic backgrounds live here, behind the image */}
+  <div className="pointer-events-none absolute inset-0 flex" style={{ gap: "3px" }}>
+    <div style={{ flex: 12, backgroundColor: "#cacaca", borderRadius: "0 8px 8px 0" }} />
+    <div style={{ flex: 4, borderRadius: "8px" }} />
+  </div>
+  {/* The image renders at its natural w-full size — alignment is preserved */}
+  <img src={stepNoteCountStrip} className="relative h-auto w-full" style={{ zIndex: 1 }} />
+</div>
+```
+
+The image sizing is now completely independent of the background decorations.
+
+---
+
+### Trap 2: The 4px Ghost Offset
+
+After the image was back to single-element sizing, the step numbers were still ~4px wider than the chiclet grid — they started slightly to the *left* of chiclet column 1 and their right edges perfectly matched. Alignment was off by `3.67px`.
+
+**Why?** The chiclet rows and the transport row have different internal structure:
+
+```
+Chiclet row:    [TrackControls] → [gap-1 (4px)] → [flex-1 chiclet grid]
+Transport row:  [transport col] → NO GAP → [flex-1 step numbers]
+```
+
+Both rows are inside the same `flex-1` right area, so they start at the same x. But the `gap-1` inside chiclet rows *subtracts* 4px from the available width before the chiclet grid gets its `flex-1` share. The step numbers row had no equivalent subtraction, so it got 4px more width — and those 4px pushed the left edge 4px too far left.
+
+**The fix:** Add `paddingLeft: "4px"` to the step numbers container. This shifts the *image* 4px to the right (aligning it with chiclet column 1) while leaving the container itself flush against the transport column. The absolute-positioned gray background fills the 4px gap seamlessly, acting as a visual bridge between the label strip and the step numbers.
+
+```
+Before: step image left = 791px, chiclet grid left = 795px  → 4px off
+After:  step image left = 795px, chiclet grid left = 795px  → 0.05px off (sub-pixel rounding only)
+```
+
+**Audio analogy:** Think of trim delay compensation on a mixing board. Two signal paths appear to be in sync on the meters, but one is passing through an extra 4ms of processing. You don't rebuild the signal path — you just add a 4ms trim on the other side.
+
+---
+
+### Trap 3: The Matching-Color Gap Seam
+
+The transport column is a `flex-col` containing two stacked gray divs: the button background on top, the label strip below. They share the same `backgroundColor: "#cacaca"`. When they had `gap: "4px"` between them, a thin dark line appeared between them at 6× zoom — the machine chassis background was bleeding through the gap.
+
+```jsx
+{/* Before: 4px gap creates a dark seam */}
+<div className="flex flex-none flex-col" style={{ width: "300px", gap: "4px" }}>
+  <div style={{ backgroundColor: "#cacaca", borderRadius: "8px 8px 0 0" }}>...</div>
+  <div style={{ backgroundColor: "#cacaca", borderRadius: "0 0 8px 0" }}>...</div>
+</div>
+
+{/* After: gap:0 makes them look like one continuous shape */}
+<div className="flex flex-none flex-col" style={{ width: "300px", gap: 0 }}>
+  ...
+```
+
+**Why this is non-obvious:** At normal viewport zoom, the 4px gap looks like a thin, barely-visible line — easy to dismiss as a shadow or rendering artifact. It only becomes obvious when you inspect at high zoom or when the dark chassis background is particularly contrasting. The fix is always `gap: 0` when two sibling divs are meant to read as a single continuous surface.
+
+**Design rule:** If two adjacent elements share the same background color and are meant to look like one shape, their connecting edges must touch — zero gap, zero padding on the interior side, and matching flat border-radius values on the connecting corners.
+
+---
+
+### The Combined Effect: What You Learn From Stacked Bugs
+
+All three bugs produced the same symptom — step numbers not aligned with chiclets — but each had a completely different cause and fix. The lesson: when something *visually* looks like "wrong position," always measure before adjusting position. Use `getBoundingClientRect()` in the browser console to compare pixel positions of the element you're aligning against vs. what you're trying to align. Numbers don't lie; your eyes do.
+
+```javascript
+// In the browser console, run this to check alignment:
+const grid = document.querySelector('.flex.h-\\[50px\\].items-start')?.lastElementChild;
+const img = document.querySelector('img[alt="Step numbers 1-16"]');
+console.log('offset:', img.getBoundingClientRect().left - grid.getBoundingClientRect().left);
+// Should be ~0. Non-zero = there's a structural layout mismatch, not a visual tweak needed.
+```
+
+---
+
 ## Study Resources
 
 ### Topics to explore deeper
