@@ -380,23 +380,33 @@ export function SequencerChassis({
               )}
             </ErrorBoundary>
 
-            {/* TRANSPORT ROW: mirrors track-row flex structure so step strip aligns with chiclets */}
+            {/* TRANSPORT ROW: transport controls left, step strip right */}
             <div className="mt-1 flex w-full items-end gap-1">
-              {/* Left: Tempo + Save stacked above transport outline (matches TrackControls width) */}
+              {/* Left: TEMPO+SAVE above, START/STOP+LOAD inside tape strip */}
               <div className="flex flex-none flex-col gap-1">
-                <div className="flex items-center gap-2 pl-2.5">
-                  <TempoDisplay
-                    bpmValue={bpm}
-                    onIncrementClick={onIncrementBpm}
-                    onDecrementClick={onDecrementBpm}
-                  />
-                  <SaveButton
-                    onClick={onSave}
-                    isSaving={isSaving}
-                    style={{ width: "48px" }}
-                  />
+                {/* Top row: paddingLeft and gap mirror the tape strip overlay exactly
+                    so TEMPO sits above START/STOP and SAVE sits above LOAD */}
+                <div className="flex items-end" style={{ paddingLeft: "12px", gap: "58px" }}>
+                  {/* TEMPO label + display stacked */}
+                  <div className="flex flex-col gap-0.5">
+                    <span className="eurostile text-xs font-normal text-white">TEMPO</span>
+                    <TempoDisplay
+                      bpmValue={bpm}
+                      onIncrementClick={onIncrementBpm}
+                      onDecrementClick={onDecrementBpm}
+                    />
+                  </div>
+                  {/* SAVE button + label stacked — label fills the gap above the tape strip */}
+                  <div className="flex flex-col items-center gap-0.5">
+                    <SaveButton
+                      onClick={onSave}
+                      isSaving={isSaving}
+                      style={{ width: "54px" }}
+                    />
+                    <span className="eurostile text-[10px] font-normal text-white">SAVE</span>
+                  </div>
                 </div>
-                {/* Transport outline with buttons overlaid */}
+                {/* Tape strip: transport outline image with START/STOP + LOAD overlaid */}
                 <div className="relative" style={{ width: "300px" }}>
                   <img
                     src={transportOutline}
@@ -405,19 +415,19 @@ export function SequencerChassis({
                     draggable={false}
                   />
                   <div
-                    className="absolute inset-0 flex items-center p-3"
-                    style={{ gap: "58px" }}
+                    className="absolute inset-0 flex items-center"
+                    style={{ paddingLeft: "12px", paddingRight: "12px", gap: "58px" }}
                   >
                     <PlayStopBtn
                       onClick={onStartStop}
                       disabled={isLoading}
-                      style={{ position: "relative", top: "-10px" }}
                     />
-                    <div className="flex flex-col items-center gap-1">
+                    <div className="flex flex-col items-center gap-0">
                       <BeatLibrary
                         beats={beats}
                         onLoadBeat={onLoadBeat}
                       />
+                      <span className="eurostile text-[9px] font-normal text-white leading-none">LOAD</span>
                     </div>
                   </div>
                 </div>
