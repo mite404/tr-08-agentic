@@ -11,18 +11,15 @@
 import { useEffect, useState } from "react";
 
 export function PortraitBlocker() {
-  const [isPortrait, setIsPortrait] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(() =>
+    window.matchMedia("(orientation: portrait) and (max-width: 768px)").matches,
+  );
 
   useEffect(() => {
-    // Check if device is in portrait mode on mobile
     const mediaQuery = window.matchMedia(
       "(orientation: portrait) and (max-width: 768px)",
     );
 
-    // Set initial state
-    setIsPortrait(mediaQuery.matches);
-
-    // Listen for orientation changes
     const listener = (event: MediaQueryListEvent) => {
       setIsPortrait(event.matches);
     };

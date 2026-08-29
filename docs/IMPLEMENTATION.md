@@ -1,6 +1,6 @@
 # TR-08 v1.0 Implementation Checklist
 
-**Status:** ✅ **Through GitHub PR #59** (v1.3 faceplate + refactor + tooling) | **Last Updated:** 2026-08-28
+**Status:** ✅ **Through GitHub PR #59** (v1.3 faceplate + refactor + tooling) | **Last Updated:** 2026-08-29
 
 ---
 
@@ -827,6 +827,52 @@ await waitFor(() => {
 - [x] Replace ESLint with `oxlint`; add `oxfmt` formatting
 - [x] `.oxlintrc.json` + `.oxfmtrc.json` config
 
+#### Dependency Maintenance — ✅ COMPLETE (2026-08-29)
+
+Routine semver-safe dependency bump across the stack. Verified with `bun run lint`, `bun run build`, and `bun run test -- --run` (58 tests passing).
+
+**Runtime & UI**
+
+| Package | Previous | Updated |
+| ------- | -------- | ------- |
+| `react` / `react-dom` | ^19.1.1 | ^19.2.8 |
+| `@supabase/supabase-js` | ^2.106.2 | ^2.112.4 |
+| `@radix-ui/react-dialog` | ^1.1.15 | ^1.1.23 |
+| `@radix-ui/react-slot` | ^1.2.4 | ^1.3.3 |
+| `zod` | ^4.1.12 | ^4.5.2 |
+| `date-fns` | ^4.1.0 | ^4.4.0 |
+| `tailwind-merge` | ^3.4.0 | ^3.6.0 |
+
+**Build, test & styling**
+
+| Package | Previous | Updated |
+| ------- | -------- | ------- |
+| `vite` | ^8.0.16 | ^8.2.2 |
+| `vitest` | ^4.1.9 | ^4.1.11 |
+| `tailwindcss` / `@tailwindcss/vite` | ^4.1.16 / ^4.3.1 | ^4.3.3 |
+| `@vitejs/plugin-react` | ^6.0.2 | ^6.1.1 |
+| `happy-dom` | ^20.4.0 | ^20.11.15 |
+| `@testing-library/jest-dom` | ^6.9.1 | ^6.10.0 |
+
+**Lint toolchain**
+
+| Package | Previous | Updated |
+| ------- | -------- | ------- |
+| `oxlint` | ^1.70.0 | ^1.80.0 |
+| `oxfmt` | ^0.55.0 | ^0.65.0 |
+| `oxlint-tsgolint` | — | ^7.0.2001 (new; required for type-aware oxlint) |
+| `eslint` + plugins | ^10.5.0 | ^10.9.1 (retained for `eslint.config.js`; CI uses oxlint) |
+
+**Tooling fixes bundled with bump**
+
+- [x] `package.json` `lint` script now runs `oxlint .` (matches GitHub #58 intent; ESLint 10.9 flat-config plugin format was incompatible with `eslint-plugin-react-hooks`)
+- [x] `.oxlintrc.json`: removed deprecated `react/jsx-uses-vars`; disabled `react/react-in-jsx-scope` (React 19 JSX transform); aligned `ignorePatterns` with `eslint.config.js` (tests, scripts, `src/db/`)
+- [x] `PortraitBlocker.tsx`: lazy `useState` initializer instead of synchronous `setState` in `useEffect` (oxlint `react/set-state-in-effect`)
+
+**Intentionally not bumped** (major-version jumps deferred):
+
+- `lucide-react` 1.x, `@testing-library/jest-dom` 7.x, `@types/node` 26.x, `globals` 17.x, `typescript` 7.x
+
 #### GitHub #59: Responsive Chiclet Scaling — ✅ COMPLETE (2026-06-19)
 
 - [x] Chassis asset PNG → JPG (`CHASSIS_07_TEST_1.jpg`)
@@ -1003,6 +1049,6 @@ Examples:
 
 ---
 
-**Release Date:** 2026-06-19 (GitHub #59 responsive chassis) | **Last Doc Sync:** 2026-08-28 (ETH-37)  
+**Release Date:** 2026-06-19 (GitHub #59 responsive chassis) | **Last Doc Sync:** 2026-08-29 (dependency maintenance)  
 **Version:** 1.3  
 **Status:** Production Ready ✅
