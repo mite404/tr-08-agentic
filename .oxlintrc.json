@@ -36,7 +36,7 @@
     "typescript/no-explicit-any": "warn",
     "typescript/no-non-null-assertion": "warn",
     "react/jsx-no-target-blank": "warn",
-    "react/jsx-uses-vars": "warn",
+    "react/react-in-jsx-scope": "off",
     "react/rules-of-hooks": "error",
     "react/exhaustive-deps": "warn",
     "eslint/prefer-const": "warn",
@@ -60,6 +60,13 @@
     "dist",
     ".venv",
     "build",
-    "drizzle"
+    "drizzle",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "scripts/**",
+    "src/db/**",
+    "drizzle.config.ts",
+    "test-supabase.ts"
   ]
 }

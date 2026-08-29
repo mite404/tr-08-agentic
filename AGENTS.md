@@ -1,8 +1,27 @@
 # AGENTS.md
 
-**Last Updated:** 2025-11-30
+**Last Updated:** 2026-08-29
 
 This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+
+## Version Control (GitButler)
+
+This repository is managed by **[GitButler](https://gitbutler.com/)**. The active workspace branch is `gitbutler/workspace`.
+
+**Use the `but` CLI for all version-control write operations.** Do not run `git add`, `git commit`, `git push`, `git checkout`, `git merge`, `git rebase`, `git stash`, or `git cherry-pick` — especially while on `gitbutler/workspace`. Plain git can desync GitButler's virtual branches and cause confusing state.
+
+| Task | Command |
+| ---- | ------- |
+| See uncommitted changes | `but diff` |
+| Workspace / branch overview | `but status` |
+| Commit (new or existing branch) | `but commit -b <branch> -m "<msg>" <file-ids>` |
+| Push | `but push <branch>` |
+| Update from `main` | `but pull` |
+| Create PR (stack-aware) | `but pr new <branch> --draft -m "Title\n\nBody"` |
+
+Read-only `git` inspection (`git log`, `git show`) is acceptable when `but` has no equivalent, but prefer `but status` and `but show` for workflow decisions.
+
+Full workflow reference: `.agents/skills/gitbutler/SKILL.md`
 
 ## Project Overview
 
@@ -13,7 +32,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 ```bash
 bun run dev          # Start development server with Vite HMR
 bun run build        # Compile TypeScript and build for production
-bun run lint         # Run ESLint on all TS/TSX files
+bun run lint         # Run oxlint on source files
 bun run preview      # Preview production build locally
 ```
 
