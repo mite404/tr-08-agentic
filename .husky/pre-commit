@@ -1,0 +1,8 @@
+npx lint-staged
+bun run lint
+bun run test -- --run
+
+# fallow: dead exports, complexity, duplication, styling on changed code.
+# Silent on pass, full report on fail. Skipped when fallow is absent.
+command -v fallow >/dev/null 2>&1 || exit 0
+fallow audit --base HEAD --quiet --gate-marker pre-commit
