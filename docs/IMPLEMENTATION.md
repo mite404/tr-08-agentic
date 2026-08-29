@@ -79,6 +79,8 @@ Architectural one-liners: [adr/DECISIONS.md](./adr/DECISIONS.md)
 
 ## Phase-by-Phase Implementation Status
 
+Sections below follow merge commit date on `main`, oldest first.
+
 ### Phase 1: Foundation (PR #1)
 
 **Objective:** Establish the database, semantic types, and validation safety net.
@@ -415,6 +417,22 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ---
 
+### Volume Persistence Fix — ✅ COMPLETE (GitHub #19, 2026-01-13)
+
+**Issue:** `toGridArray()` was calling `calculateEffectiveVolume()` to populate the `trackVolumes` return value. This caused muted tracks to be loaded with volume = -Infinity, corrupting the knob UI state and preventing users from un-muting their tracks after reload.
+
+**Root Cause:** Confusion between "Raw Volume" (stored value) and "Effective Volume" (calculated at playback). The function was returning calculated playback volume instead of the stored knob position.
+
+**Fix:** Changed `toGridArray()` to return raw `trackData.volumeDb` directly, without any mute/solo/master calculations. The effective volume is now calculated only during playback in the sequencer, not during load/save cycles.
+
+**Prevention:** Added SPEC.md Section 4.2 documentation distinguishing raw vs effective volume to prevent future regressions.
+
+**Files Modified:**
+
+- `src/lib/beatUtils.ts`: Line ~761 in `toGridArray()` — changed to return `trackData.volumeDb` instead of `calculateEffectiveVolume()`
+
+---
+
 ### PR #14: Global Swing + Drive (Soft-Clip Saturation) — ✅ COMPLETE (GitHub #26, 2026-01-14)
 
 **Status:** Implemented with soft-clip saturation (Sigmoid/Tanh) instead of hard distortion.
@@ -477,6 +495,56 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 3. **Utils (`src/lib/beatUtils.ts`):**
    - [x] Update `toManifest` to grab the current Swing/Drive values from arguments/state.
 
+---
+
+### Fix BPM Desync State (GitHub #34, 2026-01-15)
+
+**BPM Desync Bug Fixed.**
+
+**Root Cause:**
+Both `loadInitialData` (mount) and `handleLoadBeatById` (library load) were calling `setBpm()` for React state only. The Tone.js Transport was never updated, so the audio engine kept running at whatever BPM it had before.
+
+**Fix Applied:**
+Added explicit Tone.Transport sync after each beat load:
+
+```typescript
+Tone.Transport.bpm.value = loadedBeat.bpm;
+if (createSequencerRef.current) {
+  createSequencerRef.current.updateBpm(loadedBeat.bpm);
+}
+```
+
+**What Now Happens:**
+
+1. User loads beat with BPM 120 from library
+2. `setBpm(120)` updates UI display
+3. `Tone.Transport.bpm.value = 120` forces audio engine to match immediately
+4. `updateBpm(120)` ensures sequencer callback sees the new tempo
+5. No more desync between display and playback
+
+---
+
+### Phase 9: CI/CD & Accent Hardening (GitHub #36–#41) — ✅ COMPLETE
+
+**Objective:** Ship automated CI and close accent-note regressions with test coverage.
+
+#### GitHub #36: Migration Defaults Tests — ✅ COMPLETE (2026-01-15)
+
+- [x] Tests for `normalizeBeatData()` injecting swing/drive/pitch defaults on v1.0 beats
+
+#### GitHub #37: CI/CD Pipeline — ✅ COMPLETE (2026-01-16)
+
+- [x] `.github/workflows/deploy.yaml` — Vercel deployment on push
+- [x] `.github/workflows/lint-and-build.yaml` — lint + production build gate
+
+#### GitHub #39–#41: Accent Note Fixes & Tests — ✅ COMPLETE (2026-01-20)
+
+- [x] Fix React accent state in `handlePadClick()` (#39)
+- [x] Array generic syntax cleanup (#40)
+- [x] Track accent test coverage in `beatUtils.test.ts` (#41)
+
+---
+
 ### PR #21: Grid Integration & Color Logic — ✅ COMPLETE (GitHub #45, 2026-01-30)
 
 **Objective:** Replace the existing circular pads in the main Sequencer Grid with photorealistic Chiclet components and apply 4-step color grouping pattern.
@@ -513,77 +581,6 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
    - [x] ACCENT (active, accented): 60% opacity, bright image
 
 **Deliverable:** The 10×16 grid now renders as a photo-realistic TR-08 panel with correct color banding and fully functional 3-state interaction. Playhead and 16th notes receive brightness boost for visual hierarchy.
-
----
-
-### Phase 9: CI/CD & Accent Hardening (GitHub #37–#41) — ✅ COMPLETE
-
-**Objective:** Ship automated CI and close accent-note regressions with test coverage.
-
-#### GitHub #37: CI/CD Pipeline — ✅ COMPLETE (2026-01-16)
-
-- [x] `.github/workflows/deploy.yaml` — Vercel deployment on push
-- [x] `.github/workflows/lint-and-build.yaml` — lint + production build gate
-
-#### GitHub #36: Migration Defaults Tests — ✅ COMPLETE (2026-01-15)
-
-- [x] Tests for `normalizeBeatData()` injecting swing/drive/pitch defaults on v1.0 beats
-
-#### GitHub #39–#41: Accent Note Fixes & Tests — ✅ COMPLETE (2026-01-20)
-
-- [x] Fix React accent state in `handlePadClick()` (#39)
-- [x] Array generic syntax cleanup (#40)
-- [x] Track accent test coverage in `beatUtils.test.ts` (#41)
-
----
-
-### Phase 10: Faceplate Chassis & UI Architecture (GitHub #52–#56) — ✅ COMPLETE
-
-**Objective:** Align UI to the photorealistic chassis and split page-level concerns from the device.
-
-#### GitHub #52: Faceplate Chassis — ✅ COMPLETE (2026-02-04)
-
-- [x] Import chassis background image as layout coordinate system
-- [x] Reposition transport controls, global knobs, and grid to printed slots
-- [x] Tune Knob, Chiclet, and TrackControls sizing/spacing for slot alignment
-
-#### GitHub #53: Layout Finesse — ✅ COMPLETE (2026-02-06)
-
-- [x] Eurostile font import for device typography
-- [x] Configurable track-controls visibility on the device chassis
-
-#### GitHub #54: NavBar — ✅ COMPLETE (2026-02-06)
-
-- [x] Create `NavBar.tsx` with Roland branding and auth controls
-- [x] Move Login/Logout out of the sequencer chassis (page-level concern)
-
-#### GitHub #55: SequencerChassis Extraction — ✅ COMPLETE (2026-02-06)
-
-- [x] Create `SequencerChassis.tsx` (~395 lines) as pure presenter UI
-- [x] `App.tsx` retains state, audio engine, and event handlers (container/presenter split)
-
-#### GitHub #56: Brushed Metal Auth Buttons — ✅ COMPLETE (2026-02-06)
-
-- [x] Photorealistic Login/Logout button styling
-
----
-
-### Phase 11: Tooling & Responsive Layout (GitHub #57–#59) — ✅ COMPLETE
-
-#### GitHub #57: Knob Bug Demo — ✅ COMPLETE (2026-03-03)
-
-- [x] `docs/knob-bug-demo.html` for UI/UX blog reference (non-production)
-
-#### GitHub #58: oxlint Migration — ✅ COMPLETE (2026-06-19)
-
-- [x] Bump Supabase, Vite, React types, Postgres deps
-- [x] Replace ESLint with `oxlint`; add `oxfmt` formatting
-- [x] `.oxlintrc.json` + `.oxfmtrc.json` config
-
-#### GitHub #59: Responsive Chiclet Scaling — ✅ COMPLETE (2026-06-19)
-
-- [x] Chassis asset PNG → JPG (`CHASSIS_07_TEST_1.jpg`)
-- [x] Responsive chiclet sizing in `SequencerChassis.tsx`
 
 ---
 
@@ -787,48 +784,53 @@ await waitFor(() => {
 
 ---
 
-## Bug Fixes & Critical Patches
+### Phase 10: Faceplate Chassis & UI Architecture (GitHub #52–#56) — ✅ COMPLETE
+
+**Objective:** Align UI to the photorealistic chassis and split page-level concerns from the device.
+
+#### GitHub #52: Faceplate Chassis — ✅ COMPLETE (2026-02-04)
+
+- [x] Import chassis background image as layout coordinate system
+- [x] Reposition transport controls, global knobs, and grid to printed slots
+- [x] Tune Knob, Chiclet, and TrackControls sizing/spacing for slot alignment
+
+#### GitHub #53: Layout Finesse — ✅ COMPLETE (2026-02-06)
+
+- [x] Eurostile font import for device typography
+- [x] Configurable track-controls visibility on the device chassis
+
+#### GitHub #54: NavBar — ✅ COMPLETE (2026-02-06)
+
+- [x] Create `NavBar.tsx` with Roland branding and auth controls
+- [x] Move Login/Logout out of the sequencer chassis (page-level concern)
+
+#### GitHub #55: SequencerChassis Extraction — ✅ COMPLETE (2026-02-06)
+
+- [x] Create `SequencerChassis.tsx` (~395 lines) as pure presenter UI
+- [x] `App.tsx` retains state, audio engine, and event handlers (container/presenter split)
+
+#### GitHub #56: Brushed Metal Auth Buttons — ✅ COMPLETE (2026-02-06)
+
+- [x] Photorealistic Login/Logout button styling
 
 ---
 
-### Volume Persistence Fix (PR #12)
+### Phase 11: Tooling & Responsive Layout (GitHub #57–#59) — ✅ COMPLETE
 
-**Issue:** `toGridArray()` was calling `calculateEffectiveVolume()` to populate the `trackVolumes` return value. This caused muted tracks to be loaded with volume = -Infinity, corrupting the knob UI state and preventing users from un-muting their tracks after reload.
+#### GitHub #57: Knob Bug Demo — ✅ COMPLETE (2026-03-03)
 
-**Root Cause:** Confusion between "Raw Volume" (stored value) and "Effective Volume" (calculated at playback). The function was returning calculated playback volume instead of the stored knob position.
+- [x] `docs/knob-bug-demo.html` for UI/UX blog reference (non-production)
 
-**Fix:** Changed `toGridArray()` to return raw `trackData.volumeDb` directly, without any mute/solo/master calculations. The effective volume is now calculated only during playback in the sequencer, not during load/save cycles.
+#### GitHub #58: oxlint Migration — ✅ COMPLETE (2026-06-19)
 
-**Prevention:** Added SPEC.md Section 4.2 documentation distinguishing raw vs effective volume to prevent future regressions.
+- [x] Bump Supabase, Vite, React types, Postgres deps
+- [x] Replace ESLint with `oxlint`; add `oxfmt` formatting
+- [x] `.oxlintrc.json` + `.oxfmtrc.json` config
 
-**Files Modified:**
+#### GitHub #59: Responsive Chiclet Scaling — ✅ COMPLETE (2026-06-19)
 
-- `src/lib/beatUtils.ts`: Line ~761 in `toGridArray()` — changed to return `trackData.volumeDb` instead of `calculateEffectiveVolume()`
-
-### Fix BPM Desync State (GitHub #34, 2026-01-15)
-
-**BPM Desync Bug Fixed.**
-
-**Root Cause:**
-Both `loadInitialData` (mount) and `handleLoadBeatById` (library load) were calling `setBpm()` for React state only. The Tone.js Transport was never updated, so the audio engine kept running at whatever BPM it had before.
-
-**Fix Applied:**
-Added explicit Tone.Transport sync after each beat load:
-
-```typescript
-Tone.Transport.bpm.value = loadedBeat.bpm;
-if (createSequencerRef.current) {
-  createSequencerRef.current.updateBpm(loadedBeat.bpm);
-}
-```
-
-**What Now Happens:**
-
-1. User loads beat with BPM 120 from library
-2. `setBpm(120)` updates UI display
-3. `Tone.Transport.bpm.value = 120` forces audio engine to match immediately
-4. `updateBpm(120)` ensures sequencer callback sees the new tempo
-5. No more desync between display and playback
+- [x] Chassis asset PNG → JPG (`CHASSIS_07_TEST_1.jpg`)
+- [x] Responsive chiclet sizing in `SequencerChassis.tsx`
 
 ---
 
