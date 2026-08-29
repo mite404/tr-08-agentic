@@ -1,12 +1,14 @@
 # TR-08 v1.0 Implementation Checklist
 
-**Status:** ✅ **v1.2 RELEASED + Testing Infrastructure Complete (PR #22-24)** | **Last Updated:** 2026-02-04
+**Status:** ✅ **Through GitHub PR #59** (v1.3 faceplate + refactor + tooling) | **Last Updated:** 2026-08-28
 
 ---
 
 ## Release Summary
 
-**15 PRs completed. Production-ready drum machine with v1.2 features + Master Drive/Swing + Chiclet Grid:**
+**59 GitHub PRs merged.** Production-ready drum machine with v1.2 features, photorealistic faceplate layout, component test infrastructure, and oxlint tooling:
+
+> **Numbering note:** Early sections use internal phase labels (e.g. "PR #14" for swing/drive). From GitHub PR #29 onward, entries cite the actual GitHub PR number and merge commit date on `main`.
 
 - Persistent beat storage (Supabase)
 - Real-time sequencer with Tone.js master effects chain (DriveGain → SoftClipper → Compressor → Limiter)
@@ -23,6 +25,55 @@
 - Beat library side panel with beat list browsing and instant loading (PR #12)
 - Photorealistic knobs with PNG assets and variant-based rendering (PR #13)
 - Photorealistic chiclet grid with 4-step color banding and image-based rendering (PR #21)
+- CI/CD via GitHub Actions (lint/build + Vercel deploy) (GitHub #37)
+- Accent-note UI state fix and migration-defaults test coverage (GitHub #36, #39–#41)
+- Photorealistic faceplate chassis as layout anchor (GitHub #52)
+- NavBar + SequencerChassis container/presenter split (GitHub #54–#55)
+- Brushed-metal auth buttons and layout finesse (GitHub #53, #56)
+- oxlint/oxfmt toolchain (GitHub #58)
+- Responsive chiclet scaling with JPG chassis asset (GitHub #59)
+
+---
+
+## GitHub PR Changelog (#29–#59)
+
+Merge dates are from the merge commit on `main` (`git log --date=short`).
+
+| PR | Date | Summary |
+| -- | ---- | ------- |
+| #29 | 2026-01-15 | README performance metrics update |
+| #30 | 2026-01-15 | README fix |
+| #31 | 2026-01-15 | Track label correction (`snare_01` → CLAP, `clap` → SYNTH 02) without changing TrackIDs |
+| #32 | 2026-01-15 | BeatLibrary button contrast + TONE/LEVEL column headers |
+| #33 | 2026-01-15 | Drive knob tuning (softer saturation sweet spot) |
+| #34 | 2026-01-15 | BPM desync fix — sync `Tone.Transport` on beat load |
+| #35 | 2026-01-15 | Persist swing/drive on `BeatManifest.global` |
+| #36 | 2026-01-15 | Migration-defaults tests for v1.0 → v1.2 upgrades |
+| #37 | 2026-01-16 | CI/CD — `deploy.yaml` + `lint-and-build.yaml` |
+| #38 | 2026-01-19 | `beatUtils.test.ts` and TrackData type updates |
+| #39 | 2026-01-20 | Accent note UI state fix in `handlePadClick()` |
+| #40 | 2026-01-20 | Array generic syntax preference (`Array<T>`) |
+| #41 | 2026-01-20 | Tests for track accent support |
+| #42 | 2026-01-22 | README reorg + demo video link |
+| #43 | 2026-01-22 | `demo.gif` in README |
+| #44 | 2026-01-29 | Docs + baseline-browser-mapping deps |
+| #45 | 2026-01-30 | Chiclet component stub + button assets (internal PR #21) |
+| #46 | 2026-01-30 | Vitest + happy-dom setup, SkeletonGrid/PortraitBlocker tests (internal PR #22) |
+| #47 | 2026-01-31 | ErrorBoundary lifecycle tests (internal PR #23) |
+| #48 | 2026-01-31 | Markdown lint fixes (`rumdl.toml`) |
+| #49 | 2026-01-31 | FOR_ETHAN.md commit-order fix |
+| #50 | 2026-02-04 | Supabase mocking + `useAuth` integration tests (internal PR #24) |
+| #51 | 2026-02-04 | ESLint/tsconfig cleanup + FOR_ETHAN.md update |
+| #52 | 2026-02-04 | Faceplate chassis background + grid/knob alignment (internal PR #29) |
+| #53 | 2026-02-06 | Sequencer device layout finesse + Eurostile font |
+| #54 | 2026-02-06 | NavBar — auth moved out of chassis |
+| #55 | 2026-02-06 | `SequencerChassis.tsx` extracted from App.tsx |
+| #56 | 2026-02-06 | Brushed-metal Login/Logout button |
+| #57 | 2026-03-03 | Knob bug demo HTML for blog post |
+| #58 | 2026-06-19 | Dependency bump + oxlint/oxfmt replacing ESLint |
+| #59 | 2026-06-19 | Responsive chiclet scaling; chassis PNG → JPG |
+
+Architectural one-liners: [adr/DECISIONS.md](./adr/DECISIONS.md)
 
 ---
 
@@ -364,7 +415,7 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ---
 
-### PR #14: Global Swing + Drive (Soft-Clip Saturation) — ✅ COMPLETE
+### PR #14: Global Swing + Drive (Soft-Clip Saturation) — ✅ COMPLETE (GitHub #26, 2026-01-14)
 
 **Status:** Implemented with soft-clip saturation (Sigmoid/Tanh) instead of hard distortion.
 
@@ -385,7 +436,7 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ---
 
-### PR #16: Track Label Correction
+### PR #16: Track Label Correction — ✅ COMPLETE (GitHub #31, 2026-01-15)
 
 **Goal:** Fix the mislabeled instruments in the UI without breaking the underlying data.
 
@@ -395,14 +446,14 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
   - [x] Change `label` for `clap` -> "SYNTH 02".
   - [x] (Keep the TrackIDs `snare_01` / `clap` the same so we don't break the database).
 
-### PR #17: UI Style Polish (Button & Labels)
+### PR #17: UI Style Polish (Button & Labels) — ✅ COMPLETE (GitHub #32, 2026-01-15)
 
 **Goal:** Fix the invisible button and add the column headers.
 
 - [x] **Change 1:** `src/components/BeatLibrary.tsx`. Fix the `variant` or `className` of the Trigger button so it has contrast (e.g., `variant="outline"` or explicit colors).
 - [x] **Change 2:** `src/App.tsx`. Add "TONE" and "LEVEL" text headers above the knob columns.
 
-### PR #18: Drive Tuning
+### PR #18: Drive Tuning — ✅ COMPLETE (GitHub #33, 2026-01-15)
 
 **Goal:** Make the Drive effect audible.
 
@@ -411,7 +462,7 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
   - [x] Tweak the ratio. If we boost Input by +6dB, maybe only cut Output by -3dB.
   - [x] Or increase the max Drive Gain (from 4.0 to 6.0). We need to push the WaveShaper harder to hear the crunch.
 
-### PR #19: Global Settings Persistence
+### PR #19: Global Settings Persistence — ✅ COMPLETE (GitHub #35, 2026-01-15)
 
 1. **Schema Update (`src/types/beat.ts`):**
    - [x] Add `swing: number` (0-100) to `BeatManifest.global`.
@@ -426,7 +477,7 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 3. **Utils (`src/lib/beatUtils.ts`):**
    - [x] Update `toManifest` to grab the current Swing/Drive values from arguments/state.
 
-### PR #21: Grid Integration & Color Logic — ✅ COMPLETE
+### PR #21: Grid Integration & Color Logic — ✅ COMPLETE (GitHub #45, 2026-01-30)
 
 **Objective:** Replace the existing circular pads in the main Sequencer Grid with photorealistic Chiclet components and apply 4-step color grouping pattern.
 
@@ -465,6 +516,77 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 ---
 
+### Phase 9: CI/CD & Accent Hardening (GitHub #37–#41) — ✅ COMPLETE
+
+**Objective:** Ship automated CI and close accent-note regressions with test coverage.
+
+#### GitHub #37: CI/CD Pipeline — ✅ COMPLETE (2026-01-16)
+
+- [x] `.github/workflows/deploy.yaml` — Vercel deployment on push
+- [x] `.github/workflows/lint-and-build.yaml` — lint + production build gate
+
+#### GitHub #36: Migration Defaults Tests — ✅ COMPLETE (2026-01-15)
+
+- [x] Tests for `normalizeBeatData()` injecting swing/drive/pitch defaults on v1.0 beats
+
+#### GitHub #39–#41: Accent Note Fixes & Tests — ✅ COMPLETE (2026-01-20)
+
+- [x] Fix React accent state in `handlePadClick()` (#39)
+- [x] Array generic syntax cleanup (#40)
+- [x] Track accent test coverage in `beatUtils.test.ts` (#41)
+
+---
+
+### Phase 10: Faceplate Chassis & UI Architecture (GitHub #52–#56) — ✅ COMPLETE
+
+**Objective:** Align UI to the photorealistic chassis and split page-level concerns from the device.
+
+#### GitHub #52: Faceplate Chassis — ✅ COMPLETE (2026-02-04)
+
+- [x] Import chassis background image as layout coordinate system
+- [x] Reposition transport controls, global knobs, and grid to printed slots
+- [x] Tune Knob, Chiclet, and TrackControls sizing/spacing for slot alignment
+
+#### GitHub #53: Layout Finesse — ✅ COMPLETE (2026-02-06)
+
+- [x] Eurostile font import for device typography
+- [x] Configurable track-controls visibility on the device chassis
+
+#### GitHub #54: NavBar — ✅ COMPLETE (2026-02-06)
+
+- [x] Create `NavBar.tsx` with Roland branding and auth controls
+- [x] Move Login/Logout out of the sequencer chassis (page-level concern)
+
+#### GitHub #55: SequencerChassis Extraction — ✅ COMPLETE (2026-02-06)
+
+- [x] Create `SequencerChassis.tsx` (~395 lines) as pure presenter UI
+- [x] `App.tsx` retains state, audio engine, and event handlers (container/presenter split)
+
+#### GitHub #56: Brushed Metal Auth Buttons — ✅ COMPLETE (2026-02-06)
+
+- [x] Photorealistic Login/Logout button styling
+
+---
+
+### Phase 11: Tooling & Responsive Layout (GitHub #57–#59) — ✅ COMPLETE
+
+#### GitHub #57: Knob Bug Demo — ✅ COMPLETE (2026-03-03)
+
+- [x] `docs/knob-bug-demo.html` for UI/UX blog reference (non-production)
+
+#### GitHub #58: oxlint Migration — ✅ COMPLETE (2026-06-19)
+
+- [x] Bump Supabase, Vite, React types, Postgres deps
+- [x] Replace ESLint with `oxlint`; add `oxfmt` formatting
+- [x] `.oxlintrc.json` + `.oxfmtrc.json` config
+
+#### GitHub #59: Responsive Chiclet Scaling — ✅ COMPLETE (2026-06-19)
+
+- [x] Chassis asset PNG → JPG (`CHASSIS_07_TEST_1.jpg`)
+- [x] Responsive chiclet sizing in `SequencerChassis.tsx`
+
+---
+
 ### Testing Phase
 
 **6-PR Testing Roadmap** (Walk, Jog, Run strategy): test infrastructure (Components), then logic (Integration), then browser (E2E).
@@ -475,7 +597,7 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 **Goal:** Verify UI renders correctly without needing a real browser or backend.
 
-#### PR #22: Test Environment & Static Components ✅ COMPLETE
+#### PR #22: Test Environment & Static Components ✅ COMPLETE (GitHub #46, 2026-01-30)
 
 - **Focus:** Infrastructure setup and testing "dumb" components.
 - **Completed:**
@@ -485,7 +607,7 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
   - [x] **Test:** `PortraitBlocker` (Verify it renders text and ARIA role/label; includes `window.matchMedia` mock for browser API testing).
   - [x] Document test patterns in `TESTING_TUTORIAL.md` and `FOR_ETHAN.md`.
 
-#### PR #23: ErrorBoundary Testing & React Lifecycle ✅ COMPLETE
+#### PR #23: ErrorBoundary Testing & React Lifecycle ✅ COMPLETE (GitHub #47, 2026-01-31)
 
 - **Focus:** Testing React class components, lifecycle methods, and error catching.
 - **Completed:**
@@ -508,9 +630,7 @@ export async function loadAudioSamples(...): Promise<LoadAudioResult>
 
 **Goal:** Test hooks and state logic. This requires **Mocking** (faking Supabase and Timers).
 
-#### PR #24: Supabase Mocking & Auth Hooks ✅ COMPLETE
-
-**Completed:** 2026-02-04  
+#### PR #24: Supabase Mocking & Auth Hooks ✅ COMPLETE (GitHub #50, 2026-02-04)  
 **Test File:** `src/hooks/__tests__/useAuth.test.tsx` (313 lines, 12 tests passing)
 
 - **Focus:** Testing the `useAuth` hook with comprehensive Supabase client mocking.
@@ -685,7 +805,7 @@ await waitFor(() => {
 
 - `src/lib/beatUtils.ts`: Line ~761 in `toGridArray()` — changed to return `trackData.volumeDb` instead of `calculateEffectiveVolume()`
 
-### Fix BPM Desync State (Unplanned PR)
+### Fix BPM Desync State (GitHub #34, 2026-01-15)
 
 **BPM Desync Bug Fixed.**
 
@@ -733,7 +853,7 @@ if (createSequencerRef.current) {
 
 - [x] Portrait blocker prevents landscape-only UI
 - [x] Responsive grid (grid-cols-16 with gap-1)
-- [x] Touch-friendly pad size (Tailwind padding)
+- [x] Responsive chiclet scaling on faceplate chassis (GitHub #59)
 - [x] Keyboard shortcuts (Enter to save name, Escape to cancel)
 
 ### Performance
@@ -769,21 +889,25 @@ if (createSequencerRef.current) {
 
 ### Integration Tests
 
-❌ **Not Implemented** - No test infrastructure
+✅ **Partial** — Auth hook covered; save/load hooks still planned (internal PR #25)
 
-- [x] Auth hook state management
-- [ ] Save beat with debounce
-- [ ] Load beat with normalization
+- [x] `useAuth` — 12 tests with Supabase mock pattern (GitHub #50)
+- [ ] `useSaveBeat` — debounce + retry (planned)
+- [ ] `useLoadBeat` — normalization (planned)
 
 ### Component Tests
 
-✅ **React Testing Library configured**
+✅ **Vitest + React Testing Library** (GitHub #46–#47)
 
 - [x] ErrorBoundary catches and displays errors
 - [x] SkeletonGrid renders 10 rows of skeleton pads
 - [x] PortraitBlocker shows overlay on portrait
 
-### E2E Tests (Manual) — ✅ VERIFIED
+### E2E Tests — 🚧 PLANNED (internal PR #26–#27)
+
+Playwright smoke test and guest-flow automation not yet implemented.
+
+### Manual QA — ✅ VERIFIED
 
 - ✅ Guest load → Create beat → Play
 - ✅ Authenticated flow → Save beat → Reload → Load beat
@@ -793,7 +917,7 @@ if (createSequencerRef.current) {
 
 ### Testing Note
 
-The project ships without automated tests. All requirements have been **manually verified** and the implementation has been validated through manual testing and code review. Automated testing (Jest/Vitest + React Testing Library) is recommended for future maintenance.
+Vitest covers unit (`beatUtils`), component (SkeletonGrid, PortraitBlocker, ErrorBoundary), and one integration hook (`useAuth`). Save/load hook tests and Playwright E2E remain planned. Manual QA covers flows automation has not replaced yet.
 
 ---
 
@@ -834,7 +958,7 @@ The project ships without automated tests. All requirements have been **manually
 - **No undo/redo:** No action history
 - **Single drum kit:** Only 10 tracks, no custom samples
 
-### Future Features (Post-v1.2)
+### Future Features (Post-v1.3)
 
 - [ ] Multi-user collaboration with WebSocket sync
 - [ ] Shareable beat URLs with public/private visibility
@@ -877,6 +1001,6 @@ Examples:
 
 ---
 
-**Release Date:** December 1, 2025 (v1.2) | Updated: January 14, 2026 (PR #14)  
-**Version:** 1.2
+**Release Date:** 2026-06-19 (GitHub #59 responsive chassis) | **Last Doc Sync:** 2026-08-28 (ETH-37)  
+**Version:** 1.3  
 **Status:** Production Ready ✅
