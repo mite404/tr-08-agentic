@@ -1,0 +1,10 @@
+{
+  "name": "TR-08",
+  "install": "bash .cursor/scripts/cloud-agent-install.sh",
+  "start": "grep -qF 'tr-08-cloud-agent-path' \"$HOME/.bashrc\" || echo 'export PATH=\"$HOME/.local/bin:$HOME/.bun/bin:$PATH\"' >> \"$HOME/.bashrc\"",
+  "egressAllowlist": [
+    "gitbutler.com",
+    "releases.gitbutler.com",
+    "bun.sh"
+  ]
+}

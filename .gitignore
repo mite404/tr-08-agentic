@@ -48,3 +48,7 @@ test-supabase.ts
 
 # Playwright cache, logs & screenshots
 .playwright-mcp
+
+# Verification skill runtime artifacts (state, logs, screenshots)
+# The skill files themselves (.agents/skills/verify-tr-08/) ARE committed
+/tmp/tr-08-verify-*
