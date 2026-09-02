@@ -3,6 +3,9 @@ set -euo pipefail
 
 # Idempotent Cloud Agent bootstrap for TR-08.
 # Installs repo-required toolchains (bun, GitButler but CLI) then refreshes dependencies.
+#
+# Do NOT set install to bare "bun install" in the dashboard — bun is not on the base
+# image. This script installs bun first, then runs bun install.
 
 export PATH="${HOME}/.local/bin:${HOME}/.bun/bin:${PATH}"
 
@@ -32,5 +35,6 @@ bun --version
 but --version
 
 echo "Installing project dependencies..."
-cd "$(git rev-parse --show-toplevel)"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "${ROOT}"
 bun install --frozen-lockfile
