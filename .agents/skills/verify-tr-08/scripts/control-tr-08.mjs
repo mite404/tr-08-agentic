@@ -2,13 +2,13 @@
 
 /**
  * control-tr-08.mjs
- *
+ * 
  * Control CLI for TR-08 drum machine web app.
  * Drives the app through playwright for verification and testing.
- *
+ * 
  * Usage:
  *   control-tr-08.mjs <command> [args]
- *
+ * 
  * Environment:
  *   VERIFY_PORT       - Port to use (default: 5174)
  *   VERIFY_STATE_DIR  - State directory (default: /tmp/tr-08-verify-<run-id>)
@@ -16,8 +16,8 @@
  *   VERIFY_BASE_URL   - Override base URL (default: http://localhost:${VERIFY_PORT})
  */
 
-import { spawn } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync, unlinkSync } from 'node:fs';
+import { spawn, execSync } from 'node:child_process';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -37,6 +37,7 @@ const STATE_FILE = join(STATE_DIR, 'state.json');
 const LOG_FILE = join(STATE_DIR, 'vite.log');
 const SCREENSHOT_DIR = join(STATE_DIR, 'screenshots');
 const ARTIFACTS_DIR = join(STATE_DIR, 'artifacts');
+const BROWSER_FILE = join(STATE_DIR, 'browser.json');
 
 // ============================================================================
 // Helpers
@@ -90,18 +91,82 @@ async function waitForPort(port, timeout = 30000) {
 
 async function getPlaywright() {
   try {
-    // Try importing playwright if available
     const { chromium } = await import('playwright');
     return { chromium };
   } catch {
     console.error('Playwright not found. Installing locally...');
-    const { execSync } = await import('node:child_process');
     execSync('npm install --no-save playwright @playwright/test', {
       cwd: ROOT,
       stdio: 'inherit',
     });
     const { chromium } = await import('playwright');
     return { chromium };
+  }
+}
+
+function readBrowserState() {
+  if (!existsSync(BROWSER_FILE)) {
+    return null;
+  }
+  return JSON.parse(readFileSync(BROWSER_FILE, 'utf-8'));
+}
+
+function writeBrowserState(state) {
+  ensureStateDir();
+  writeFileSync(BROWSER_FILE, JSON.stringify(state, null, 2));
+}
+
+async function getBrowserPage() {
+  const browserState = readBrowserState();
+
+  if (browserState && browserState.wsEndpoint) {
+    try {
+      const { chromium } = await getPlaywright();
+      const browser = await chromium.connect(browserState.wsEndpoint);
+      const contexts = browser.contexts();
+      if (contexts.length > 0) {
+        const pages = contexts[0].pages();
+        if (pages.length > 0) {
+          return { browser, page: pages[0], alreadyConnected: true };
+        }
+      }
+    } catch {
+      // Connection failed, will launch new browser
+    }
+  }
+
+  // Launch new browser
+  const { chromium } = await getPlaywright();
+  const browser = await chromium.launch({
+    headless: true,
+  });
+  const context = await browser.newContext({
+    viewport: { width: 1920, height: 1080 },
+  });
+  const page = await context.newPage();
+
+  // Save browser state
+  const wsEndpoint = typeof browser.wsEndpoint === 'function' ? browser.wsEndpoint() : browser.wsEndpoint;
+  writeBrowserState({
+    wsEndpoint,
+  });
+
+  return { browser, page, alreadyConnected: false };
+}
+
+async function closeBrowser() {
+  const browserState = readBrowserState();
+  if (browserState && browserState.wsEndpoint) {
+    try {
+      const { chromium } = await getPlaywright();
+      const browser = await chromium.connect(browserState.wsEndpoint);
+      await browser.close();
+    } catch {
+      // Already closed
+    }
+  }
+  if (existsSync(BROWSER_FILE)) {
+    unlinkSync(BROWSER_FILE);
   }
 }
 
@@ -139,7 +204,19 @@ async function launch() {
   console.log(`Launching TR-08 on port ${PORT}...`);
   ensureStateDir();
 
-  const vite = spawn('npm', ['run', 'dev', '--', '--port', PORT.toString(), '--host'], {
+  // Try bun first (repo requirement), fallback to npm
+  let command, args;
+  try {
+    execSync('which bun', { stdio: 'ignore' });
+    command = 'bun';
+    args = ['run', 'dev', '--', '--port', PORT.toString(), '--host'];
+  } catch {
+    console.log('bun not found, using npm fallback');
+    command = 'npm';
+    args = ['run', 'dev', '--', '--port', PORT.toString(), '--host'];
+  }
+
+  const vite = spawn(command, args, {
     cwd: ROOT,
     detached: false,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -207,17 +284,17 @@ async function doctor() {
     process.exit(1);
   }
 
-  // Check for expected content
+  // Check for expected content - must contain TR-08 specifically
   try {
     const response = await fetch(`${BASE_URL}/`);
     const html = await response.text();
 
-    // Look for app-specific content - the TR-08 title or sequencer elements
-    if (!html.includes('TR-08') && !html.includes('root')) {
+    // Assert string only this app serves
+    if (!html.includes('TR-08') && !html.includes('tr-08')) {
       console.error('✗ Page does not contain expected TR-08 content');
       process.exit(1);
     }
-    console.log('✓ Page contains expected content');
+    console.log('✓ Page contains TR-08 content');
   } catch (error) {
     console.error(`✗ Content check failed: ${error.message}`);
     process.exit(1);
@@ -228,6 +305,9 @@ async function doctor() {
 
 async function cleanup() {
   console.log('Cleaning up...');
+
+  // Close browser if running
+  await closeBrowser();
 
   const state = readState();
 
@@ -263,34 +343,29 @@ async function cleanup() {
 }
 
 async function screenshot(name = 'screenshot') {
-  const { chromium } = await getPlaywright();
-  const browser = await chromium.launch();
-  const page = await browser.newPage({
-    viewport: { width: 1920, height: 1080 },
-  });
+  const { browser, page, alreadyConnected } = await getBrowserPage();
 
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
-
-  // Wait for the sequencer to be visible
-  await page.waitForSelector('button[aria-label="Start / Stop"]', { timeout: 10000 });
+  if (!alreadyConnected) {
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForSelector('button[aria-label="Start / Stop"]', { timeout: 10000 });
+  }
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const filename = `${name}-${timestamp}.png`;
   const filepath = join(SCREENSHOT_DIR, filename);
 
   await page.screenshot({ path: filepath, fullPage: true });
-  await browser.close();
 
   console.log(`✓ Screenshot saved: ${filepath}`);
 }
 
 async function snapshot(name = 'snapshot') {
-  const { chromium } = await getPlaywright();
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
+  const { browser, page, alreadyConnected } = await getBrowserPage();
 
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
-  await page.waitForSelector('button[aria-label="Start / Stop"]', { timeout: 10000 });
+  if (!alreadyConnected) {
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForSelector('button[aria-label="Start / Stop"]', { timeout: 10000 });
+  }
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const filename = `${name}-${timestamp}.txt`;
@@ -325,102 +400,87 @@ async function snapshot(name = 'snapshot') {
   });
 
   writeFileSync(filepath, structure);
-  await browser.close();
 
   console.log(`✓ Snapshot saved: ${filepath}`);
 }
 
 async function waitSettle() {
-  const { chromium } = await getPlaywright();
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
+  const { browser, page, alreadyConnected } = await getBrowserPage();
 
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
-  await page.waitForSelector('button[aria-label="Start / Stop"]', { timeout: 10000 });
+  if (!alreadyConnected) {
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForSelector('button[aria-label="Start / Stop"]', { timeout: 10000 });
+  }
 
   // Wait for any loading states to clear
   await page.waitForTimeout(1000);
 
-  await browser.close();
   console.log('✓ Page settled');
 }
 
 async function play() {
-  const { chromium } = await getPlaywright();
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
+  const { browser, page, alreadyConnected } = await getBrowserPage();
 
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
-  const button = await page.waitForSelector('button[aria-label="Start / Stop"]', {
-    timeout: 10000,
-  });
+  if (!alreadyConnected) {
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  }
 
+  const button = await page.waitForSelector('button[aria-label="Start / Stop"]', { timeout: 10000 });
   await button.click();
   await page.waitForTimeout(500);
 
-  await browser.close();
   console.log('✓ Play clicked');
 }
 
 async function stop() {
-  const { chromium } = await getPlaywright();
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
+  const { browser, page, alreadyConnected } = await getBrowserPage();
 
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
-  const button = await page.waitForSelector('button[aria-label="Start / Stop"]', {
-    timeout: 10000,
-  });
+  if (!alreadyConnected) {
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  }
 
-  // If playing, click to stop
+  const button = await page.waitForSelector('button[aria-label="Start / Stop"]', { timeout: 10000 });
   await button.click();
   await page.waitForTimeout(500);
 
-  await browser.close();
   console.log('✓ Stop clicked');
 }
 
 async function bpmUp() {
-  const { chromium } = await getPlaywright();
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
+  const { browser, page, alreadyConnected } = await getBrowserPage();
 
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
-  const button = await page.waitForSelector('button[aria-label="Increase tempo"]', {
-    timeout: 10000,
-  });
+  if (!alreadyConnected) {
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  }
 
+  const button = await page.waitForSelector('button[aria-label="Increase tempo"]', { timeout: 10000 });
   await button.click();
   await page.waitForTimeout(200);
 
-  await browser.close();
   console.log('✓ BPM increased');
 }
 
 async function bpmDown() {
-  const { chromium } = await getPlaywright();
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
+  const { browser, page, alreadyConnected} = await getBrowserPage();
 
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
-  const button = await page.waitForSelector('button[aria-label="Decrease tempo"]', {
-    timeout: 10000,
-  });
+  if (!alreadyConnected) {
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+  }
 
+  const button = await page.waitForSelector('button[aria-label="Decrease tempo"]', { timeout: 10000 });
   await button.click();
   await page.waitForTimeout(200);
 
-  await browser.close();
   console.log('✓ BPM decreased');
 }
 
 async function tapPad(track, step) {
-  const { chromium } = await getPlaywright();
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
+  const { browser, page, alreadyConnected } = await getBrowserPage();
 
-  await page.goto(BASE_URL, { waitUntil: 'networkidle' });
-  await page.waitForSelector('button[aria-label="Start / Stop"]', { timeout: 10000 });
+  if (!alreadyConnected) {
+    await page.goto(BASE_URL, { waitUntil: 'networkidle' });
+    await page.waitForSelector('button[aria-label="Start / Stop"]', { timeout: 10000 });
+  }
 
   // Find the pad at (track, step)
   // The grid is organized as 10 rows (tracks) × 16 columns (steps)
@@ -429,7 +489,6 @@ async function tapPad(track, step) {
 
   if (trackIndex < 0 || trackIndex > 9 || stepIndex < 0 || stepIndex > 15) {
     console.error(`Invalid pad coordinates: track=${track}, step=${step}`);
-    await browser.close();
     process.exit(1);
   }
 
@@ -439,7 +498,6 @@ async function tapPad(track, step) {
   await page.click(`button:nth-of-type(${padIndex + 1})`);
   await page.waitForTimeout(200);
 
-  await browser.close();
   console.log(`✓ Tapped pad at track ${track}, step ${step}`);
 }
 

@@ -60,7 +60,7 @@ Save and load drum patterns to/from Supabase backend. Requires authentication.
 2. **Launch the app:**
 
    ```bash
-   cd /workspace/.agents/skills/verify-tr-08/scripts
+   cd .agents/skills/verify-tr-08/scripts
    export VERIFY_PORT=5174 VERIFY_RUN_ID=persistence-test
 
    ./control-tr-08.mjs launch

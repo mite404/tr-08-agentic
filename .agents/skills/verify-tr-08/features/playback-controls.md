@@ -27,7 +27,7 @@ The BPM range is 40-300 (enforced in the code).
 **Launch and verify playback controls:**
 
 ```bash
-cd /workspace/.agents/skills/verify-tr-08/scripts
+cd .agents/skills/verify-tr-08/scripts
 export VERIFY_PORT=5174 VERIFY_RUN_ID=playback-test
 
 ./control-tr-08.mjs launch

@@ -16,13 +16,13 @@ Verification skill for TR-08, a web-based drum machine / beat sequencer built wi
 Start the dev server on an isolated port:
 
 ```bash
-cd /workspace/.agents/skills/verify-tr-08/scripts
+cd .agents/skills/verify-tr-08/scripts
 VERIFY_PORT=5174 VERIFY_RUN_ID=test-run ./control-tr-08.mjs launch
 ```
 
 **What it does:**
 
-- Spawns `npm run dev -- --port 5174 --host`
+- Spawns `bun run dev -- --port 5174 --host` (fallback to npm if bun unavailable)
 - Refuses to double-launch (checks for running PID and busy port)
 - Waits for HTTP 200/304 response at `http://localhost:5174`
 - Records PID, port, start time, and log path in `$VERIFY_STATE_DIR/state.json`
@@ -44,7 +44,7 @@ Read-only health check. Run after launch to confirm the app is up and serving TR
 
 1. Process exists (PID from state is alive)
 2. Port responds (HTTP GET to `http://localhost:5174/` returns 200 or 304)
-3. Content assertion (response body contains `"TR-08"` or `"root"` — a string only this app serves)
+3. Content assertion (response body contains `"TR-08"` — a string only this app serves)
 
 **Exit status:** 0 if all checks pass, 1 otherwise.
 
@@ -58,15 +58,15 @@ The repo has a Husky pre-commit hook at `.husky/pre-commit`:
 
 ```bash
 npx lint-staged           # Format and lint staged files
-npm run lint              # oxlint on full codebase
-npm run test -- --run     # vitest (58 tests)
+bun run lint              # oxlint on full codebase
+bun run test -- --run     # vitest (58 tests)
 fallow audit --base HEAD --quiet --gate-marker pre-commit  # optional, skipped if not installed
 ```
 
 **To install the hook:**
 
 ```bash
-npm run prepare  # Installs husky hooks
+bun run prepare  # Installs husky hooks
 ```
 
 ### Manual Gate Commands (copy-pasteable)
@@ -75,13 +75,13 @@ Run from workspace root:
 
 ```bash
 # Type check (part of build)
-npm run build  # Runs tsc -b && vite build
+bun run build  # Runs tsc -b && vite build
 
 # Lint (oxlint is the active linter)
-npm run lint   # oxlint . (exits 0 with warnings, 1 on errors)
+bun run lint   # oxlint . (exits 0 with warnings, 1 on errors)
 
 # Tests
-npm run test -- --run  # vitest with 58 tests
+bun run test -- --run  # vitest with 58 tests
 
 # Format check (oxfmt, not in CI)
 npx oxfmt --check .  # Returns exit code 0 if formatted, 1 if needs formatting
@@ -205,7 +205,7 @@ Stop the server and clear runtime state. **Evidence survives at the artifacts pa
 **From the `.agents/` path** (works through symlinks):
 
 ```bash
-cd /workspace/.agents/skills/verify-tr-08/scripts
+cd .agents/skills/verify-tr-08/scripts
 ./control-tr-08.mjs launch
 ./control-tr-08.mjs doctor
 ./control-tr-08.mjs cleanup
@@ -307,3 +307,5 @@ export VITE_SUPABASE_ANON_KEY=<your-anon-key>
 - Browser interactions (must be real Playwright clicks)
 
 When documenting evidence, state clearly if Supabase is mocked or real.
+
+**Note:** This skill was proven with mock Supabase credentials (`.env.local` with fake values for UI-only testing). Auth features (Save, Load, Beat Library) require real Supabase and are documented as such in the feature map.

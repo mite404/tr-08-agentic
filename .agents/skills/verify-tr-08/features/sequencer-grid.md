@@ -28,7 +28,7 @@ When the app loads, track 8 (9th row from top) has all pads ON by default (visua
 **Launch and verify the grid exists:**
 
 ```bash
-cd /workspace/.agents/skills/verify-tr-08/scripts
+cd .agents/skills/verify-tr-08/scripts
 export VERIFY_PORT=5174 VERIFY_RUN_ID=grid-test
 
 ./control-tr-08.mjs launch

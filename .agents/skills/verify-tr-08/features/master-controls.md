@@ -29,7 +29,7 @@ These are rotary knobs styled to look like physical hardware controls.
 1. Launch the app:
 
    ```bash
-   cd /workspace/.agents/skills/verify-tr-08/scripts
+   cd .agents/skills/verify-tr-08/scripts
    export VERIFY_PORT=5174 VERIFY_RUN_ID=master-test
 
    ./control-tr-08.mjs launch
