@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(dirname "$(dirname "$(realpath "$0")")")"
+test "$PWD" = "$repo_root"
+bash -n .agents/setup
+! grep -Eq 'tee|\.cache/amp/logs/setup\.log' .agents/setup
+
+.agents/setup
+profiles_before="$(sha256sum "$HOME/.bash_profile" "$HOME/.bashrc")"
+.agents/setup
+test "$profiles_before" = "$(sha256sum "$HOME/.bash_profile" "$HOME/.bashrc")"
+for profile in "$HOME/.bash_profile" "$HOME/.bashrc"; do
+	test "$(grep -Fxc '# tr-08 mise toolchain' "$profile")" = 1
+done
+
+check='set -e; cd "$1"; [[ "$(node --version)" == v22.* ]];
+[[ "$(bun --version)" == 1.4.0 ]]; printf "Node %s, Bun %s\n" "$(node --version)" "$(bun --version)"'
+for shell_mode in -lc -ic -lic; do
+	printf '\nShell %s, starting inside repo: ' "$shell_mode"
+	env -i HOME="$HOME" PATH=/usr/local/bin:/usr/bin:/bin TERM=xterm \
+		/bin/bash "$shell_mode" "$check" bash "$repo_root"
+	printf 'Shell %s, entering repo later: ' "$shell_mode"
+	(cd /tmp && env -i HOME="$HOME" PATH=/usr/local/bin:/usr/bin:/bin TERM=xterm \
+		/bin/bash "$shell_mode" "$check" bash "$repo_root")
+done
+printf '\nPASS: setup is idempotent and all six shell entry paths use pinned toolchains.\n'

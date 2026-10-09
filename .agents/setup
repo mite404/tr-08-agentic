@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+step() {
+	local name="$1"
+	shift
+	local started=$SECONDS
+	printf '\n[%s] %s\n' "$(date -Is)" "$name"
+	"$@"
+	printf '[%s] %s completed in %ss\n' "$(date -Is)" "$name" "$((SECONDS - started))"
+}
+
+export PATH="$HOME/.local/bin:$PATH"
+if ! command -v mise >/dev/null 2>&1; then
+	step "Install mise" bash -o pipefail -c 'curl -fsSL https://mise.run | sh'
+fi
+
+step "Install pinned Node.js and Bun toolchains" mise install --yes
+eval "$(mise activate bash --shims)"
+
+step "Install locked JavaScript dependencies" bun install --frozen-lockfile
+
+profile_marker="# tr-08 mise toolchain"
+for profile in "$HOME/.bash_profile" "$HOME/.bashrc"; do
+	# Replace the earlier directory-gated hook as well as keeping repeated runs idempotent.
+	if [[ -f "$profile" ]]; then
+		sed -i "/^$profile_marker\$/,/^fi\$/d" "$profile"
+	fi
+	cat >> "$profile" <<'EOF'
+# tr-08 mise toolchain
+if [[ -x "$HOME/.local/bin/mise" ]]; then
+	eval "$("$HOME/.local/bin/mise" activate bash --shims)"
+fi
+EOF
+done
