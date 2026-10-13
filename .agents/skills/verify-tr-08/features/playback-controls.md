@@ -112,7 +112,7 @@ Evidence is preserved at `/tmp/tr-08-verify-playback-test/`.
 
 2. **Sample loading:** On first play, all audio samples are loaded asynchronously. The app shows a loading state while samples load. The control script's `wait-settle` command waits for this, but you may need to add extra delay if samples are slow to load.
 
-3. **BPM bounds:** The UI clamps BPM between 40 and 300. Clicking bpm-up at 300 or bpm-down at 40 does nothing.
+3. **BPM bounds:** The BPM type enforces 40-300 range at the data layer (Zod schema), but the UI increment/decrement handlers don't clamp. You can increment past 300 or decrement below 40 in the UI, though the values will fail validation when saving to Supabase.
 
 4. **Playhead wraps:** After step 15, the playhead wraps back to step 0 and the loop repeats indefinitely until stopped.
 

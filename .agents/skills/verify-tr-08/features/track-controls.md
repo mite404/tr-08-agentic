@@ -6,7 +6,7 @@ Per-track controls for muting, soloing, adjusting volume/pitch, and clearing pat
 
 1. **Mute:** Silence a track (visual feedback: button state changes)
 2. **Solo:** Play only soloed tracks (mutes all others)
-3. **Volume:** Per-track volume knob (-60 to +6 dB, default: -5 dB)
+3. **Volume:** Per-track volume knob (-45 to +5 dB, default: -5 dB)
 4. **Pitch:** Per-track pitch knob (-12 to +12 semitones, default: 0)
 5. **Clear:** Clear all steps and accents for a track (keeps other settings)
 
@@ -70,7 +70,7 @@ async function setVolume(trackIndex, dbValue) {
 
 3. **Solo interaction:** When any track is soloed, all other tracks are effectively muted. Soloing multiple tracks means only those soloed tracks play. This can be confusing to verify without audio capture.
 
-4. **Volume/pitch ranges:** Volume is -60 to +6 dB (66 dB range). Pitch is -12 to +12 semitones (24 semitone range). Knob rotation maps these ranges to a 0-1 normalized value internally.
+4. **Volume/pitch ranges:** Volume is -45 to +5 dB (50 dB range). Pitch is -12 to +12 semitones (24 semitone range). Knob rotation maps these ranges to a 0-1 normalized value internally.
 
 5. **Clear is destructive:** The clear button removes all steps and accents for that track. There is no undo (except reloading a saved beat).
 
