@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "bun run typecheck && vite build",
+    "typecheck": "node node_modules/@typescript/native/bin/tsc -b",
     "lint": "oxlint .",
     "preview": "vite preview",
     "test": "vitest",
@@ -41,6 +42,7 @@
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
+    "@typescript/native": "npm:typescript@7.0.2",
     "@vitejs/plugin-react": "^6.1.1",
     "audiomotion-analyzer": "^4.5.4",
     "baseline-browser-mapping": "^2.11.20",
