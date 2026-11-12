@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+# Fast wake check only; setup owns installs.
+if [[ -d node_modules ]]; then
+	echo "node_modules present"
+else
+	echo "WARNING: node_modules missing; run .agents/setup before working" >&2
+fi

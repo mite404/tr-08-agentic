@@ -52,3 +52,6 @@ test-supabase.ts
 # Verification skill runtime artifacts (state, logs, screenshots)
 # The skill files themselves (.agents/skills/verify-tr-08/) ARE committed
 /tmp/tr-08-verify-*
+
+# Amp orb portal links (generated per orb)
+.amp/portals/
